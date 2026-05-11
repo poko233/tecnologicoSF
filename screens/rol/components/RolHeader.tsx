@@ -1,44 +1,129 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "../../../components/ThemedText";
+import { useTheme } from "../../../theme/useTheme";
 
 type Props = {
   onCreate: () => void;
+  isMobile: boolean;
 };
 
-export default function RolHeader({ onCreate }: Props) {
+export default function RolHeader({ onCreate, isMobile }: Props) {
+  const { theme } = useTheme();
+  const colors: any = theme.colors;
+
   return (
-    <View className="mb-6">
-      <View className="flex-row items-center gap-2 mb-4">
-        <Ionicons name="home-outline" size={14} color="#991B1B" />
-        <ThemedText className="text-xs text-gray-500">Inicio</ThemedText>
-        <Ionicons name="chevron-forward" size={12} color="#9CA3AF" />
-        <ThemedText className="text-xs text-gray-500">Perfil Empresa</ThemedText>
-        <Ionicons name="chevron-forward" size={12} color="#9CA3AF" />
-        <ThemedText className="text-xs font-bold text-red-600">
+    <View style={styles.container}>
+      <View style={styles.breadcrumb}>
+        <Ionicons name="home-outline" size={14} color={colors.primary} />
+
+        <ThemedText style={[styles.breadcrumbText, { color: colors.text }]}>
+          Inicio
+        </ThemedText>
+
+        <Ionicons name="chevron-forward" size={12} color={colors.border} />
+
+        <ThemedText style={[styles.breadcrumbText, { color: colors.text }]}>
+          Perfil Empresa
+        </ThemedText>
+
+        <Ionicons name="chevron-forward" size={12} color={colors.border} />
+
+        <ThemedText style={[styles.breadcrumbActive, { color: colors.primary }]}>
           Roles y Módulos
         </ThemedText>
       </View>
 
-      <View className="flex-row items-start justify-between gap-4">
-        <View className="flex-1">
-          <ThemedText className="text-3xl font-black text-gray-950">
+      <View style={[styles.headerRow, isMobile && styles.headerRowMobile]}>
+        <View style={styles.titleBox}>
+          <ThemedText
+            style={[
+              styles.title,
+              isMobile && styles.titleMobile,
+              { color: colors.text },
+            ]}
+          >
             Gestión de Roles y Permisos
           </ThemedText>
 
-          <ThemedText className="mt-2 text-sm text-red-900/70">
+          <ThemedText style={[styles.subtitle, { color: colors.text }]}>
             Niveles de acceso para el personal institucional.
           </ThemedText>
         </View>
 
         <Pressable
           onPress={onCreate}
-          className="bg-red-600 px-5 py-3 rounded-xl flex-row items-center gap-2 shadow-sm active:opacity-80"
+          style={[styles.button, { backgroundColor: colors.primary }]}
         >
-          <Ionicons name="add-circle-outline" size={19} color="white" />
-          <ThemedText className="text-white font-black">Nuevo Rol</ThemedText>
+          <Ionicons
+            name="add-circle-outline"
+            size={18}
+            color={colors.primaryForeground}
+          />
+
+          <ThemedText
+            style={[styles.buttonText, { color: colors.primaryForeground }]}
+          >
+            Nuevo Rol
+          </ThemedText>
         </Pressable>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 24,
+  },
+  breadcrumb: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 18,
+  },
+  breadcrumbText: {
+    fontSize: 12,
+    opacity: 0.75,
+  },
+  breadcrumbActive: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  headerRowMobile: {
+    flexDirection: "column",
+  },
+  titleBox: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  titleMobile: {
+    fontSize: 23,
+  },
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    opacity: 0.75,
+  },
+  button: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  buttonText: {
+    fontWeight: "900",
+  },
+});

@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import {
+    ActivityIndicator,
+    Pressable,
+    StyleSheet,
+    View,
+} from "react-native";
 import { ThemedText } from "../../../components/ThemedText";
+import { useTheme } from "../../../theme/useTheme";
 import { Rol } from "../types/rol.types";
 import RolCard from "./RolCard";
 
@@ -21,11 +27,14 @@ export default function RolTable({
   onDelete,
   isMobile,
 }: Props) {
+  const { theme } = useTheme();
+  const colors: any = theme.colors;
+
   if (loading) {
     return (
-      <View className="py-16 items-center justify-center">
-        <ActivityIndicator size="large" color="#DC2626" />
-        <ThemedText className="mt-3 text-gray-500">
+      <View style={styles.loadingBox}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <ThemedText style={[styles.loadingText, { color: colors.text }]}>
           Cargando roles...
         </ThemedText>
       </View>
@@ -34,9 +43,9 @@ export default function RolTable({
 
   if (roles.length === 0) {
     return (
-      <View className="py-16 items-center justify-center">
-        <Ionicons name="shield-outline" size={42} color="#9CA3AF" />
-        <ThemedText className="mt-3 text-gray-500 font-bold">
+      <View style={styles.emptyBox}>
+        <Ionicons name="shield-outline" size={42} color={colors.text} />
+        <ThemedText style={[styles.emptyText, { color: colors.text }]}>
           No hay roles registrados
         </ThemedText>
       </View>
@@ -45,7 +54,7 @@ export default function RolTable({
 
   if (isMobile) {
     return (
-      <View className="p-4">
+      <View style={styles.mobileList}>
         {roles.map((item, index) => (
           <RolCard
             key={item.id}
@@ -61,87 +70,223 @@ export default function RolTable({
   }
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View className="min-w-[900px]">
-        <View className="flex-row bg-red-50 border-b border-red-100 py-4">
-          <View className="w-[80px] px-5">
-            <ThemedText className="text-[11px] font-black text-red-900 uppercase">
-              #
-            </ThemedText>
-          </View>
-
-          <View className="w-[220px] px-5">
-            <ThemedText className="text-[11px] font-black text-red-900 uppercase">
-              Rol
-            </ThemedText>
-          </View>
-
-          <View className="flex-1 px-5">
-            <ThemedText className="text-[11px] font-black text-red-900 uppercase">
-              Descripción
-            </ThemedText>
-          </View>
-
-          <View className="w-[150px] px-5 items-center">
-            <ThemedText className="text-[11px] font-black text-red-900 uppercase">
-              Acciones
-            </ThemedText>
-          </View>
+    <View style={styles.tableWrapper}>
+      <View
+        style={[
+          styles.tableHeader,
+          {
+            backgroundColor: colors.secondary,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        <View style={styles.colNumber}>
+          <ThemedText style={[styles.headerText, { color: colors.primary }]}>
+            #
+          </ThemedText>
         </View>
 
-        {roles.map((item, index) => {
-          const numero = String(index + 1).padStart(2, "0");
+        <View style={styles.colRol}>
+          <ThemedText style={[styles.headerText, { color: colors.primary }]}>
+            ROL
+          </ThemedText>
+        </View>
 
-          return (
-            <View
-              key={item.id}
-              className="flex-row items-center bg-white border-b border-red-100 py-5"
-            >
-              <View className="w-[80px] px-5">
-                <ThemedText className="text-sm font-bold text-gray-700">
-                  {numero}
-                </ThemedText>
-              </View>
+        <View style={styles.colDescription}>
+          <ThemedText style={[styles.headerText, { color: colors.primary }]}>
+            DESCRIPCIÓN
+          </ThemedText>
+        </View>
 
-              <View className="w-[220px] px-5">
-                <ThemedText className="text-sm font-black text-gray-950">
-                  {item.rol}
-                </ThemedText>
-              </View>
+        <View style={styles.colActions}>
+          <ThemedText style={[styles.headerText, { color: colors.primary }]}>
+            ACCIONES
+          </ThemedText>
+        </View>
+      </View>
 
-              <View className="flex-1 px-5">
-                <ThemedText
-                  className="text-sm text-gray-600"
-                  numberOfLines={1}
-                >
-                  {item.descripcion || "Sin descripción"}
-                </ThemedText>
-              </View>
+      {roles.map((item, index) => {
+        const numero = String(index + 1).padStart(2, "0");
 
-              <View className="w-[150px] px-5 flex-row justify-center gap-3">
+        return (
+          <View
+            key={item.id}
+            style={[
+              styles.tableRow,
+              {
+                backgroundColor: colors.background || colors.secondary,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.colNumber}>
+              <ThemedText style={[styles.numberText, { color: colors.text }]}>
+                {numero}
+              </ThemedText>
+            </View>
+
+            <View style={styles.colRol}>
+              <ThemedText style={[styles.rolText, { color: colors.text }]}>
+                {item.rol}
+              </ThemedText>
+            </View>
+
+            <View style={styles.colDescription}>
+              <ThemedText
+                style={[styles.descriptionText, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {item.descripcion || "Sin descripción"}
+              </ThemedText>
+            </View>
+
+            <View style={styles.colActions}>
+              <View style={styles.actionsRow}>
                 <Pressable
                   onPress={() => onEdit(item)}
-                  className="w-10 h-10 rounded-xl border border-red-200 items-center justify-center bg-white active:bg-red-50"
+                  style={[styles.iconButton, { borderColor: colors.border }]}
                 >
-                  <Ionicons name="pencil-outline" size={18} color="#DC2626" />
+                  <Ionicons
+                    name="pencil-outline"
+                    size={18}
+                    color={colors.primary}
+                  />
                 </Pressable>
 
                 <Pressable
                   onPress={() => onDelete(item)}
                   disabled={deletingId === item.id}
-                  className="w-10 h-10 rounded-xl border border-red-200 items-center justify-center bg-white active:bg-red-50 disabled:opacity-50"
+                  style={[
+                    styles.iconButton,
+                    { borderColor: colors.border },
+                    deletingId === item.id && styles.disabled,
+                  ]}
                 >
                   {deletingId === item.id ? (
-                    <ActivityIndicator size="small" color="#DC2626" />
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <Ionicons name="trash-outline" size={18} color="#E11D48" />
+                    <Ionicons
+                      name="trash-outline"
+                      size={18}
+                      color={colors.primary}
+                    />
                   )}
                 </Pressable>
               </View>
             </View>
-          );
-        })}
-      </View>
-    </ScrollView>
+          </View>
+        );
+      })}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingBox: {
+    paddingVertical: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    opacity: 0.75,
+  },
+  emptyBox: {
+    paddingVertical: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    marginTop: 12,
+    fontWeight: "800",
+    opacity: 0.75,
+  },
+  mobileList: {
+    padding: 16,
+  },
+
+  tableWrapper: {
+    width: "100%",
+  },
+
+  tableHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    minHeight: 54,
+    paddingHorizontal: 28,
+  },
+
+  tableRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    minHeight: 78,
+    paddingHorizontal: 28,
+  },
+
+  colNumber: {
+    width: 90,
+    justifyContent: "center",
+  },
+
+  colRol: {
+    width: 260,
+    justifyContent: "center",
+  },
+
+  colDescription: {
+    flex: 1,
+    minWidth: 300,
+    justifyContent: "center",
+    paddingRight: 24,
+  },
+
+  colActions: {
+    width: 170,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  headerText: {
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+
+  numberText: {
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  rolText: {
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  descriptionText: {
+    fontSize: 15,
+    opacity: 0.78,
+  },
+
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  disabled: {
+    opacity: 0.5,
+  },
+});

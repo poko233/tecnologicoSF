@@ -1,19 +1,10 @@
 // components/ThemedText.tsx
-import { Text, type TextProps } from "react-native";
+import React from "react";
+import { Text, TextProps } from "react-native";
 
-/**
- * Envoltorio global para todos los textos de la app.
- *
- * - Aplica el color de texto principal definido en tailwind.config.js (`foreground`).
- * - Hereda todas las props nativas de Text.
- * - Permite extender estilos mediante `className`.
- *
- * Para añadir una tipografía personalizada en el futuro, basta con agregar
- * `font-sans` (o la clase que corresponda) al `className` de este componente.
- */
-export function ThemedText({ className, children, ...props }: TextProps) {
+export function ThemedText({ children, style, ...props }: TextProps) {
   return (
-    <Text {...props} className={`text-foreground ${className ?? ""}`}>
+    <Text {...props} style={style}>
       {children}
     </Text>
   );

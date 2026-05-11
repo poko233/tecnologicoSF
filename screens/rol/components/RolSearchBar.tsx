@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { TextInput, View } from "react-native";
+import { StyleSheet, TextInput, View } from "react-native";
+import { useTheme } from "../../../theme/useTheme";
 
 type Props = {
   value: string;
@@ -7,19 +8,61 @@ type Props = {
 };
 
 export default function RolSearchBar({ value, onChangeText }: Props) {
+  const { theme } = useTheme();
+  const colors: any = theme.colors;
+
   return (
-    <View className="bg-gray-50 border-b border-red-100 px-5 py-4">
-      <View className="max-w-[520px] bg-white border border-red-200 rounded-lg px-3 py-2 flex-row items-center">
-        <Ionicons name="search-outline" size={18} color="#9CA3AF" />
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.secondary,
+          borderBottomColor: colors.border,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.inputBox,
+          {
+            backgroundColor: colors.background || colors.secondary,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Ionicons name="search-outline" size={18} color={colors.text} />
 
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder="Buscar por nombre o descripción..."
-          placeholderTextColor="#9CA3AF"
-          className="flex-1 ml-2 text-sm text-gray-900 outline-none"
+          placeholderTextColor={`${colors.text}99`}
+          style={[styles.input, { color: colors.text }]}
         />
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  inputBox: {
+    maxWidth: 520,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 14,
+    outlineStyle: "none" as any,
+  },
+});

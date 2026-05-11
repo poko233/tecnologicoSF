@@ -21,11 +21,15 @@ export function useRoles() {
     try {
       setLoading(true);
 
-      const response = await httpClient.getAuth<ApiResponse>("/api/roles");
+      const response = await httpClient.getAuth<ApiResponse>(
+        "/api/roles",
+        "Error al cargar roles"
+      );
 
       setRoles(response.roles ?? []);
     } catch (error) {
       console.error("Error cargando roles:", error);
+
       Toast.show({
         type: "error",
         text1: "Error",
@@ -40,7 +44,11 @@ export function useRoles() {
     try {
       setSaving(true);
 
-      await httpClient.post<ApiResponse>("/api/roles", payload);
+      await httpClient.postAuth<ApiResponse>(
+        "/api/roles",
+        payload,
+        "Error al crear rol"
+      );
 
       Toast.show({
         type: "success",
@@ -50,13 +58,15 @@ export function useRoles() {
 
       await fetchRoles();
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creando rol:", error);
+
       Toast.show({
         type: "error",
         text1: "Error",
-        text2: "No se pudo crear el rol",
+        text2: error?.message || "No se pudo crear el rol",
       });
+
       return false;
     } finally {
       setSaving(false);
@@ -67,7 +77,11 @@ export function useRoles() {
     try {
       setSaving(true);
 
-      await httpClient.putAuth<ApiResponse>(`/api/roles/${id}`, payload);
+      await httpClient.putAuth<ApiResponse>(
+        `/api/roles/${id}`,
+        payload,
+        "Error al actualizar rol"
+      );
 
       Toast.show({
         type: "success",
@@ -77,13 +91,15 @@ export function useRoles() {
 
       await fetchRoles();
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error actualizando rol:", error);
+
       Toast.show({
         type: "error",
         text1: "Error",
-        text2: "No se pudo actualizar el rol",
+        text2: error?.message || "No se pudo actualizar el rol",
       });
+
       return false;
     } finally {
       setSaving(false);
@@ -94,7 +110,10 @@ export function useRoles() {
     try {
       setDeletingId(id);
 
-      await httpClient.deleteAuth<ApiResponse>(`/api/roles/${id}`);
+      await httpClient.deleteAuth<ApiResponse>(
+        `/api/roles/${id}`,
+        "Error al eliminar rol"
+      );
 
       Toast.show({
         type: "success",
@@ -103,12 +122,13 @@ export function useRoles() {
       });
 
       await fetchRoles();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error eliminando rol:", error);
+
       Toast.show({
         type: "error",
         text1: "Error",
-        text2: "No se pudo eliminar el rol",
+        text2: error?.message || "No se pudo eliminar el rol",
       });
     } finally {
       setDeletingId(null);

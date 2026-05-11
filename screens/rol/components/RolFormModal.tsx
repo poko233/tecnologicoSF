@@ -4,11 +4,13 @@ import {
     ActivityIndicator,
     Modal,
     Pressable,
+    StyleSheet,
     TextInput,
     View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { ThemedText } from "../../../components/ThemedText";
+import { useTheme } from "../../../theme/useTheme";
 import { Rol, RolPayload } from "../types/rol.types";
 
 type Props = {
@@ -26,6 +28,9 @@ export default function RolFormModal({
   onClose,
   onSave,
 }: Props) {
+  const { theme } = useTheme();
+  const colors: any = theme.colors;
+
   const [nombreRol, setNombreRol] = useState("");
   const [descripcion, setDescripcion] = useState("");
 
@@ -58,14 +63,22 @@ export default function RolFormModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View className="flex-1 bg-black/40 items-center justify-center px-4">
-        <View className="bg-white w-full max-w-[520px] rounded-3xl overflow-hidden">
-          <View className="px-6 py-5 border-b border-red-100 flex-row items-center justify-between">
+      <View style={styles.overlay}>
+        <View
+          style={[
+            styles.modal,
+            {
+              backgroundColor: colors.background || colors.secondary,
+            },
+          ]}
+        >
+          <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <View>
-              <ThemedText className="text-xl font-black text-gray-950">
+              <ThemedText style={[styles.title, { color: colors.text }]}>
                 {isEditing ? "Editar Rol" : "Nuevo Rol"}
               </ThemedText>
-              <ThemedText className="text-sm text-gray-500 mt-1">
+
+              <ThemedText style={[styles.subtitle, { color: colors.text }]}>
                 Completa los datos del rol.
               </ThemedText>
             </View>
@@ -73,14 +86,14 @@ export default function RolFormModal({
             <Pressable
               onPress={onClose}
               disabled={saving}
-              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+              style={[styles.closeButton, { backgroundColor: colors.secondary }]}
             >
-              <Ionicons name="close" size={22} color="#111827" />
+              <Ionicons name="close" size={22} color={colors.text} />
             </Pressable>
           </View>
 
-          <View className="px-6 py-5">
-            <ThemedText className="text-sm font-bold text-gray-700 mb-2">
+          <View style={styles.body}>
+            <ThemedText style={[styles.label, { color: colors.text }]}>
               Nombre del rol
             </ThemedText>
 
@@ -88,11 +101,18 @@ export default function RolFormModal({
               value={nombreRol}
               onChangeText={setNombreRol}
               placeholder="Ej: Administrador"
-              placeholderTextColor="#9CA3AF"
-              className="border border-red-200 rounded-xl px-4 py-3 text-gray-900 mb-4 outline-none"
+              placeholderTextColor={`${colors.text}99`}
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.secondary,
+                },
+              ]}
             />
 
-            <ThemedText className="text-sm font-bold text-gray-700 mb-2">
+            <ThemedText style={[styles.label, { color: colors.text }]}>
               Descripción
             </ThemedText>
 
@@ -100,21 +120,36 @@ export default function RolFormModal({
               value={descripcion}
               onChangeText={setDescripcion}
               placeholder="Ej: Acceso completo al sistema"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={`${colors.text}99`}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              className="border border-red-200 rounded-xl px-4 py-3 text-gray-900 min-h-[110px] outline-none"
+              style={[
+                styles.input,
+                styles.textArea,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.secondary,
+                },
+              ]}
             />
           </View>
 
-          <View className="px-6 py-5 border-t border-red-100 flex-row justify-end gap-3">
+          <View style={[styles.footer, { borderTopColor: colors.border }]}>
             <Pressable
               onPress={onClose}
               disabled={saving}
-              className="px-5 py-3 rounded-xl border border-gray-200 bg-white disabled:opacity-50"
+              style={[
+                styles.cancelButton,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.background || colors.secondary,
+                },
+                saving && styles.disabled,
+              ]}
             >
-              <ThemedText className="font-bold text-gray-700">
+              <ThemedText style={[styles.cancelText, { color: colors.text }]}>
                 Cancelar
               </ThemedText>
             </Pressable>
@@ -122,11 +157,22 @@ export default function RolFormModal({
             <Pressable
               onPress={handleSave}
               disabled={saving}
-              className="px-5 py-3 rounded-xl bg-red-600 flex-row items-center gap-2 disabled:opacity-50"
+              style={[
+                styles.saveButton,
+                { backgroundColor: colors.primary },
+                saving && styles.disabled,
+              ]}
             >
-              {saving && <ActivityIndicator size="small" color="white" />}
+              {saving && (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primaryForeground}
+                />
+              )}
 
-              <ThemedText className="font-black text-white">
+              <ThemedText
+                style={[styles.saveText, { color: colors.primaryForeground }]}
+              >
                 {isEditing ? "Guardar cambios" : "Crear rol"}
               </ThemedText>
             </Pressable>
@@ -136,3 +182,96 @@ export default function RolFormModal({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.48)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  modal: {
+    width: "100%",
+    maxWidth: 520,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  subtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  body: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    marginBottom: 16,
+    outlineStyle: "none" as any,
+  },
+  textArea: {
+    minHeight: 110,
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  cancelButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  cancelText: {
+    fontWeight: "800",
+  },
+  saveButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  saveText: {
+    fontWeight: "900",
+  },
+  disabled: {
+    opacity: 0.55,
+  },
+});
