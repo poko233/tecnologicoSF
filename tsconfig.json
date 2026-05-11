@@ -4,7 +4,10 @@
     "strict": true,
     "types": ["node"],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@theme": ["./theme/useTheme"],
+      "@http": ["./http/httpClient"],
+      "@components/*": ["./components/*"]
     }
   },
   "include": [
