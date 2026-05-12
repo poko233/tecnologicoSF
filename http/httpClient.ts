@@ -3,7 +3,7 @@ import Toast from "react-native-toast-message";
 import { getToken } from "../storage/secureStorage";
 
 export const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://192.168.100.115:8000";
+  process.env.EXPO_PUBLIC_API_URL || "http://10.16.51.214:8000";
 
 async function parseErrorMessage(
   res: Response,
@@ -31,7 +31,7 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "Accept": "application/json",  
+    Accept: "application/json",
   };
 
   if (authenticated) {
@@ -46,7 +46,7 @@ async function request<T>(
       headers: { ...headers, ...options.headers },
     });
   } catch (networkError: any) {
-        if (networkError?.name === "AbortError") throw networkError;
+    if (networkError?.name === "AbortError") throw networkError;
 
     Toast.show({
       type: "error",
@@ -78,8 +78,11 @@ export const httpClient = {
       fallback,
     ),
 
-  getAuth: <T>(path: string, fallback = "Error al cargar datos", signal?: AbortSignal) =>
-    request<T>(path, { method: "GET", signal }, true, fallback),
+  getAuth: <T>(
+    path: string,
+    fallback = "Error al cargar datos",
+    signal?: AbortSignal,
+  ) => request<T>(path, { method: "GET", signal }, true, fallback),
 
   postAuth: <T>(
     path: string,

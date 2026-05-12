@@ -47,7 +47,7 @@ export const darkTheme: AppTheme = {
     gradient: ["#1F2937", "#111827"],
   },
 };
-/*
+
 export const roseTheme: AppTheme = {
   name: "rose",
   dark: false,
@@ -71,7 +71,7 @@ export const roseTheme: AppTheme = {
     gradient: ["#FFF1F2", "#FECDD3"],
   },
 };
-
+/*
 export const oceanTheme: AppTheme = {
   name: "ocean",
   dark: false,
@@ -99,6 +99,6 @@ export const oceanTheme: AppTheme = {
 export const themes: Record<string, AppTheme> = {
   light: lightTheme,
   dark: darkTheme,
-  //  rose: roseTheme,
+  rose: roseTheme,
   //  ocean: oceanTheme,
 };
