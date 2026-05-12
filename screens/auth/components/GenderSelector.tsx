@@ -50,8 +50,8 @@ export const GenderSelector = ({
       >
         Género
       </Text>
-      <Animated.View style={animatedContainer} className="flex-row gap-3">
-        {options.map((opt) => {
+      <Animated.View style={[animatedContainer, { flexDirection: "row" }]}>
+        {options.map((opt, index) => {
           const isSelected = value === opt.value;
           return (
             <TouchableOpacity
@@ -62,7 +62,7 @@ export const GenderSelector = ({
                 isSelected
                   ? "bg-primary border-primary"
                   : "bg-background-secondary border-border"
-              }`}
+              } ${index === 0 ? "mr-3" : ""}`} // espacio entre los dos botones
               style={{
                 backgroundColor: isSelected
                   ? theme.colors.primary

@@ -1,8 +1,11 @@
-// screens/auth/hooks/useRegisterForm.ts
+import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
+import Toast from "react-native-toast-message";
 import { useAuth } from "../../../contexts/AuthContext";
 import { registerUser } from "../services/auth.service";
 import type { RegisterRequest, ValidationErrors } from "../types/auth.types";
+
+const HOME_ROUTE = "/"; // cambia esto si tu home real es otra ruta
 
 const MAX_40 = 40;
 const MAX_10 = 10;
@@ -32,18 +35,19 @@ const validateField = (name: keyof RegisterRequest, value: string): string => {
       return "";
     case "genero":
       if (!value) return "Selecciona un género";
-      if (value !== "MASCULINO" && value !== "FEMENINO")
+      if (value !== "MASCULINO" && value !== "FEMENINO") {
         return "Valor inválido";
+      }
       return "";
     case "fecha_nac":
       if (!value) return "Obligatorio";
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Formato YYYY-MM-DD";
       return "";
     case "email":
-      // campo opcional: si tiene contenido, validar; vacío es válido
       if (value && value.length > 80) return "Máx 80 caracteres";
-      if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+      if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         return "Email inválido";
+      }
       return "";
     case "telefono":
     case "celular":
@@ -102,25 +106,36 @@ export function useRegisterForm() {
       const error = validateField(key, form[key]);
       if (error) newErrors[key] = error;
     });
+
     setErrors(newErrors);
-    // Marcar todos como tocados
-    setTouched((prev) => {
-      const allTouched: typeof touched = {};
-      (Object.keys(form) as (keyof RegisterRequest)[]).forEach((key) => {
-        allTouched[key] = true;
-      });
-      return { ...prev, ...allTouched };
+
+    const allTouched: Partial<Record<keyof RegisterRequest, boolean>> = {};
+    (Object.keys(form) as (keyof RegisterRequest)[]).forEach((key) => {
+      allTouched[key] = true;
     });
+    setTouched((prev) => ({ ...prev, ...allTouched }));
+
     return Object.keys(newErrors).length === 0;
   }, [form]);
 
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
+
     setSubmitting(true);
     setServerError(null);
+
     try {
       const response = await registerUser(form);
       await login(response.token);
+
+      Toast.show({
+        type: "success",
+        text1: "Registro exitoso",
+        text2: "Tu cuenta fue creada e ingresaste automáticamente.",
+        visibilityTime: 2500,
+      });
+
+      router.replace(HOME_ROUTE);
     } catch (err: any) {
       const message = err?.message || "Error inesperado";
       setServerError(message);
@@ -130,7 +145,7 @@ export function useRegisterForm() {
   }, [form, validateForm, login]);
 
   const canSubmit = useMemo(() => {
-    return (
+    return Boolean(
       Object.values(errors).every((e) => !e) &&
       form.usuario.trim() &&
       form.password &&
@@ -138,7 +153,7 @@ export function useRegisterForm() {
       form.nombres.trim() &&
       form.apellidos.trim() &&
       form.genero &&
-      form.fecha_nac
+      form.fecha_nac,
     );
   }, [errors, form]);
 

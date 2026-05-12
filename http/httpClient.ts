@@ -1,9 +1,8 @@
-// http/httpClient.ts
 import Toast from "react-native-toast-message";
 import { getToken } from "../storage/secureStorage";
 
 export const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://10.16.51.214:8000";
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.100.77:8000";
 
 async function parseErrorMessage(
   res: Response,
@@ -66,7 +65,13 @@ async function request<T>(
   }
 
   const text = await res.text();
-  return text ? JSON.parse(text) : ({} as T);
+  if (!text) return {} as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
 }
 
 export const httpClient = {
@@ -107,6 +112,7 @@ export const httpClient = {
       true,
       fallback,
     ),
+
   deleteAuth: <T>(path: string, fallback = "Error al eliminar datos") =>
     request<T>(path, { method: "DELETE" }, true, fallback),
 };

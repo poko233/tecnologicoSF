@@ -31,9 +31,17 @@ export default function LoginScreen() {
     >
       <View
         style={{ backgroundColor: theme.colors.background }}
-        className="flex-1 justify-center px-6 py-10"
+        className="flex-1 justify-center items-center px-6 py-10"
       >
-        <View className="max-w-[420px] w-full mx-auto">
+        {/* Tarjeta flotante */}
+        <View
+          className="w-full max-w-md bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700"
+          style={{
+            backgroundColor: theme.dark
+              ? "rgba(31,41,55,0.9)"
+              : "rgba(255,255,255,0.9)",
+          }}
+        >
           <Animated.View entering={FadeInDown.duration(400).springify()}>
             <Text
               style={{ color: theme.colors.text }}
@@ -101,10 +109,14 @@ export default function LoginScreen() {
 
           <Animated.View
             entering={FadeInUp.delay(400).duration(400).springify()}
-            className="flex-row justify-center mt-6"
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              marginTop: 24,
+            }}
           >
             <Text style={{ color: theme.colors.muted }}>
-              ¿No tienes cuenta?{" "}
+              ¿No tienes cuenta?{"   "}
             </Text>
             <Text
               style={{ color: theme.colors.primary }}

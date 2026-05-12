@@ -1,3 +1,4 @@
+/* eslint-disable react/display-name */
 // screens/auth/components/AuthInput.tsx
 import { Eye, EyeOff } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -41,13 +42,17 @@ export const AuthInput = React.memo(
     const [isFocused, setIsFocused] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    const labelTop = useSharedValue(value ? 1 : 0);
-    const borderColorProgress = useSharedValue(0); // 0: default, 1: focused, 2: error
+    const labelFloated = useSharedValue(value ? 1 : 0);
+    const borderColorProgress = useSharedValue(0);
     const translateX = useSharedValue(0);
 
     useEffect(() => {
-      labelTop.value = withTiming(value ? 1 : 0, { duration: 150 });
-    }, [value, labelTop]);
+      if (value) {
+        labelFloated.value = withTiming(1, { duration: 150 });
+      } else if (!isFocused) {
+        labelFloated.value = withTiming(0, { duration: 150 });
+      }
+    }, [value, isFocused, labelFloated]);
 
     useEffect(() => {
       if (error) {
@@ -62,18 +67,22 @@ export const AuthInput = React.memo(
 
     const handleFocus = useCallback(() => {
       setIsFocused(true);
-      if (!value) labelTop.value = withTiming(1, { duration: 150 });
-    }, [value, labelTop]);
+      labelFloated.value = withTiming(1, { duration: 150 });
+    }, [labelFloated]);
 
     const handleBlur = useCallback(() => {
       setIsFocused(false);
-      if (!value) labelTop.value = withTiming(0, { duration: 150 });
+      if (!value) {
+        labelFloated.value = withTiming(0, { duration: 150 });
+      }
       onBlur?.();
-    }, [value, labelTop, onBlur]);
+    }, [value, labelFloated, onBlur]);
 
     const labelStyle = useAnimatedStyle(() => ({
-      top: labelTop.value * -18,
-      fontSize: withTiming(labelTop.value ? 12 : 16, { duration: 150 }),
+      top: withTiming(labelFloated.value > 0.5 ? -20 : 20, { duration: 200 }),
+      fontSize: withTiming(labelFloated.value > 0.5 ? 12 : 16, {
+        duration: 150,
+      }),
       color: withTiming(
         isFocused
           ? theme.colors.primary
@@ -82,7 +91,6 @@ export const AuthInput = React.memo(
             : theme.colors.muted,
         { duration: 200 },
       ),
-      backgroundColor: theme.colors.backgroundSecondary,
     }));
 
     const borderStyle = useAnimatedStyle(() => {
@@ -105,58 +113,94 @@ export const AuthInput = React.memo(
     const effectiveSecure = secureTextEntry && !showPassword;
 
     return (
-      <View className="mb-4 w-full">
-        <Animated.View
-          style={[borderStyle]}
-          className="border rounded-xl bg-background-secondary px-4 pb-2 pt-4 relative"
-        >
+      <View style={{ marginBottom: 16, width: "100%" }}>
+        {/* Contenedor relativo para posicionar el label fuera del borde */}
+        <View style={{ position: "relative", marginTop: 12 }}>
+          {/* Label flotante, ahora está por encima del contenedor bordeado */}
           <Animated.Text
             style={[
               labelStyle,
               {
                 position: "absolute",
                 left: 16,
-                paddingHorizontal: 4,
                 zIndex: 10,
                 fontWeight: "500",
+                paddingHorizontal: 4,
               },
             ]}
+            pointerEvents="none"
           >
             {label}
           </Animated.Text>
-          <View className="flex-row items-center mt-2">
-            <TextInput
-              className="flex-1 text-base py-1.5"
-              style={{ color: theme.colors.text }}
-              value={value}
-              onChangeText={onChangeText}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              secureTextEntry={effectiveSecure}
-              placeholder={placeholder}
-              placeholderTextColor={theme.colors.muted}
-              keyboardType={keyboardType}
-              autoCapitalize={autoCapitalize}
-              maxLength={maxLength}
-            />
-            {secureTextEntry && (
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                className="pl-2"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color={theme.colors.muted} />
-                ) : (
-                  <Eye size={20} color={theme.colors.muted} />
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
+
+          {/* Borde solo alrededor del input y el ícono */}
+          <Animated.View
+            style={[
+              borderStyle,
+              {
+                borderWidth: 1.5,
+                borderRadius: 12,
+                //backgroundColor: theme.colors.backgroundSecondary,
+              },
+            ]}
+          >
+            <View
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <TextInput
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  paddingVertical: 4,
+                  color: theme.colors.text,
+                  outline: "none", // elimina borde en web
+                  borderWidth: 0, // elimina borde en native
+                  backgroundColor: "transparent",
+                }}
+                value={value}
+                onChangeText={onChangeText}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                secureTextEntry={effectiveSecure}
+                placeholder={isFocused ? placeholder : undefined}
+                placeholderTextColor={theme.colors.muted}
+                keyboardType={keyboardType}
+                autoCapitalize={autoCapitalize}
+                maxLength={maxLength}
+              />
+              {secureTextEntry && (
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{ paddingLeft: 12 }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color={theme.colors.muted} />
+                  ) : (
+                    <Eye size={20} color={theme.colors.muted} />
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Error spaciado */}
         <Animated.Text
-          style={[errorAnimatedStyle, { color: theme.colors.destructive }]}
-          className="text-xs mt-1 ml-2"
+          style={[
+            errorAnimatedStyle,
+            {
+              color: theme.colors.destructive,
+              fontSize: 12,
+              marginTop: 6,
+              marginLeft: 12,
+            },
+          ]}
         >
           {error || " "}
         </Animated.Text>

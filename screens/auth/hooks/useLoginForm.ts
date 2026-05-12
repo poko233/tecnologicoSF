@@ -1,8 +1,11 @@
-// screens/auth/hooks/useLoginForm.ts
+import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
+import Toast from "react-native-toast-message";
 import { useAuth } from "../../../contexts/AuthContext";
 import { loginUser } from "../services/auth.service";
 import type { LoginRequest, ValidationErrors } from "../types/auth.types";
+
+const HOME_ROUTE = "/"; // cambia esto si tu home real es otra ruta
 
 const validateField = (name: keyof LoginRequest, value: string): string => {
   switch (name) {
@@ -56,6 +59,7 @@ export function useLoginForm() {
       const error = validateField(key, form[key]);
       if (error) newErrors[key] = error;
     });
+
     setErrors(newErrors);
     setTouched({ usuario: true, password: true });
     return Object.keys(newErrors).length === 0;
@@ -63,11 +67,22 @@ export function useLoginForm() {
 
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
+
     setSubmitting(true);
     setServerError(null);
+
     try {
       const response = await loginUser(form);
-      await login(response.token); // guarda token, obtiene perfil y actualiza AuthContext
+      await login(response.token);
+
+      Toast.show({
+        type: "success",
+        text1: "Inicio de sesión exitoso",
+        text2: "Bienvenido de nuevo.",
+        visibilityTime: 2500,
+      });
+
+      router.replace(HOME_ROUTE);
     } catch (err: any) {
       const message = err?.message || "Error inesperado";
       setServerError(message);
@@ -77,10 +92,10 @@ export function useLoginForm() {
   }, [form, validateForm, login]);
 
   const canSubmit = useMemo(() => {
-    return (
+    return Boolean(
       Object.values(errors).every((e) => !e) &&
       form.usuario.trim() &&
-      form.password
+      form.password,
     );
   }, [errors, form]);
 
