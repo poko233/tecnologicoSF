@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useState } from "react";
+import React, { createContext, useCallback, useMemo } from "react";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useThemeStore } from "../store/themeStore";
 import { themes } from "../theme/themes";
 import { AppTheme, ThemeName } from "../theme/types";
 
@@ -18,19 +19,23 @@ export const ThemeContext = createContext<ThemeContextType>({
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [themeName, setThemeName] = useState<ThemeName>("light");
+  const themeName = useThemeStore((s) => s.themeName);
+  const setThemeName = useThemeStore((s) => s.setThemeName);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
-  const theme = themes[themeName];
+  const theme = useMemo(() => themes[themeName], [themeName]);
 
-  const setTheme = useCallback((name: ThemeName) => {
-    setThemeName(name);
-  }, []);
+  const setTheme = useCallback(
+    (name: ThemeName) => {
+      setThemeName(name);
+    },
+    [setThemeName],
+  );
 
-  const toggleTheme = useCallback(() => {
-    setThemeName((prev) => (prev === "light" ? "dark" : "light"));
-  }, []);
-
-  const value = { theme, setTheme, toggleTheme };
+  const value = useMemo(
+    () => ({ theme, setTheme, toggleTheme }),
+    [theme, setTheme, toggleTheme],
+  );
 
   return (
     <ThemeContext.Provider value={value}>

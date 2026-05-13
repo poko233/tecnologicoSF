@@ -1,6 +1,7 @@
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -24,25 +25,30 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (token: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (data: { telefono?: string }) => Promise<void>;
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
 }
-(data: { nombre?: string; telefono?: string }) => Promise<void>;
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const updateProfile = async (data: {
-    nombre?: string;
-    telefono?: string;
-  }) => {
-    const res = await httpClient.putAuth<{ telefono: string }>(
-      "/api/user/profile",
-      data,
-    );
-    setUser((prev) => (prev ? { ...prev, telefono: res.telefono } : prev));
-  };
   const [user, setUser] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasRole = useCallback(
+    (role: string) => {
+      if (!user) return false;
+      return user.rol === role;
+    },
+    [user],
+  );
+
+  const hasAnyRole = useCallback(
+    (roles: string[]) => {
+      if (!user) return false;
+      return roles.includes(user.rol);
+    },
+    [user],
+  );
 
   // Intenta cargar el perfil desde el servidor si existe sesión previa
   useEffect(() => {
@@ -83,7 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: user?.rol === "Administrador",
         login,
         logout,
-        updateProfile,
+        hasRole,
+        hasAnyRole,
       }}
     >
       {children}

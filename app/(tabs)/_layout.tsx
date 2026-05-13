@@ -1,4 +1,5 @@
 // app/(tabs)/_layout.tsx
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Tabs } from "expo-router/tabs";
 import { Home, Search, Settings, User } from "lucide-react-native";
 import { View } from "react-native";
@@ -39,49 +40,56 @@ export default function TabsLayout() {
 
   if (isDesktop) {
     return (
-      <View
-        style={{
-          flex: 1,
-          flexDirection: "row",
-          backgroundColor: theme.colors.background,
-        }}
-      >
-        <Sidebar />
+      <ProtectedRoute>
         <View
-          style={{ flex: 1, backgroundColor: theme.colors.backgroundSecondary }}
+          style={{
+            flex: 1,
+            flexDirection: "row",
+            backgroundColor: theme.colors.background,
+          }}
         >
-          <Tabs
-            tabBar={() => null} // sin barra inferior
-            screenOptions={{ headerShown: false }}
+          <Sidebar />
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: theme.colors.backgroundSecondary,
+            }}
           >
-            {tabs.map((tab) => (
-              <Tabs.Screen
-                key={tab.name}
-                name={tab.name}
-                options={{ title: tab.title }}
-              />
-            ))}
-          </Tabs>
+            <Tabs
+              tabBar={() => null} // sin barra inferior
+              screenOptions={{ headerShown: false }}
+            >
+              {tabs.map((tab) => (
+                <Tabs.Screen
+                  key={tab.name}
+                  name={tab.name}
+                  options={{ title: tab.title }}
+                />
+              ))}
+            </Tabs>
+          </View>
         </View>
-      </View>
+      </ProtectedRoute>
     );
   }
 
   // Mobile: tabs inferiores normales
   return (
-    <Tabs screenOptions={screenOptions}>
-      {tabs.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.title,
-            tabBarIcon: ({ color, size }) => (
-              <tab.icon color={color} size={size} />
-            ),
-          }}
-        />
-      ))}
-    </Tabs>
+    <ProtectedRoute>
+      <Tabs screenOptions={screenOptions}>
+        {tabs.map((tab) => (
+          <Tabs.Screen
+            key={tab.name}
+            name={tab.name}
+            options={{
+              title: tab.title,
+              tabBarIcon: ({ color, size }) => (
+                <tab.icon color={color} size={size} />
+              ),
+            }}
+          />
+        ))}
+      </Tabs>
+    </ProtectedRoute>
   );
 }
