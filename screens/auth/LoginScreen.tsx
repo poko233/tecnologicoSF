@@ -1,7 +1,7 @@
 // screens/auth/LoginScreen.tsx
 import { router } from "expo-router";
 import React from "react";
-import { Platform, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useTheme } from "../../theme/useTheme";
@@ -11,6 +11,7 @@ import { useLoginForm } from "./hooks/useLoginForm";
 
 export default function LoginScreen() {
   const { theme } = useTheme();
+
   const {
     form,
     errors,
@@ -33,9 +34,8 @@ export default function LoginScreen() {
         style={{ backgroundColor: theme.colors.background }}
         className="flex-1 justify-center items-center px-6 py-10"
       >
-        {/* Tarjeta flotante */}
         <View
-          className="w-full max-w-md bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700"
+          className="w-full max-w-md rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700"
           style={{
             backgroundColor: theme.dark
               ? "rgba(31,41,55,0.9)"
@@ -49,6 +49,7 @@ export default function LoginScreen() {
             >
               Iniciar sesión
             </Text>
+
             <Text
               style={{ color: theme.colors.muted }}
               className="text-sm mb-8"
@@ -85,6 +86,24 @@ export default function LoginScreen() {
             />
           </Animated.View>
 
+          <Animated.View
+            entering={FadeInUp.delay(250).duration(400).springify()}
+            style={{
+              alignItems: "flex-end",
+              marginTop: -4,
+              marginBottom: 16,
+            }}
+          >
+            <Pressable onPress={() => router.push("/forgot-password")}>
+              <Text
+                style={{ color: theme.colors.primary }}
+                className="text-sm font-bold"
+              >
+                ¿Olvidaste tu contraseña?
+              </Text>
+            </Pressable>
+          </Animated.View>
+
           {serverError && (
             <Animated.View entering={FadeInUp.duration(200)}>
               <Text
@@ -118,6 +137,7 @@ export default function LoginScreen() {
             <Text style={{ color: theme.colors.muted }}>
               ¿No tienes cuenta?{"   "}
             </Text>
+
             <Text
               style={{ color: theme.colors.primary }}
               className="font-bold"
