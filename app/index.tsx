@@ -1,19 +1,17 @@
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { Sidebar } from "../components/Sidebar/Sidebar";
-import { useResponsive } from "../hooks/useResponsive";
 import { ThemeSelector } from "../components/ThemeSelector";
 import { useTheme } from "../theme/useTheme";
 
 export default function IndexScreen() {
-  const { isDesktop } = useResponsive();
   const { theme } = useTheme();
 
-  const homeContent = (
+  const content = (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}> 
       <StatusBar style={theme.dark ? "light" : "dark"} />
       <SafeAreaView style={styles.safe}>
@@ -43,7 +41,7 @@ export default function IndexScreen() {
     </View>
   );
 
-  if (isDesktop) {
+  if (Platform.OS === "web") {
     return (
       <ProtectedRoute>
         <View
@@ -60,7 +58,7 @@ export default function IndexScreen() {
               backgroundColor: theme.colors.backgroundSecondary,
             }}
           >
-            {homeContent}
+            {content}
           </View>
         </View>
       </ProtectedRoute>
@@ -69,7 +67,7 @@ export default function IndexScreen() {
 
   return (
     <ProtectedRoute>
-      {homeContent}
+      {content}
     </ProtectedRoute>
   );
 }
