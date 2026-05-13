@@ -1,11 +1,13 @@
-import { Home } from "lucide-react-native";
+import { Settings } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../theme/useTheme";
 import { SidebarItem } from "./SidebarItem";
 
 // "as const" hace que TypeScript infiera los literales exactos ('/', '/explore', etc.)
-const navItems = [{ name: "Home", href: "/", icon: Home }] as const;
+const navItems = [
+  { name: "Configuraciones", href: "/configuraciones", icon: Settings },
+] as const;
 
 // Tipo extraído de las rutas disponibles
 export type NavHref = (typeof navItems)[number]["href"];

@@ -3,20 +3,24 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ProtectedRoute } from "../components/ProtectedRoute";
+import { Sidebar } from "../components/Sidebar/Sidebar";
+import { useResponsive } from "../hooks/useResponsive";
 import { ThemeSelector } from "../components/ThemeSelector";
 import { useTheme } from "../theme/useTheme";
 
 export default function IndexScreen() {
+  const { isDesktop } = useResponsive();
   const { theme } = useTheme();
 
-  return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+  const homeContent = (
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}> 
       <StatusBar style={theme.dark ? "light" : "dark"} />
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={[styles.appName, { color: theme.colors.text }]}>
+            <Text style={[styles.appName, { color: theme.colors.text }]}> 
               TECNOLOGICOSF
             </Text>
             <Text
@@ -25,18 +29,48 @@ export default function IndexScreen() {
               Showcase del sistema de temas
             </Text>
           </View>
-          <TouchableOpacity onPress={() => router.push("/Modulos")}>
-            <Text>Ir a Módulos</Text>
+          <TouchableOpacity onPress={() => router.push("/configuraciones")}>
+            <Text>Ir a Configuraciones</Text>
           </TouchableOpacity>
 
           {/* Selector de temas */}
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}> 
             Themes
           </Text>
           <ThemeSelector />
         </ScrollView>
       </SafeAreaView>
     </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <ProtectedRoute>
+        <View
+          style={{
+            flex: 1,
+            flexDirection: "row",
+            backgroundColor: theme.colors.background,
+          }}
+        >
+          <Sidebar />
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: theme.colors.backgroundSecondary,
+            }}
+          >
+            {homeContent}
+          </View>
+        </View>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      {homeContent}
+    </ProtectedRoute>
   );
 }
 

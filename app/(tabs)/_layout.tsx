@@ -1,7 +1,7 @@
 // app/(tabs)/_layout.tsx
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Tabs } from "expo-router/tabs";
-import { Home, Search, Settings, User } from "lucide-react-native";
+import { Settings } from "lucide-react-native";
 import { View } from "react-native";
 import { Sidebar } from "../../components/Sidebar/Sidebar";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -31,11 +31,7 @@ export default function TabsLayout() {
 
   // Icons helper (puede estar fuera)
   const tabs = [
-    { name: "index", title: "Home", icon: Home },
-    { name: "explore", title: "Explorar", icon: Search },
-    { name: "Rol", title: "Roles", icon: Settings }, // ejemplo
-    { name: "settings", title: "Ajustes", icon: Settings },
-    { name: "profile", title: "Perfil", icon: User },
+    { name: "configuraciones", title: "Configuraciones", icon: Settings },
   ];
 
   if (isDesktop) {
