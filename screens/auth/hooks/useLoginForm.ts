@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Toast from "react-native-toast-message";
 import { useAuth } from "../../../contexts/AuthContext";
 import { loginUser } from "../services/auth.service";
@@ -31,7 +31,13 @@ export function useLoginForm() {
   >({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
+  const { user } = useAuth();
+  useEffect(() => {
+    if (user && !redirect) {
+      router.replace("/");
+    }
+  }, [user, redirect]);
   const handleChange = useCallback(
     (field: keyof LoginRequest) => (value: string) => {
       setForm((prev) => ({ ...prev, [field]: value }));
@@ -79,10 +85,16 @@ export function useLoginForm() {
         type: "success",
         text1: "Inicio de sesión exitoso",
         text2: "Bienvenido de nuevo.",
-        visibilityTime: 2500,
       });
+      console.log("redirect:", redirect);
+      const safeRedirect =
+        typeof redirect === "string" && redirect.startsWith("/")
+          ? redirect
+          : HOME_ROUTE;
 
-      router.replace(HOME_ROUTE);
+      // Ejemplo: redirect = "/(tabs)/Rol"
+      console.log("safeRedirect:", safeRedirect);
+      router.replace(safeRedirect as any); // <-- único cast necesario (pero inocuo)
     } catch (err: any) {
       const message = err?.message || "Error inesperado";
       setServerError(message);
