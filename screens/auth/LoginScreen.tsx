@@ -1,7 +1,7 @@
 // screens/auth/LoginScreen.tsx
 import { router } from "expo-router";
 import React from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useTheme } from "../../theme/useTheme";
@@ -86,24 +86,6 @@ export default function LoginScreen() {
             />
           </Animated.View>
 
-          <Animated.View
-            entering={FadeInUp.delay(250).duration(400).springify()}
-            style={{
-              alignItems: "flex-end",
-              marginTop: -4,
-              marginBottom: 16,
-            }}
-          >
-            <Pressable onPress={() => router.push("/forgot-password")}>
-              <Text
-                style={{ color: theme.colors.primary }}
-                className="text-sm font-bold"
-              >
-                ¿Olvidaste tu contraseña?
-              </Text>
-            </Pressable>
-          </Animated.View>
-
           {serverError && (
             <Animated.View entering={FadeInUp.duration(200)}>
               <Text
@@ -146,6 +128,21 @@ export default function LoginScreen() {
               Regístrate
             </Text>
           </Animated.View>
+          <Animated.View
+  entering={FadeInUp.delay(500).duration(400).springify()}
+  style={{
+    alignItems: "center",
+    marginTop: 18,
+  }}
+>
+  <Text
+    style={{ color: theme.colors.primary }}
+    className="font-bold"
+    onPress={() => router.push("/forgot-password")}
+  >
+    ¿Olvidaste tu contraseña?
+  </Text>
+</Animated.View>
         </View>
       </View>
     </KeyboardAwareScrollView>
