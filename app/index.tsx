@@ -1,6 +1,7 @@
+import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeSelector } from "../components/ThemeSelector";
 import { useTheme } from "../theme/useTheme";
@@ -24,6 +25,9 @@ export default function IndexScreen() {
               Showcase del sistema de temas
             </Text>
           </View>
+          <TouchableOpacity onPress={() => router.push("/Modulos")}>
+            <Text>Ir a Módulos</Text>
+          </TouchableOpacity>
 
           {/* Selector de temas */}
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>

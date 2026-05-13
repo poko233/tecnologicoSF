@@ -1,32 +1,27 @@
 import { httpClient } from "@http";
 import {
-    CreateModuloPayload,
-    Modulo,
-    UpdateModuloPayload,
+  CreateModuloPayload,
+  Modulo,
+  UpdateModuloPayload,
 } from "../types/modulo.types";
 
-// Todas las llamadas al backend de módulos en un solo lugar
 
 export const moduloService = {
-  getAll: () =>
-    httpClient.getAuth<Modulo[]>("/api/modulos", "Error al cargar módulos"),
+  getAll: async () => {
+    const res = await httpClient.getAuth<{ data: Modulo[] }>("/api/modulos", "Error al cargar módulos");
+    return res.data; // ← desenvuelve aquí
+  },
 
-  getById: (id: number) =>
-    httpClient.getAuth<Modulo>(`/api/modulos/${id}`, "Error al cargar módulo"),
+  create: async (data: CreateModuloPayload) => {
+    const res = await httpClient.postAuth<{ data: Modulo }>("/api/modulos", data, "Error al crear módulo");
+    return res.data;
+  },
 
-  create: (data: CreateModuloPayload) =>
-    httpClient.postAuth<Modulo>("/api/modulos", data, "Error al crear módulo"),
-
-  update: (id: number, data: UpdateModuloPayload) =>
-    httpClient.putAuth<Modulo>(
-      `/api/modulos/${id}`,
-      data,
-      "Error al actualizar módulo"
-    ),
+  update: async (id: number, data: UpdateModuloPayload) => {
+    const res = await httpClient.putAuth<{ data: Modulo }>(`/api/modulos/${id}`, data, "Error al actualizar módulo");
+    return res.data;
+  },
 
   delete: (id: number) =>
-    httpClient.deleteAuth<{ message: string }>(
-      `/api/modulos/${id}`,
-      "Error al eliminar módulo"
-    ),
+    httpClient.deleteAuth<{ message: string }>(`/api/modulos/${id}`, "Error al eliminar módulo"),
 };
