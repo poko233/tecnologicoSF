@@ -2,7 +2,12 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../../theme/useTheme";
 
-export type AdminTabKey = "roles" | "modulos" | "formularios" | "permisos";
+export type AdminTabKey =
+  | "roles"
+  | "modulos"
+  | "formularios"
+  | "formularioModulo"
+  | "moduloRol";
 
 interface AdminTab {
   key: AdminTabKey;
