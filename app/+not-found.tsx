@@ -436,7 +436,7 @@ export default function NotFoundScreen() {
           }}
         >
           La ruta que buscas no existe o fue movida.{"\n"}
-          Verifica la dirección o regresa al inicio.
+          Verifica la dirección o regresa a la anterior página.
         </Text>
       </Animated.View>
 
@@ -457,8 +457,14 @@ export default function NotFoundScreen() {
         style={{ width: 220 }}
       >
         <SubmitButton
-          title="Volver al inicio"
-          onPress={() => router.replace("/")}
+          title="Volver"
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/");
+            }
+          }}
           loading={false}
           disabled={false}
         />
