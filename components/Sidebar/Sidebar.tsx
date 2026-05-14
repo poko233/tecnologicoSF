@@ -20,6 +20,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTheme } from "../../theme/useTheme";
 import { resolveIcon } from "./iconMap";
+import { SidebarFooter } from "./SidebarFooter";
+import { SidebarHeader } from "./SidebarHeader";
 import { MiFormulario, MiModulo, useMisModulos } from "./useMisModulos";
 
 // Habilitar LayoutAnimation en Android
@@ -243,7 +245,8 @@ export const Sidebar = () => {
           TECNOLOGICOSF
         </Text>
       </View>
-
+      {/* ── HEADER: avatar, nombre, roles ── */}
+      <SidebarHeader />
       {/* Nav */}
       <ScrollView
         style={{ flex: 1 }}
@@ -288,6 +291,8 @@ export const Sidebar = () => {
             <ModuloItem key={modulo.id} modulo={modulo} />
           ))}
       </ScrollView>
+      {/* ── FOOTER: logo + logout ── */}
+      <SidebarFooter />
     </View>
   );
 };
