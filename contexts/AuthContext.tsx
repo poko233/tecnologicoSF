@@ -14,7 +14,7 @@ export type Usuario = {
   nombres: string;
   apellido: string;
   correo: string;
-  rol: string;
+  roles: string[];
   telefono: string;
   foto: string | null;
 };
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = useCallback(
     (role: string) => {
       if (!user) return false;
-      return user.rol === role;
+      return user.roles.includes(role);
     },
     [user],
   );
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasAnyRole = useCallback(
     (roles: string[]) => {
       if (!user) return false;
-      return roles.includes(user.rol);
+      return roles.some((r) => user.roles.includes(r));
     },
     [user],
   );
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
-        isAdmin: user?.rol === "Administrador",
+        isAdmin: user?.roles?.includes("Administrador") ?? false,
         login,
         logout,
         hasRole,

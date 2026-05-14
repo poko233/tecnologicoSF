@@ -3,7 +3,16 @@ import RegisterScreen from "../../screens/auth/RegisterScreen";
 
 export default function Register() {
   return (
-    <ProtectedRoute requireAuth={false} redirectTo="/">
+    <ProtectedRoute
+      roles={[
+        "Administrador",
+        "Rector",
+        "Director Academico",
+        "Director Administrativo",
+        "Fundador",
+      ]}
+      redirectTo="/"
+    >
       <RegisterScreen />
     </ProtectedRoute>
   );

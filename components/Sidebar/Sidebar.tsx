@@ -2,6 +2,8 @@ import { Settings } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../theme/useTheme";
+import { SidebarFooter } from "./SidebarFooter";
+import { SidebarHeader } from "./SidebarHeader";
 import { SidebarItem } from "./SidebarItem";
 
 // "as const" hace que TypeScript infiera los literales exactos ('/', '/explore', etc.)
@@ -29,6 +31,8 @@ export const Sidebar = () => {
         TECNOLOGICOSF
       </Text>
 
+      {/* ─── PERFIL ─── */}
+      <SidebarHeader />
       <View style={styles.nav}>
         {navItems.map((item) => (
           <SidebarItem
@@ -39,6 +43,8 @@ export const Sidebar = () => {
           />
         ))}
       </View>
+      {/* ─── FOOTER ─── */}
+      <SidebarFooter />
     </View>
   );
 };

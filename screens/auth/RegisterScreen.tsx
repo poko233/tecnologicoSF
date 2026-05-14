@@ -4,16 +4,19 @@ import React from "react";
 import { Platform, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { useAuth } from "../../contexts/AuthContext";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../theme/useTheme";
 import { AuthInput } from "./components/AuthInput";
+import { DatePickerField } from "./components/DatePickerField";
 import { GenderSelector } from "./components/GenderSelector";
+import { RoleSelector } from "./components/RoleSelector";
 import { SubmitButton } from "./components/SubmitButton";
 import { useRegisterForm } from "./hooks/useRegisterForm";
 import type { RegisterRequest } from "./types/auth.types";
 
 const textFields: {
-  field: keyof RegisterRequest;
+  field: Exclude<keyof RegisterRequest, "roles" | "fecha_nac">;
   label: string;
   autoCapitalize?: "none" | "sentences" | "words";
   maxLength?: number;
@@ -34,11 +37,6 @@ const textFields: {
     label: "Apellidos",
     autoCapitalize: "words",
     maxLength: 40,
-  },
-  {
-    field: "fecha_nac",
-    label: "Fecha nac. (YYYY-MM-DD)",
-    autoCapitalize: "none",
   },
   {
     field: "email",
@@ -63,8 +61,9 @@ const textFields: {
 
 export default function RegisterScreen() {
   const { theme } = useTheme();
-  const { width } = useResponsive();
-  const isTwoColumns = width >= 640; // breakpoint para dos columnas
+  const { hasAnyRole } = useAuth();
+  const { isDesktop } = useResponsive();
+  const isTwoColumns = isDesktop;
 
   const {
     form,
@@ -76,12 +75,40 @@ export default function RegisterScreen() {
     serverError,
     canSubmit,
   } = useRegisterForm();
-
+  /*
+  // Verificación de permisos: solo quienes pueden asignar roles
+  if (
+    !hasAnyRole([
+      "Administrador",
+      "Rector",
+      "Director Academico",
+      "Director Administrativo",
+      "Fundador",
+    ])
+  ) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text
+          style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}
+        >
+          No tienes permiso para registrar usuarios.
+        </Text>
+      </View>
+    );
+  }
+*/
   const handleGenderSelect = (val: "MASCULINO" | "FEMENINO") => {
     handleChange("genero")(val);
   };
 
-  // Separar campos en dos columnas si es necesario
+  // Separar campos para columnas
   const leftFields = isTwoColumns
     ? textFields.slice(0, Math.ceil(textFields.length / 2))
     : textFields;
@@ -89,8 +116,8 @@ export default function RegisterScreen() {
     ? textFields.slice(Math.ceil(textFields.length / 2))
     : [];
 
-  const renderField = (
-    item: (typeof textFields)[0],
+  const renderTextField = (
+    item: (typeof textFields)[number],
     index: number,
     columnOffset = 0,
   ) => (
@@ -102,10 +129,10 @@ export default function RegisterScreen() {
     >
       <AuthInput
         label={item.label}
-        value={form[item.field]}
-        onChangeText={handleChange(item.field)}
+        value={form[item.field] as string}
+        onChangeText={handleChange(item.field) as (text: string) => void}
         onBlur={handleBlur(item.field)}
-        error={errors[item.field]}
+        error={errors[item.field] as string | undefined}
         secureTextEntry={item.secureTextEntry}
         keyboardType={item.keyboardType ?? "default"}
         autoCapitalize={item.autoCapitalize ?? "sentences"}
@@ -125,11 +152,8 @@ export default function RegisterScreen() {
         style={{ backgroundColor: theme.colors.background }}
         className="flex-1 justify-center items-center px-6 py-10"
       >
-        {/* Tarjeta flotante */}
         <View
-          className={`w-full ${
-            isTwoColumns ? "max-w-3xl" : "max-w-md"
-          } bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700`}
+          className={`w-full ${isTwoColumns ? "max-w-3xl" : "max-w-md"} bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700`}
           style={{
             backgroundColor: theme.dark
               ? "rgba(31,41,55,0.9)"
@@ -147,34 +171,65 @@ export default function RegisterScreen() {
               style={{ color: theme.colors.muted }}
               className="text-sm mb-8 text-center"
             >
-              Completa todos los campos para registrarte.
+              Completa todos los campos para registrar un nuevo usuario.
             </Text>
           </Animated.View>
 
+          {/* Campos de texto */}
           {isTwoColumns ? (
             <View className="flex-row gap-4">
               <View className="flex-1">
-                {leftFields.map((item, i) => renderField(item, i, 0))}
+                {leftFields.map((item, i) => renderTextField(item, i, 0))}
               </View>
               <View className="flex-1">
                 {rightFields.map((item, i) =>
-                  renderField(item, i, leftFields.length),
+                  renderTextField(item, i, leftFields.length),
                 )}
               </View>
             </View>
           ) : (
-            leftFields.map((item, i) => renderField(item, i, 0))
+            leftFields.map((item, i) => renderTextField(item, i, 0))
           )}
 
+          {/* Fecha de nacimiento */}
           <Animated.View
             entering={FadeInUp.delay(150 + textFields.length * 50)
+              .duration(400)
+              .springify()}
+          >
+            <DatePickerField
+              label="Fecha de nacimiento"
+              value={
+                form.fecha_nac ? new Date(form.fecha_nac + "T00:00:00") : null
+              }
+              onChange={(isoDate) => handleChange("fecha_nac")(isoDate)}
+              error={errors.fecha_nac as string | undefined}
+            />
+          </Animated.View>
+
+          {/* Género */}
+          <Animated.View
+            entering={FadeInUp.delay(200 + textFields.length * 50)
               .duration(400)
               .springify()}
           >
             <GenderSelector
               value={form.genero}
               onSelect={handleGenderSelect}
-              error={errors.genero}
+              error={errors.genero as string | undefined}
+            />
+          </Animated.View>
+
+          {/* Roles */}
+          <Animated.View
+            entering={FadeInUp.delay(250 + textFields.length * 50)
+              .duration(400)
+              .springify()}
+          >
+            <RoleSelector
+              selected={form.roles}
+              onChange={(roles) => handleChange("roles")(roles as any)}
+              error={errors.roles as string | undefined}
             />
           </Animated.View>
 
@@ -190,12 +245,12 @@ export default function RegisterScreen() {
           )}
 
           <Animated.View
-            entering={FadeInUp.delay(200 + textFields.length * 50)
+            entering={FadeInUp.delay(300 + textFields.length * 50)
               .duration(400)
               .springify()}
           >
             <SubmitButton
-              title="Registrarse"
+              title="Registrar usuario"
               onPress={handleSubmit}
               loading={submitting}
               disabled={!canSubmit}
@@ -203,7 +258,7 @@ export default function RegisterScreen() {
           </Animated.View>
 
           <Animated.View
-            entering={FadeInUp.delay(250 + textFields.length * 50)
+            entering={FadeInUp.delay(350 + textFields.length * 50)
               .duration(400)
               .springify()}
             style={{
@@ -216,8 +271,7 @@ export default function RegisterScreen() {
               ¿Ya tienes cuenta?{" "}
             </Text>
             <Text
-              style={{ color: theme.colors.primary }}
-              className="font-bold"
+              style={{ color: theme.colors.primary, fontWeight: "bold" }}
               onPress={() => router.back()}
             >
               Inicia sesión

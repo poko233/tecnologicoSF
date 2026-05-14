@@ -22,6 +22,7 @@ export interface RegisterRequest {
   email: string; // opcional, se envía vacío si no se ingresa
   telefono: string;
   celular: string;
+  roles: string[];
 }
 
 export type RegisterResponse = LoginResponse;

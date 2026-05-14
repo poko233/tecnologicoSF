@@ -1,3 +1,4 @@
+// screens/auth/hooks/useRegisterForm.ts
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import Toast from "react-native-toast-message";
@@ -5,53 +6,58 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { registerUser } from "../services/auth.service";
 import type { RegisterRequest, ValidationErrors } from "../types/auth.types";
 
-const HOME_ROUTE = "/"; // cambia esto si tu home real es otra ruta
-
+const HOME_ROUTE = "/" as const;
 const MAX_40 = 40;
 const MAX_10 = 10;
 const MAX_12 = 12;
 
-const validateField = (name: keyof RegisterRequest, value: string): string => {
+const validateField = (
+  name: keyof RegisterRequest,
+  value: string | number[],
+): string => {
+  if (name === "roles") {
+    if (!value || (Array.isArray(value) && value.length === 0))
+      return "Seleccione al menos un rol";
+    return "";
+  }
+  const val = value as string;
   switch (name) {
     case "usuario":
-      if (!value.trim()) return "Obligatorio";
-      if (value.trim().length > MAX_40) return `Máx ${MAX_40} caracteres`;
+      if (!val.trim()) return "Obligatorio";
+      if (val.trim().length > MAX_40) return `Máx ${MAX_40} caracteres`;
       return "";
     case "password":
-      if (!value) return "Obligatorio";
-      if (value.length < 6) return "Mínimo 6 caracteres";
+      if (!val) return "Obligatorio";
+      if (val.length < 6) return "Mínimo 6 caracteres";
       return "";
     case "ci":
-      if (!value.trim()) return "Obligatorio";
-      if (value.trim().length > MAX_12) return `Máx ${MAX_12} caracteres`;
+      if (!val.trim()) return "Obligatorio";
+      if (val.trim().length > MAX_12) return `Máx ${MAX_12} caracteres`;
       return "";
     case "nombres":
-      if (!value.trim()) return "Obligatorio";
-      if (value.trim().length > MAX_40) return `Máx ${MAX_40} caracteres`;
+      if (!val.trim()) return "Obligatorio";
+      if (val.trim().length > MAX_40) return `Máx ${MAX_40} caracteres`;
       return "";
     case "apellidos":
-      if (!value.trim()) return "Obligatorio";
-      if (value.trim().length > MAX_40) return `Máx ${MAX_40} caracteres`;
+      if (!val.trim()) return "Obligatorio";
+      if (val.trim().length > MAX_40) return `Máx ${MAX_40} caracteres`;
       return "";
     case "genero":
-      if (!value) return "Selecciona un género";
-      if (value !== "MASCULINO" && value !== "FEMENINO") {
-        return "Valor inválido";
-      }
+      if (!val) return "Selecciona un género";
+      if (val !== "MASCULINO" && val !== "FEMENINO") return "Valor inválido";
       return "";
     case "fecha_nac":
-      if (!value) return "Obligatorio";
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Formato YYYY-MM-DD";
+      if (!val) return "Obligatorio";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return "Formato YYYY-MM-DD";
       return "";
     case "email":
-      if (value && value.length > 80) return "Máx 80 caracteres";
-      if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      if (val && val.length > 80) return "Máx 80 caracteres";
+      if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val))
         return "Email inválido";
-      }
       return "";
     case "telefono":
     case "celular":
-      if (value && value.length > MAX_10) return `Máx ${MAX_10} caracteres`;
+      if (val && val.length > MAX_10) return `Máx ${MAX_10} caracteres`;
       return "";
     default:
       return "";
@@ -71,6 +77,7 @@ export function useRegisterForm() {
     email: "",
     telefono: "",
     celular: "",
+    roles: [] as string[],
   });
   const [errors, setErrors] = useState<ValidationErrors<RegisterRequest>>({});
   const [touched, setTouched] = useState<
@@ -80,7 +87,7 @@ export function useRegisterForm() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const handleChange = useCallback(
-    (field: keyof RegisterRequest) => (value: string) => {
+    (field: keyof RegisterRequest) => (value: string | number[]) => {
       setForm((prev) => ({ ...prev, [field]: value }));
       if (touched[field]) {
         const error = validateField(field, value);
@@ -106,7 +113,6 @@ export function useRegisterForm() {
       const error = validateField(key, form[key]);
       if (error) newErrors[key] = error;
     });
-
     setErrors(newErrors);
 
     const allTouched: Partial<Record<keyof RegisterRequest, boolean>> = {};
@@ -114,7 +120,6 @@ export function useRegisterForm() {
       allTouched[key] = true;
     });
     setTouched((prev) => ({ ...prev, ...allTouched }));
-
     return Object.keys(newErrors).length === 0;
   }, [form]);
 
@@ -126,12 +131,11 @@ export function useRegisterForm() {
 
     try {
       const response = await registerUser(form);
-      await login(response.token);
 
       Toast.show({
         type: "success",
         text1: "Registro exitoso",
-        text2: "Tu cuenta fue creada e ingresaste automáticamente.",
+        text2: `Usuario ${response.user.nombres} creado correctamente. Ya puede iniciar sesión.`,
         visibilityTime: 2500,
       });
 
@@ -145,7 +149,7 @@ export function useRegisterForm() {
   }, [form, validateForm, login]);
 
   const canSubmit = useMemo(() => {
-    return Boolean(
+    return (
       Object.values(errors).every((e) => !e) &&
       form.usuario.trim() &&
       form.password &&
@@ -153,7 +157,8 @@ export function useRegisterForm() {
       form.nombres.trim() &&
       form.apellidos.trim() &&
       form.genero &&
-      form.fecha_nac,
+      form.fecha_nac &&
+      form.roles.length > 0
     );
   }, [errors, form]);
 
