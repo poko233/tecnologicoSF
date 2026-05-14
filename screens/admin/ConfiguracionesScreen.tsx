@@ -3,21 +3,23 @@ import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../theme/useTheme";
 import { ModulosScreen } from "../modulos/Modulosscreen";
 import RolScreen from "../rol/RolScreen";
+import { FormularioModuloAdminScreen } from "./assignments/FormularioModuloAdminScreen";
+import { ModuloRolAdminScreen } from "./assignments/ModuloRolAdminScreen";
 import { AdminTabBar, AdminTabKey } from "./components/AdminTabBar";
 import { FormulariosAdminScreen } from "./forms/FormulariosAdminScreen";
-import { PermisosAdminScreen } from "./permissions/PermisosAdminScreen";
 
 export function ConfiguracionesScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const [activeTab, setActiveTab] = useState<AdminTabKey>("roles");
+  const [activeTab, setActiveTab] = useState<AdminTabKey>("formularios");
 
   const tabs = useMemo(
     () => [
       { key: "roles" as const, label: "Roles" },
       { key: "modulos" as const, label: "Módulos" },
       { key: "formularios" as const, label: "Formularios" },
-      { key: "permisos" as const, label: "Permisos" },
+      { key: "formularioModulo" as const, label: "Formulario → Módulo" },
+      { key: "moduloRol" as const, label: "Módulo → Rol" },
     ],
     [],
   );
@@ -26,7 +28,7 @@ export function ConfiguracionesScreen() {
     <View style={[styles.container, { backgroundColor: c.background }]}> 
       <View style={[styles.header, { backgroundColor: c.card, borderBottomColor: c.border }]}> 
         <Text style={[styles.title, { color: c.text }]}>Configuraciones</Text>
-        <Text style={[styles.subtitle, { color: c.textSecondary }]}>Administración centralizada de roles, módulos, formularios y permisos</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>Administración centralizada de roles, módulos, formularios y asignaciones</Text>
       </View>
 
       <AdminTabBar tabs={tabs} activeTab={activeTab} onChangeTab={setActiveTab} />
@@ -35,7 +37,8 @@ export function ConfiguracionesScreen() {
         {activeTab === "roles" && <RolScreen />}
         {activeTab === "modulos" && <ModulosScreen />}
         {activeTab === "formularios" && <FormulariosAdminScreen />}
-        {activeTab === "permisos" && <PermisosAdminScreen />}
+        {activeTab === "formularioModulo" && <FormularioModuloAdminScreen />}
+        {activeTab === "moduloRol" && <ModuloRolAdminScreen />}
       </View>
     </View>
   );

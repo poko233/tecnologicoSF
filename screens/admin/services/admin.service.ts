@@ -1,88 +1,97 @@
-import { httpClient } from "../../../http/httpClient";
+import { httpClient } from "@http";
 import {
-    AdminFormulario,
-    PermissionMatrixResponse,
+  AdminFormulario,
+  CreateFormularioModuloPayload,
+  CreateFormularioPayload,
+  CreateModuloRolPayload,
+  FormularioModuloAssignment,
+  ModuloRolAssignment,
 } from "../types/admin.types";
 
-const mockForms: AdminFormulario[] = [
-  {
-    id: 1,
-    moduleId: 1,
-    moduleName: "Usuarios",
-    name: "Listado de usuarios",
-    description: "Gestión principal de usuarios del sistema",
-    route: "/usuarios",
-    componentKey: "UsersListScreen",
-    icon: "people-outline",
-    order: 1,
-  },
-  {
-    id: 2,
-    moduleId: 1,
-    moduleName: "Usuarios",
-    name: "Formulario de usuario",
-    description: "Alta y edición de usuarios",
-    route: "/usuarios/formulario",
-    componentKey: "UserFormScreen",
-    icon: "person-add-outline",
-    order: 2,
-  },
-  {
-    id: 3,
-    moduleId: 2,
-    moduleName: "Académico",
-    name: "Listado de estudiantes",
-    description: "Consulta de estudiantes",
-    route: "/estudiantes",
-    componentKey: "StudentsScreen",
-    icon: "school-outline",
-    order: 1,
-  },
-];
+interface ApiList<T>  { success: boolean; data: T[] }
+interface ApiItem<T>  { success: boolean; message?: string; data: T }
 
 export const adminService = {
-  async getFormularios(): Promise<AdminFormulario[]> {
-    try {
-      const res = await httpClient.getAuth<{ data: AdminFormulario[] }>(
-        "/api/formularios",
-        "Error al cargar formularios",
-      );
-      return res.data ?? [];
-    } catch {
-      return mockForms;
-    }
+
+
+  getFormularios: async (): Promise<AdminFormulario[]> => {
+    const res = await httpClient.getAuth<ApiList<AdminFormulario>>(
+      "/api/formularios",
+      "No se pudieron cargar los formularios",
+    );
+    return res.data;
   },
 
-  async getPermissionMatrix(roleId: number): Promise<PermissionMatrixResponse> {
-    try {
-      const res = await httpClient.getAuth<{ data: PermissionMatrixResponse }>(
-        `/api/permisos/matriz?role_id=${roleId}`,
-        "Error al cargar matriz de permisos",
-      );
-      return res.data;
-    } catch {
-      return {
-        roleId,
-        rows: mockForms.map((f) => ({
-          formId: f.id,
-          formName: f.name,
-          moduleName: f.moduleName,
-          actions: {
-            view: true,
-            create: roleId === 1,
-            update: roleId === 1,
-            delete: roleId === 1,
-          },
-        })),
-      };
-    }
+  createFormulario: async (payload: CreateFormularioPayload): Promise<AdminFormulario> => {
+    const res = await httpClient.postAuth<ApiItem<AdminFormulario>>(
+      "/api/formularios",
+      payload,
+      "No se pudo crear el formulario",
+    );
+    return res.data;
   },
 
-  savePermissionMatrix(roleId: number, rows: PermissionMatrixResponse["rows"]) {
-    return httpClient.putAuth<{ success: boolean }>(
-      "/api/permisos/matriz",
-      { role_id: roleId, rows },
-      "Error al guardar permisos",
+  deleteFormulario: async (id: number): Promise<void> => {
+    await httpClient.deleteAuth<unknown>(
+      `/api/formularios/${id}`,
+      "No se pudo eliminar el formulario",
+    );
+  },
+
+
+  getFormularioModulos: async (): Promise<FormularioModuloAssignment[]> => {
+    const res = await httpClient.getAuth<ApiList<FormularioModuloAssignment>>(
+      "/api/formulario-modulo",
+      "No se pudieron cargar las asignaciones formulario-módulo",
+    );
+    return res.data;
+  },
+
+  createFormularioModulo: async (
+    payload: CreateFormularioModuloPayload,
+  ): Promise<FormularioModuloAssignment> => {
+    const res = await httpClient.postAuth<ApiItem<FormularioModuloAssignment>>(
+      "/api/formulario-modulo",
+      payload,
+      "No se pudo asignar el formulario al módulo",
+    );
+    return res.data;
+  },
+
+  deleteFormularioModulo: async (
+    id_formulario: number,
+    id_modulo: number,
+  ): Promise<void> => {
+    await httpClient.deleteAuth<unknown>(
+      `/api/formulario-modulo/${id_formulario}/${id_modulo}`,
+      "No se pudo eliminar la asignación formulario-módulo",
+    );
+  },
+
+
+  getModuloRoles: async (): Promise<ModuloRolAssignment[]> => {
+    const res = await httpClient.getAuth<ApiList<ModuloRolAssignment>>(
+      "/api/modulo-rol",
+      "No se pudieron cargar las asignaciones módulo-rol",
+    );
+    return res.data;
+  },
+
+  createModuloRol: async (
+    payload: CreateModuloRolPayload,
+  ): Promise<ModuloRolAssignment> => {
+    const res = await httpClient.postAuth<ApiItem<ModuloRolAssignment>>(
+      "/api/modulo-rol",
+      payload,
+      "No se pudo asignar el módulo al rol",
+    );
+    return res.data;
+  },
+
+  deleteModuloRol: async (id: number): Promise<void> => {
+    await httpClient.deleteAuth<unknown>(
+      `/api/modulo-rol/${id}`,
+      "No se pudo eliminar la asignación módulo-rol",
     );
   },
 };
