@@ -1,3 +1,4 @@
+import { resolveIcon } from "@components/Sidebar/iconMap";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -398,7 +399,7 @@ export function ModuloRolAdminScreen() {
                               { backgroundColor: col.bg, borderColor: col.border },
                             ]}
                           >
-                            <Ionicons name="grid-outline" size={11} color={col.text} />
+                            <Ionicons name={resolveIcon(mod.icono)} size={11} color={col.text} />
                             <Text style={[styles.badgeText, { color: col.text }]}>
                               {mod.nombre.toUpperCase()}
                             </Text>

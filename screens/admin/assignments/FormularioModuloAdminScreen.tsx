@@ -1,3 +1,4 @@
+import { resolveIcon } from "@components/Sidebar/iconMap";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -96,6 +97,11 @@ export function FormularioModuloAdminScreen() {
               onPress={() => setModalModulo(true)}
               style={[styles.selector, { borderColor: c.border, backgroundColor: c.input }]}
             >
+              <Ionicons 
+                name={selectedModulo ? resolveIcon(selectedModulo.icono ?? "") : "grid-outline"} 
+                size={16} 
+                color={c.textSecondary} 
+              />
               <Text style={[styles.selectorLabel, { color: c.textSecondary }]}>Módulo</Text>
               <Text style={[styles.selectorValue, { color: c.text }]} numberOfLines={1}>
                 {selectedModulo?.modulo ?? "Seleccionar módulo"}
