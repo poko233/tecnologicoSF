@@ -40,34 +40,47 @@ const MESES_SHORT = [
   "Dic",
 ];
 
-function fmtShort(iso: string) {
+// Convierte una fecha en formato ISO (YYYY-MM-DD) a un objeto Date
+// pero lo fuerza a mediodía (12:00) en UTC para que al mostrarlo
+// con getDate() etc. no haya desfase por la zona horaria.
+function localDateFromIso(iso: string): Date {
+  const [year, month, day] = iso.split("-").map(Number);
+  // Crear la fecha a las 12:00 UTC (mediodía) para evitar que getHours()
+  // lleve a un día anterior por la diferencia de zona horaria
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
+
+// Obtiene la fecha actual en Bolivia como string ISO (YYYY-MM-DD)
+function todayInBoliviaIso(): string {
+  // Usar el objeto Intl.DateTimeFormat con zona horaria explícita
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/La_Paz",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(new Date());
+}
+
+// Formato corto para mostrar: "17 May 2026"
+function fmtShort(iso: string): string {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
-  return `${parseInt(d)} ${MESES_SHORT[parseInt(m) - 1]} ${y}`;
+  const monthIndex = parseInt(m) - 1;
+  return `${parseInt(d)} ${MESES_SHORT[monthIndex]} ${y}`;
 }
 
-function toIso(y: number, m: number, d: number) {
-  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+// Convierte año, mes, día a string ISO (YYYY-MM-DD)
+function toIso(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function todayInBolivia(): Date {
-  const now = new Date();
-  const offsetMs = -4 * 60 * 60 * 1000;
-  const localTime = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
-  return new Date(localTime + offsetMs);
-}
-
-function minBirthDate(): Date {
-  const t = todayInBolivia();
-  t.setFullYear(t.getFullYear() - 150);
-  return t;
-}
-
-function dateToIso(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+// Fecha mínima permitida (hace 150 años)
+function minBirthDateIso(): string {
+  const todayIso = todayInBoliviaIso();
+  const [year, month, day] = todayIso.split("-").map(Number);
+  const minYear = year - 150;
+  return `${minYear}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 interface DatePickerFieldProps {
@@ -86,28 +99,36 @@ export const DatePickerField = ({
   const { theme } = useTheme();
   const [visible, setVisible] = useState(false);
   const [viewYear, setViewYear] = useState(() => {
-    const d = value || todayInBolivia();
-    return d.getFullYear();
+    if (value) {
+      return value.getFullYear();
+    }
+    return new Date().getFullYear();
   });
   const [viewMonth, setViewMonth] = useState(() => {
-    const d = value || todayInBolivia();
-    return d.getMonth();
+    if (value) {
+      return value.getMonth();
+    }
+    return new Date().getMonth();
   });
   const [tempDate, setTempDate] = useState<string>(
-    value ? dateToIso(value) : "",
+    value
+      ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
+      : "",
   );
   const [showMonthGrid, setShowMonthGrid] = useState(false);
   const [editingYear, setEditingYear] = useState(false);
   const [yearInput, setYearInput] = useState(String(viewYear));
 
-  const today = todayInBolivia();
-  const todayIso = dateToIso(today);
-  const minDate = minBirthDate();
-  const minIso = dateToIso(minDate);
+  const todayIso = todayInBoliviaIso();
+  const minDateIso = minBirthDateIso();
 
   function open() {
-    setTempDate(value ? dateToIso(value) : "");
-    const d = value || today;
+    setTempDate(
+      value
+        ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
+        : "",
+    );
+    const d = value ? value : new Date();
     setViewYear(d.getFullYear());
     setViewMonth(d.getMonth());
     setYearInput(String(d.getFullYear()));
@@ -117,9 +138,8 @@ export const DatePickerField = ({
   }
 
   function onDayPress(iso: string) {
-    if (iso < minIso || iso > todayIso) return;
+    if (iso < minDateIso || iso > todayIso) return;
     setTempDate(iso);
-    // Marcamos el campo como tocado inmediatamente para habilitar el botón
     onChange(iso);
     setVisible(false);
   }
@@ -133,27 +153,31 @@ export const DatePickerField = ({
 
   function applyYear() {
     const y = parseInt(yearInput);
-    if (!isNaN(y) && y >= minDate.getFullYear() && y <= today.getFullYear()) {
+    const [minY] = minDateIso.split("-").map(Number);
+    const [todayY] = todayIso.split("-").map(Number);
+    if (!isNaN(y) && y >= minY && y <= todayY) {
       setViewYear(y);
     }
     setEditingYear(false);
   }
 
-  // Construir grid de 6 filas fijas
-  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
-  const firstDow = firstDay === 0 ? 6 : firstDay - 1;
+  // Calcular días del mes
+  const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
+  const firstDow = firstDayOfMonth.getDay(); // 0 = domingo
+  // Convertir a lunes como primer día (0=lunes, 6=domingo)
+  const startOffset = firstDow === 0 ? 6 : firstDow - 1;
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const totalCells = 42; // 6 filas * 7 días
+  const totalCells = 42;
   const days: (number | null)[] = [
-    ...Array(firstDow).fill(null),
+    ...Array(startOffset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    ...Array(totalCells - firstDow - daysInMonth).fill(null),
+    ...Array(totalCells - startOffset - daysInMonth).fill(null),
   ];
 
   function dayStyle(iso: string) {
     const isSelected = iso === tempDate;
     const isToday = iso === todayIso;
-    const isOutOfRange = iso < minIso || iso > todayIso;
+    const isOutOfRange = iso < minDateIso || iso > todayIso;
     if (isSelected)
       return {
         bg: theme.colors.primary,
@@ -172,7 +196,11 @@ export const DatePickerField = ({
     return { bg: "transparent", text: theme.colors.text, radius: 8 };
   }
 
-  const selectedDisplay = value ? fmtShort(dateToIso(value)) : "";
+  const selectedDisplay = value
+    ? fmtShort(
+        `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`,
+      )
+    : "";
 
   return (
     <>
@@ -460,7 +488,7 @@ export const DatePickerField = ({
               ))}
             </View>
 
-            {/* Grid de días (altura fija) */}
+            {/* Grid de días */}
             <View
               style={{ flexDirection: "row", flexWrap: "wrap", minHeight: 216 }}
             >
