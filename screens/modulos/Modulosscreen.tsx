@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@theme";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { ModuloCard } from "./components/ModuloCard";
 import { ModuloModal } from "./components/Modulomodal";
@@ -71,9 +71,13 @@ export function ModulosScreen() {
             {modulos.length} módulo{modulos.length !== 1 ? "s" : ""} registrados
           </Text>
         </View>
-        <TouchableOpacity onPress={openCreate} style={styles.btnNuevo}>
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={styles.btnNuevoText}>Nuevo</Text>
+        <TouchableOpacity 
+          onPress={openCreate} 
+          style={[styles.btnNuevo, { backgroundColor: c.primary }]}
+          >
+          <Ionicons name="add" size={18} color={c.primaryForeground} />
+          <Text style={[styles.btnNuevoText, { color: c.primaryForeground }]}>
+            Nuevo</Text>
         </TouchableOpacity>
       </View>
 
@@ -99,7 +103,7 @@ export function ModulosScreen() {
       {/* ── Lista ── */}
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#2D9F8E" />
+          <ActivityIndicator size="large" color={c.primary} />
         </View>
       ) : (
         <FlatList
@@ -153,7 +157,6 @@ const styles = StyleSheet.create({
   btnNuevo: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2D9F8E",
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 10,

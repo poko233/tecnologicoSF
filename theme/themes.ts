@@ -24,7 +24,7 @@ export const lightTheme: AppTheme = {
     primaryForeground: "#FFFFFF",
     primarySubtle: "#FFEBEE",
 
-    secondary: "#1F2937",
+    secondary: "#E4E9E7",
     secondaryHover: "#374151",
     secondaryActive: "#111827",
     secondaryForeground: "#FFFFFF",

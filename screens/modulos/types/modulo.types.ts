@@ -26,7 +26,7 @@ export type UpdateModuloPayload = CreateModuloPayload;
 
 export interface IconOption {
   key: string;
-  ionicon: string; // nombre del Ionicon
+  ionicon: string; 
 }
 
 export const AVAILABLE_ICONS: IconOption[] = [

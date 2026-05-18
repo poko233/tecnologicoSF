@@ -14,7 +14,6 @@ export function ModuloCard({ modulo, onEdit, onDelete }: ModuloCardProps) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  // Busca el ionicon que corresponde al key guardado en BD
   const iconData = AVAILABLE_ICONS.find((i) => i.key === modulo.icono);
   const ionicon  = (iconData?.ionicon ?? "apps-outline") as any;
 
@@ -37,7 +36,7 @@ export function ModuloCard({ modulo, onEdit, onDelete }: ModuloCardProps) {
     <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
       {/* Icono */}
       <View style={styles.iconWrap}>
-        <Ionicons name={ionicon} size={24} color="#2D9F8E" />
+        <Ionicons name={ionicon} size={24} color={c.text} />
       </View>
 
       {/* Info */}
@@ -65,7 +64,7 @@ export function ModuloCard({ modulo, onEdit, onDelete }: ModuloCardProps) {
           style={[styles.actionBtn, { borderColor: c.border }]}
           hitSlop={8}
         >
-          <Ionicons name="pencil-outline" size={16} color="#2D9F8E" />
+          <Ionicons name="pencil-outline" size={16} color={c.text} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={confirmDelete}

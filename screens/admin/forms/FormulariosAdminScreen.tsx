@@ -114,7 +114,7 @@ export function FormulariosAdminScreen() {
         />
       )}
 
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <Pressable style={styles.backdrop} onPress={() => setModalVisible(false)} />
 
         <View style={styles.modalWrap} pointerEvents="box-none">
@@ -245,12 +245,16 @@ const styles = StyleSheet.create({
   },
   modalWrap: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "center",  
+    alignItems: "center",       
+    paddingHorizontal: 24, 
   },
   modalCard: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 20,         
+    width: "100%",              
+    maxWidth: 520,          
     maxHeight: "88%",
+    
   },
   modalHeader: {
     flexDirection: "row",

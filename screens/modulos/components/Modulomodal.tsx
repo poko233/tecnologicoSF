@@ -22,13 +22,12 @@ import {
 
 interface ModuloModalProps {
   visible: boolean;
-  modulo?: Modulo | null;   // null = crear,  Modulo = editar
-  modulos: Modulo[];        // lista para el selector "Módulo Raíz"
+  modulo?: Modulo | null;  
+  modulos: Modulo[];        
   onClose: () => void;
   onSubmit: (payload: CreateModuloPayload) => Promise<boolean>;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
 
 export function ModuloModal({
   visible,
@@ -41,14 +40,12 @@ export function ModuloModal({
 
   const isEdit = !!modulo;
 
-  // ── Estado del formulario ─────────────────────────────────────────────────
   const [titulo, setTitulo]           = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [iconoKey, setIconoKey]       = useState<string>("home");
   const [loading, setLoading]         = useState(false);
   const [errors, setErrors]           = useState<Record<string, string>>({});
 
-  // Pre-cargar datos cuando es edición
   useEffect(() => {
     if (visible) {
       setTitulo(modulo?.modulo ?? "");
@@ -58,7 +55,6 @@ export function ModuloModal({
     }
   }, [visible, modulo]);
 
-  // ── Validación ────────────────────────────────────────────────────────────
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!titulo.trim()) e.titulo = "El título es obligatorio";
@@ -67,7 +63,6 @@ export function ModuloModal({
     return Object.keys(e).length === 0;
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!validate()) return;
     setLoading(true);
@@ -80,11 +75,10 @@ export function ModuloModal({
     if (ok) onClose();
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent
       onRequestClose={onClose}
     >
@@ -102,7 +96,6 @@ export function ModuloModal({
       >
         <View style={[styles.sheet, { backgroundColor: c.card }]}>
 
-          {/* ── Header ── */}
           <View style={[styles.header, { borderBottomColor: c.border }]}>
             <View>
               <Text style={[styles.headerTitle, { color: c.text }]}>
@@ -125,7 +118,6 @@ export function ModuloModal({
             showsVerticalScrollIndicator={false}
           >
 
-            {/* ── Título ── */}
             <View style={styles.field}>
               <Text style={[styles.label, { color: c.textSecondary }]}>
                 TÍTULO DEL MÓDULO <Text style={{ color: "#F43F5E" }}>*</Text>
@@ -153,7 +145,6 @@ export function ModuloModal({
               ) : null}
             </View>
 
-            {/* ── Picker de iconos ── */}
             <View style={styles.field}>
               <Text style={[styles.label, { color: c.textSecondary }]}>
                 ICONO DEL MÓDULO
@@ -171,14 +162,14 @@ export function ModuloModal({
                           backgroundColor: selected
                             ? "rgba(45,159,142,0.15)"
                             : "transparent",
-                          borderColor: selected ? "#2D9F8E" : "transparent",
+                          borderColor: selected ? c.text : "transparent",
                         },
                       ]}
                     >
                       <Ionicons
                         name={ic.ionicon as any}
                         size={22}
-                        color={selected ? "#2D9F8E" : c.muted}
+                        color={selected ? c.text : c.muted}
                       />
                     </TouchableOpacity>
                   );
@@ -186,7 +177,6 @@ export function ModuloModal({
               </View>
             </View>
 
-            {/* ── Descripción ── */}
             <View style={styles.field}>
               <Text style={[styles.label, { color: c.textSecondary }]}>
                 DESCRIPCIÓN
@@ -223,7 +213,8 @@ export function ModuloModal({
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={loading}
-              style={[styles.btnSubmit, loading && { opacity: 0.7 }]}
+              style={[styles.btnSubmit, { backgroundColor: c.primary }, loading && { opacity: 0.7 }]}
+              
             >
               {loading ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -232,9 +223,9 @@ export function ModuloModal({
                   <Ionicons
                     name={isEdit ? "checkmark-circle-outline" : "add-circle-outline"}
                     size={18}
-                    color="#fff"
+                    color={c.textInverse}
                   />
-                  <Text style={styles.btnSubmitText}>
+                  <Text style={[styles.btnSubmitText, { color: c.textInverse }]}>
                     {isEdit ? "Guardar cambios" : "Crear Módulo"}
                   </Text>
                 </>
@@ -247,7 +238,6 @@ export function ModuloModal({
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   backdrop: {
@@ -256,12 +246,17 @@ const styles = StyleSheet.create({
   },
   kvWrapper: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "center",   
+    alignItems: "center",      
+    paddingHorizontal: 24, 
   },
   sheet: {
+    width: "100%",
+    maxWidth: 520,              
+    borderRadius: 16,          
+    maxHeight: "85%",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "90%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
@@ -346,7 +341,6 @@ const styles = StyleSheet.create({
   },
   btnSubmit: {
     flex: 2,
-    backgroundColor: "#2D9F8E",
     borderRadius: 10,
     paddingVertical: 13,
     flexDirection: "row",
