@@ -2,7 +2,6 @@ import { useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import Toast from "react-native-toast-message";
 
-import { ThemeSelector } from "../../components/ThemeSelector";
 import { ThemedText } from "../../components/ThemedText";
 import { httpClient } from "../../http/httpClient";
 import { useTheme } from "../../theme/useTheme";
@@ -169,9 +168,6 @@ export default function InscripcionScreen() {
       }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={{ marginBottom: 28 }}>
-        <ThemeSelector />
-      </View>
 
       <View
         style={{

@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "../../../components/ThemedText";
-import { ThemeSelector } from "../../../components/ThemeSelector";
 import { useTheme } from "../../../theme/useTheme";
 
 type Props = {
@@ -15,7 +14,7 @@ export default function TipoInscripcionSelector({ tipo, onChange }: Props) {
 
   return (
     <View style={styles.container}>
-      <ThemeSelector />
+     
 
       <ThemedText style={styles.title}>Modalidad de Estudio</ThemedText>
 
