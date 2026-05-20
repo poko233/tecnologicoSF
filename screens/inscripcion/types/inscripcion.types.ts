@@ -11,6 +11,21 @@ export type DepartamentoBolivia =
   | "Beni"
   | "Pando";
 
+export interface GrupoSeleccionado {
+  idGrupo: number;
+  nombre: string;
+  codigo: string;
+  paralelo: string;
+  turno: "mañana" | "tarde" | "noche";
+  horario: number | string;
+  gestion: string;
+  cupos: number | string;
+  tipo: "Capacitacion" | "Curso";
+  estado: string;
+  nombreMateria?: string;
+  nombreCarrera?: string;
+}
+
 export interface InscripcionFormData {
   apellidoPaterno: string;
   apellidoMaterno: string;
@@ -24,6 +39,8 @@ export interface InscripcionFormData {
   referenciaNombre: string;
   referenciaParentesco: string;
   referenciaNumero: string;
+
+  gruposSeleccionados: GrupoSeleccionado[];
 }
 
 /* PASO 2 - ACADÉMICO */
@@ -34,6 +51,7 @@ export interface Carrera {
   idCarrera: number;
   nombreCarrera: string;
   codigo: string;
+  tipo: "Carrera" | "Curso" | "Capacitacion" | string;
   duracionMeses: number;
   cargaHoraria: string;
   costo: number | string;
@@ -82,7 +100,7 @@ export interface GruposResponse {
 export interface InscripcionAcademicaPayload {
   idUsuario: number;
   idCarrera: number;
-  idGrupo: number;
+  grupos: number[];
 }
 
 /* PASO 4 - RESUMEN FINAL */
@@ -107,7 +125,7 @@ export interface ResumenInscripcion {
 
   carrera: Carrera | null;
 
-  grupo: Grupo | null;
+  grupos: Grupo[];
 
   documentos: DocumentoResumen[];
 

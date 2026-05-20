@@ -18,6 +18,11 @@ import ReferenceSection from "./components/ReferenceSection";
 import StepIndicator from "./components/StepIndicator";
 import { useInscripcionForm } from "./hooks/useInscripcionForm";
 
+import {
+  DepartamentoBolivia,
+  Genero,
+} from "./types/inscripcion.types";
+
 type DocumentoLocal = {
   nombreDocumento: string;
   archivoNombre: string | null;
@@ -28,34 +33,37 @@ type DocumentoLocal = {
 export default function InscripcionScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 900;
-
   const { theme } = useTheme();
 
- const { form, updateField, step, setStep, resetForm } = useInscripcionForm();
+  const {
+    form,
+    updateField,
+    step,
+    setStep,
+    resetForm,
+    setGruposSeleccionados,
+  } = useInscripcionForm();
 
-  const [idEstudiante, setIdEstudiante] =
-    useState<number | null>(null);
+  const [idEstudiante, setIdEstudiante] = useState<number | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [maxStepReached, setMaxStepReached] = useState(1);
 
-  const [guardando, setGuardando] =
-    useState(false);
-const limpiarInscripcion = () => {
-  resetForm();
-  setIdEstudiante(null);
-  setMaxStepReached(1);
-  setDocumentosLocales({});
-};
-  const [maxStepReached, setMaxStepReached] =
-    useState(1);
+  const [documentosLocales, setDocumentosLocales] = useState<
+    Record<string, DocumentoLocal>
+  >({});
 
-  const [documentosLocales, setDocumentosLocales] =
-    useState<Record<string, DocumentoLocal>>({});
+  const limpiarInscripcion = () => {
+    resetForm();
+    setIdEstudiante(null);
+    setMaxStepReached(1);
+    setDocumentosLocales({});
+  };
 
   const guardarEstudiante = async () => {
     try {
       setGuardando(true);
 
-      const [day, month, year] =
-        form.fechaNacimiento.split("/");
+      const [day, month, year] = form.fechaNacimiento.split("/");
 
       if (!day || !month || !year) {
         Toast.show({
@@ -63,11 +71,10 @@ const limpiarInscripcion = () => {
           text1: "Fecha inválida",
           text2: "Usa el formato día/mes/año.",
         });
-
         return;
       }
 
-      const expedidoMap: Record<string, string> = {
+      const expedidoMap: Record<DepartamentoBolivia, string> = {
         "La Paz": "LPZ",
         Cochabamba: "CBBA",
         Oruro: "OR",
@@ -79,7 +86,7 @@ const limpiarInscripcion = () => {
         Chuquisaca: "CH",
       };
 
-      const generoMap: Record<string, string> = {
+      const generoMap: Record<Genero, string> = {
         Masculino: "MASCULINO",
         Femenino: "FEMENINO",
       };
@@ -87,82 +94,55 @@ const limpiarInscripcion = () => {
       const payload = {
         ...form,
 
-        apellidoPaterno:
-          form.apellidoPaterno.trim(),
+        apellidoPaterno: form.apellidoPaterno.trim(),
+        apellidoMaterno: form.apellidoMaterno.trim(),
+        nombres: form.nombres.trim(),
 
-        apellidoMaterno:
-          form.apellidoMaterno.trim(),
+        carnet: form.carnet.replace(/\D/g, ""),
 
-        nombres:
-          form.nombres.trim(),
+        celular: form.celular.replace(/\D/g, "").replace(/^591/, ""),
 
-        carnet:
-          form.carnet.replace(/\D/g, ""),
+        direccion: form.direccion.trim(),
 
-        celular:
-          form.celular
-            .replace(/\D/g, "")
-            .replace(/^591/, ""),
+        referenciaNombre: form.referenciaNombre.trim(),
+        referenciaParentesco: form.referenciaParentesco.trim(),
+        referenciaNumero: form.referenciaNumero.replace(/\D/g, ""),
 
-        direccion:
-          form.direccion.trim(),
+        fechaNacimiento: `${year}-${month}-${day}`,
 
-        referenciaNombre:
-          form.referenciaNombre.trim(),
+        expedidoEn: expedidoMap[form.expedidoEn],
+        genero: generoMap[form.genero],
 
-        referenciaParentesco:
-          form.referenciaParentesco.trim(),
-
-        referenciaNumero:
-          form.referenciaNumero.replace(/\D/g, ""),
-
-        fechaNacimiento:
-          `${year}-${month}-${day}`,
-
-        expedidoEn:
-          expedidoMap[form.expedidoEn] ?? "CBBA",
-
-        genero:
-          generoMap[form.genero] ?? "MASCULINO",
+        gruposSeleccionados: undefined,
       };
 
-      const response =
-        await httpClient.postAuth<{
-          estudiante: {
-            id?: number;
-            idUsuario?: number;
-          };
-        }>(
-          "/api/estudiantes",
-          payload
-        );
+      const response = await httpClient.postAuth<{
+        estudiante: {
+          id?: number;
+          idUsuario?: number;
+        };
+      }>("/api/estudiantes", payload);
 
       const estudianteId =
-        response.estudiante.id ??
-        response.estudiante.idUsuario;
+        response.estudiante.id ?? response.estudiante.idUsuario;
 
       if (!estudianteId) {
         Toast.show({
           type: "error",
           text1: "Error",
-          text2:
-            "El backend no devolvió el ID.",
+          text2: "El backend no devolvió el ID.",
         });
-
         return;
       }
 
       setIdEstudiante(estudianteId);
-
       setMaxStepReached(2);
-
       setStep(2);
 
       Toast.show({
         type: "success",
         text1: "Estudiante registrado",
-        text2:
-          "Ahora selecciona carrera y grupo.",
+        text2: "Ahora selecciona carrera y grupos.",
       });
     } catch (error) {
       console.error(error);
@@ -170,8 +150,7 @@ const limpiarInscripcion = () => {
       Toast.show({
         type: "error",
         text1: "Error",
-        text2:
-          "No se pudo registrar al estudiante.",
+        text2: "No se pudo registrar al estudiante.",
       });
     } finally {
       setGuardando(false);
@@ -182,8 +161,7 @@ const limpiarInscripcion = () => {
     <ScrollView
       style={{
         flex: 1,
-        backgroundColor:
-          theme.colors.background,
+        backgroundColor: theme.colors.background,
       }}
       contentContainerStyle={{
         padding: isMobile ? 16 : 34,
@@ -197,49 +175,31 @@ const limpiarInscripcion = () => {
 
       <View
         style={{
-          flexDirection:
-            isMobile ? "column" : "row",
-
+          flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
-
-          alignItems:
-            isMobile ? "flex-start" : "center",
-
+          alignItems: isMobile ? "flex-start" : "center",
           gap: 20,
           marginBottom: 30,
         }}
       >
         <ThemedText
           style={{
-            fontSize:
-              isMobile ? 28 : 38,
-
+            fontSize: isMobile ? 28 : 38,
             fontWeight: "900",
-
             color: theme.colors.text,
           }}
         >
-          {step === 1 &&
-            "Datos del Estudiante"}
-
-          {step === 2 &&
-            "Inscripción Académica"}
-
-          {step === 3 &&
-            "Carga de Documentos"}
-
-          {step === 4 &&
-            "Inscripción Finalizada"}
+          {step === 1 && "Datos del Estudiante"}
+          {step === 2 && "Inscripción Académica"}
+          {step === 3 && "Carga de Documentos"}
+          {step === 4 && "Inscripción Finalizada"}
         </ThemedText>
 
         <StepIndicator
           currentStep={step}
           maxStepReached={maxStepReached}
           onStepPress={(selectedStep) => {
-            if (
-              selectedStep <=
-              maxStepReached
-            ) {
+            if (selectedStep <= maxStepReached) {
               setStep(selectedStep);
             }
           }}
@@ -249,28 +209,17 @@ const limpiarInscripcion = () => {
       {step === 1 && (
         <View
           style={{
-            backgroundColor:
-              theme.colors.card,
-
+            backgroundColor: theme.colors.card,
             borderRadius: 24,
-
-            padding:
-              isMobile ? 18 : 32,
-
+            padding: isMobile ? 18 : 32,
             borderWidth: 1,
-
-            borderColor:
-              theme.colors.border,
+            borderColor: theme.colors.border,
           }}
         >
           <View style={{ gap: 22 }}>
             <View
               style={{
-                flexDirection:
-                  isMobile
-                    ? "column"
-                    : "row",
-
+                flexDirection: isMobile ? "column" : "row",
                 gap: 18,
               }}
             >
@@ -279,10 +228,7 @@ const limpiarInscripcion = () => {
                 placeholder="Escriba su primer apellido"
                 value={form.apellidoPaterno}
                 onChangeText={(text) =>
-                  updateField(
-                    "apellidoPaterno",
-                    text
-                  )
+                  updateField("apellidoPaterno", text)
                 }
               />
 
@@ -291,10 +237,7 @@ const limpiarInscripcion = () => {
                 placeholder="Escriba su segundo apellido"
                 value={form.apellidoMaterno}
                 onChangeText={(text) =>
-                  updateField(
-                    "apellidoMaterno",
-                    text
-                  )
+                  updateField("apellidoMaterno", text)
                 }
               />
 
@@ -302,22 +245,13 @@ const limpiarInscripcion = () => {
                 label="NOMBRES"
                 placeholder="Sus nombres completos"
                 value={form.nombres}
-                onChangeText={(text) =>
-                  updateField(
-                    "nombres",
-                    text
-                  )
-                }
+                onChangeText={(text) => updateField("nombres", text)}
               />
             </View>
 
             <View
               style={{
-                flexDirection:
-                  isMobile
-                    ? "column"
-                    : "row",
-
+                flexDirection: isMobile ? "column" : "row",
                 gap: 18,
               }}
             >
@@ -326,12 +260,7 @@ const limpiarInscripcion = () => {
                 placeholder="0000000"
                 value={form.carnet}
                 keyboardType="numeric"
-                onChangeText={(text) =>
-                  updateField(
-                    "carnet",
-                    text
-                  )
-                }
+                onChangeText={(text) => updateField("carnet", text)}
               />
 
               <FormSelect
@@ -349,36 +278,23 @@ const limpiarInscripcion = () => {
                   "Pando",
                 ]}
                 onChange={(value) =>
-                  updateField(
-                    "expedidoEn",
-                    value
-                  )
+                  updateField("expedidoEn", value as DepartamentoBolivia)
                 }
               />
 
               <FormSelect
                 label="GÉNERO"
                 value={form.genero}
-                options={[
-                  "Masculino",
-                  "Femenino",
-                ]}
+                options={["Masculino", "Femenino"]}
                 onChange={(value) =>
-                  updateField(
-                    "genero",
-                    value
-                  )
+                  updateField("genero", value as Genero)
                 }
               />
             </View>
 
             <View
               style={{
-                flexDirection:
-                  isMobile
-                    ? "column"
-                    : "row",
-
+                flexDirection: isMobile ? "column" : "row",
                 gap: 18,
               }}
             >
@@ -386,42 +302,23 @@ const limpiarInscripcion = () => {
                 label="FECHA DE NACIMIENTO"
                 value={form.fechaNacimiento}
                 onChangeText={(text) =>
-                  updateField(
-                    "fechaNacimiento",
-                    text
-                  )
+                  updateField("fechaNacimiento", text)
                 }
               />
 
-              <View
-                style={{
-                  flex:
-                    isMobile
-                      ? undefined
-                      : 2,
-                }}
-              >
+              <View style={{ flex: isMobile ? undefined : 2 }}>
                 <FormInput
                   label="DIRECCIÓN SEGÚN CARNET"
                   placeholder="Calle, número, zona..."
                   value={form.direccion}
-                  onChangeText={(text) =>
-                    updateField(
-                      "direccion",
-                      text
-                    )
-                  }
+                  onChangeText={(text) => updateField("direccion", text)}
                 />
               </View>
             </View>
 
             <View
               style={{
-                flexDirection:
-                  isMobile
-                    ? "column"
-                    : "row",
-
+                flexDirection: isMobile ? "column" : "row",
                 gap: 18,
               }}
             >
@@ -430,12 +327,7 @@ const limpiarInscripcion = () => {
                 placeholder="63066882"
                 value={form.celular}
                 keyboardType="phone-pad"
-                onChangeText={(text) =>
-                  updateField(
-                    "celular",
-                    text
-                  )
-                }
+                onChangeText={(text) => updateField("celular", text)}
               />
             </View>
 
@@ -445,17 +337,16 @@ const limpiarInscripcion = () => {
               updateField={updateField}
             />
 
-            <NavigationButtons
-              onNext={guardarEstudiante}
-              loading={guardando}
-            />
+            <NavigationButtons onNext={guardarEstudiante} loading={guardando} />
           </View>
         </View>
       )}
 
-      {step === 2 && (
+      {step === 2 && idEstudiante && (
         <PasoAcademico
           idEstudiante={idEstudiante}
+          gruposSeleccionados={form.gruposSeleccionados}
+          setGruposSeleccionados={setGruposSeleccionados}
           onFinish={() => {
             setMaxStepReached(3);
             setStep(3);
@@ -463,33 +354,26 @@ const limpiarInscripcion = () => {
         />
       )}
 
-      {step === 3 &&
-        idEstudiante && (
-          <PasoDocumentacion
-            idUsuario={idEstudiante}
-            documentosLocales={
-              documentosLocales
-            }
-            setDocumentosLocales={
-              setDocumentosLocales
-            }
-            onBack={() =>
-              setStep(2)
-            }
-            onFinish={() => {
-              setMaxStepReached(4);
-              setStep(4);
-            }}
-          />
-        )}
+      {step === 3 && idEstudiante && (
+        <PasoDocumentacion
+          idUsuario={idEstudiante}
+          documentosLocales={documentosLocales}
+          setDocumentosLocales={setDocumentosLocales}
+          onBack={() => setStep(2)}
+          onFinish={() => {
+            setMaxStepReached(4);
+            setStep(4);
+          }}
+        />
+      )}
 
-      {step === 4 &&
-        idEstudiante && (
-       <PasoFinalizar
-  idUsuario={idEstudiante}
-  onDashboard={limpiarInscripcion}
-/>
-        )}
+      {step === 4 && idEstudiante && (
+        <PasoFinalizar
+          idUsuario={idEstudiante}
+          onDashboard={limpiarInscripcion}
+          onResetForm={limpiarInscripcion}
+        />
+      )}
     </ScrollView>
   );
 }

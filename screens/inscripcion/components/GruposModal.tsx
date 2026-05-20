@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
 import {
     ActivityIndicator,
     Modal,
@@ -8,9 +7,14 @@ import {
     StyleSheet,
     View,
 } from "react-native";
+
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
-import { Grupo, Materia } from "../types/inscripcion.types";
+import {
+    Grupo,
+    GrupoSeleccionado,
+    Materia,
+} from "../types/inscripcion.types";
 
 type Props = {
   visible: boolean;
@@ -18,8 +22,9 @@ type Props = {
   grupos: Grupo[];
   loading: boolean;
   inscribiendo: boolean;
+  gruposSeleccionados: GrupoSeleccionado[];
   onClose: () => void;
-  onInscribir: (grupo: Grupo) => void;
+  onToggleGrupo: (grupo: Grupo) => void;
 };
 
 export default function GruposModal({
@@ -28,10 +33,15 @@ export default function GruposModal({
   grupos,
   loading,
   inscribiendo,
+  gruposSeleccionados,
   onClose,
-  onInscribir,
+  onToggleGrupo,
 }: Props) {
   const { theme } = useTheme();
+
+  const estaSeleccionado = (idGrupo: number) => {
+    return gruposSeleccionados.some((grupo) => grupo.idGrupo === idGrupo);
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -40,89 +50,160 @@ export default function GruposModal({
           style={[
             styles.modal,
             {
-              backgroundColor: theme.colors.background,
+              backgroundColor: theme.colors.card,
               borderColor: theme.colors.border,
             },
           ]}
         >
           <View style={styles.header}>
-            <View style={styles.titleBox}>
+            <View style={{ flex: 1 }}>
               <ThemedText style={styles.title}>Grupos disponibles</ThemedText>
+
               <ThemedText style={styles.subtitle}>
-                {materia?.nombreMateria ?? ""}
+                {materia?.nombreMateria ?? "Materia no seleccionada"}
               </ThemedText>
             </View>
 
-            <Pressable onPress={onClose} style={styles.closeButton}>
+            <Pressable
+              onPress={onClose}
+              style={[
+                styles.closeButton,
+                { borderColor: theme.colors.border },
+              ]}
+            >
               <Ionicons name="close" size={22} color={theme.colors.text} />
             </Pressable>
           </View>
 
           {loading ? (
-            <View style={styles.center}>
+            <View style={styles.loadingBox}>
               <ActivityIndicator color={theme.colors.primary} />
               <ThemedText>Cargando grupos...</ThemedText>
             </View>
+          ) : grupos.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Ionicons
+                name="albums-outline"
+                size={42}
+                color={theme.colors.primary}
+              />
+              <ThemedText style={styles.emptyTitle}>
+                No hay grupos disponibles
+              </ThemedText>
+              <ThemedText style={styles.emptyText}>
+                Esta materia todavía no tiene grupos registrados.
+              </ThemedText>
+            </View>
           ) : (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {grupos.length === 0 ? (
-                <View style={[styles.empty, { borderColor: theme.colors.border }]}>
-                  <ThemedText>No hay grupos disponibles.</ThemedText>
-                </View>
-              ) : (
-                grupos.map((item) => (
-                  <View
-                    key={item.idGrupo}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.list}
+            >
+              {grupos.map((grupo) => {
+                const selected = estaSeleccionado(grupo.idGrupo);
+
+                return (
+                  <Pressable
+                    key={grupo.idGrupo}
+                    disabled={inscribiendo}
+                    onPress={() => onToggleGrupo(grupo)}
                     style={[
-                      styles.row,
+                      styles.card,
                       {
-                        backgroundColor: theme.colors.card,
-                        borderColor: theme.colors.border,
+                        backgroundColor: selected
+                          ? `${theme.colors.primary}20`
+                          : theme.colors.background,
+                        borderColor: selected
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                        opacity: inscribiendo ? 0.6 : 1,
                       },
                     ]}
                   >
-                    <View style={styles.info}>
-                      <ThemedText style={styles.name}>
-                        {item.nombre} · Paralelo {item.paralelo}
-                      </ThemedText>
+                    <View style={styles.cardHeader}>
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={styles.groupName}>
+                          {grupo.nombre}
+                        </ThemedText>
 
-                      <ThemedText style={styles.detail}>
-                        Código: {item.codigo}
-                      </ThemedText>
+                        <ThemedText style={styles.groupCode}>
+                          Código: {grupo.codigo ?? "-"}
+                        </ThemedText>
+                      </View>
 
-                      <ThemedText style={styles.detail}>
-                        Turno: {item.turno} · Horario: {item.horario} · Cupos:{" "}
-                        {item.cupos}
-                      </ThemedText>
-
-                      <ThemedText style={styles.detail}>
-                        Gestión: {item.gestion} · Tipo: {item.tipo}
-                      </ThemedText>
+                      <Ionicons
+                        name={selected ? "checkbox" : "square-outline"}
+                        size={28}
+                        color={
+                          selected ? theme.colors.primary : theme.colors.text
+                        }
+                      />
                     </View>
 
-                    <Pressable
-                      disabled={inscribiendo}
-                      onPress={() => onInscribir(item)}
-                      style={[
-                        styles.button,
-                        {
-                          backgroundColor: inscribiendo
-                            ? theme.colors.border
-                            : theme.colors.primary,
-                        },
-                      ]}
-                    >
-                      {inscribiendo ? (
-                        <ActivityIndicator color="#fff" size="small" />
-                      ) : (
-                        <ThemedText style={styles.buttonText}>Inscribir</ThemedText>
-                      )}
-                    </Pressable>
-                  </View>
-                ))
-              )}
+                    <View style={styles.infoGrid}>
+                      <View style={styles.infoItem}>
+                        <ThemedText style={styles.label}>PARALELO</ThemedText>
+                        <ThemedText style={styles.value}>
+                          {grupo.paralelo ?? "-"}
+                        </ThemedText>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <ThemedText style={styles.label}>TURNO</ThemedText>
+                        <ThemedText style={styles.value}>
+                          {grupo.turno ?? "-"}
+                        </ThemedText>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <ThemedText style={styles.label}>HORARIO</ThemedText>
+                        <ThemedText style={styles.value}>
+                          {grupo.horario ?? "-"}
+                        </ThemedText>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <ThemedText style={styles.label}>CUPOS</ThemedText>
+                        <ThemedText style={styles.value}>
+                          {grupo.cupos ?? "-"}
+                        </ThemedText>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <ThemedText style={styles.label}>GESTIÓN</ThemedText>
+                        <ThemedText style={styles.value}>
+                          {grupo.gestion ?? "-"}
+                        </ThemedText>
+                      </View>
+
+                      <View style={styles.infoItem}>
+                        <ThemedText style={styles.label}>TIPO</ThemedText>
+                        <ThemedText style={styles.value}>
+                          {grupo.tipo ?? "-"}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
           )}
+
+          <View style={styles.footer}>
+            <ThemedText style={styles.footerText}>
+              Seleccionados: {gruposSeleccionados.length}
+            </ThemedText>
+
+            <Pressable
+              onPress={onClose}
+              style={[
+                styles.doneButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+            >
+              <ThemedText style={styles.doneText}>Aceptar</ThemedText>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -132,27 +213,24 @@ export default function GruposModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "center",
+    alignItems: "center",
     padding: 18,
   },
   modal: {
     width: "100%",
     maxWidth: 850,
-    maxHeight: "85%",
-    borderRadius: 20,
+    maxHeight: "90%",
     borderWidth: 1,
+    borderRadius: 22,
     padding: 18,
-    gap: 14,
+    gap: 16,
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
     gap: 12,
-  },
-  titleBox: {
-    flex: 1,
   },
   title: {
     fontSize: 22,
@@ -160,58 +238,99 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    opacity: 0.75,
+    opacity: 0.7,
     marginTop: 4,
   },
   closeButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    borderWidth: 1,
     justifyContent: "center",
+    alignItems: "center",
   },
-  center: {
-    padding: 30,
+  loadingBox: {
+    padding: 40,
+    alignItems: "center",
+    gap: 12,
+  },
+  emptyBox: {
+    padding: 36,
     alignItems: "center",
     gap: 10,
   },
-  empty: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 18,
-    alignItems: "center",
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: "900",
   },
-  row: {
+  emptyText: {
+    opacity: 0.7,
+    textAlign: "center",
+  },
+  list: {
+    gap: 12,
+    paddingBottom: 8,
+  },
+  card: {
     borderWidth: 1,
     borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    gap: 14,
+  },
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  info: {
-    flex: 1,
-    gap: 4,
+  groupName: {
+    fontSize: 17,
+    fontWeight: "900",
   },
-  name: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  detail: {
+  groupCode: {
     fontSize: 13,
-    opacity: 0.72,
+    opacity: 0.7,
+    marginTop: 3,
   },
-  button: {
-    minWidth: 110,
+  infoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  infoItem: {
+    minWidth: 120,
+    flex: 1,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: "900",
+    opacity: 0.55,
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  footer: {
+    borderTopWidth: 1,
+    borderColor: "rgba(150,150,150,0.25)",
+    paddingTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  footerText: {
+    fontWeight: "900",
+  },
+  doneButton: {
+    height: 46,
+    paddingHorizontal: 22,
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    justifyContent: "center",
     alignItems: "center",
   },
-  buttonText: {
+  doneText: {
     color: "#fff",
-    fontWeight: "800",
-    fontSize: 13,
+    fontWeight: "900",
   },
 });
