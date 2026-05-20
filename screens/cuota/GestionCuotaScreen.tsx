@@ -1,19 +1,16 @@
+import { ThemeSelector } from "@/components/ThemeSelector";
 import React, { useState } from "react";
-import {
-  Keyboard,
-  Pressable,
-  Text,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
-import Toast from "react-native-toast-message";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../theme/useTheme";
-import { StudentDetailView } from "./components/StudentDetailView";
+import { CarrerasList } from "./components/CarrerasList";
+import { CuotasTable } from "./components/CuotasTable";
 import { StudentListView } from "./components/StudentListView";
 import { StudentSearchBar } from "./components/StudentSearchBar";
+import { StudentSummaryHeader } from "./components/StudentSummaryHeader";
+import { useCarreraCuotas } from "./hooks/useCarreraCuotas";
+import { useStudentCarreras } from "./hooks/useStudentCarreras";
 import { useStudentSearch } from "./hooks/useStudentSearch";
-import { cuotaService } from "./services/cuota.service";
 import { Estudiante } from "./types/cuota.types";
 
 export default function GestionCuotaScreen() {
@@ -21,7 +18,7 @@ export default function GestionCuotaScreen() {
   const { theme } = useTheme();
   const {
     students,
-    loading,
+    loading: searchLoading,
     refreshing,
     searchTerm,
     setSearchTerm,
@@ -34,236 +31,218 @@ export default function GestionCuotaScreen() {
     resetSearch,
   } = useStudentSearch();
 
-  const [studentDetail, setStudentDetail] = useState<any>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const {
+    carreras,
+    loading: carrerasLoading,
+    selectedCarrera,
+    setSelectedCarrera,
+  } = useStudentCarreras(selectedStudent?.id || null);
+  const {
+    cuotas,
+    loading: cuotasLoading,
+    loadCuotas,
+  } = useCarreraCuotas(
+    selectedStudent?.id || null,
+    selectedCarrera?.idCarrera || null,
+  );
 
-  const handleSearch = (term: string) => {
-    searchImmediately(term);
-    setShowDropdown(true); // abrir dropdown para mostrar resultados
-  };
-
-  // Dentro del componente, localiza la función handleSelectStudent
-  const handleSelectStudent = async (student: Estudiante) => {
+  const handleSelectStudent = (student: Estudiante) => {
+    selectStudent(student);
     setShowDropdown(false);
-    resetSearch(); // ✅ Limpia resultados de búsqueda
-    setLoadingDetail(true);
-    setStudentDetail(null); // ✅ Limpia detalle anterior (evita mostrar datos viejos)
-    try {
-      const detail = await cuotaService.getStudentDetail(student.id);
-      setStudentDetail(detail);
-      selectStudent(student);
-      Keyboard.dismiss();
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: error.message || "No se pudo cargar el detalle del estudiante",
-      });
-      // Opcional: si falla, limpia la selección
-      selectStudent(null);
-    } finally {
-      setLoadingDetail(false);
-    }
+    resetSearch();
   };
 
-  const clearSelection = () => {
-    selectStudent(null);
-    setStudentDetail(null);
-    resetSearch(); // limpia resultados y término
-    setShowDropdown(false);
-  };
-
-  const closeDropdown = () => {
-    setShowDropdown(false);
-  };
-
-  const openDropdownIfResults = () => {
-    if (students.length > 0) {
-      setShowDropdown(true);
-    }
+  const handleRefresh = () => {
+    if (selectedStudent) loadCuotas();
+    else refresh();
   };
 
   return (
-    <TouchableWithoutFeedback onPress={closeDropdown}>
-      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        {/* Header */}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {/* Cabecera con buscador (siempre visible) */}
+      <View
+        style={{
+          paddingHorizontal: 24,
+          paddingTop: 24,
+          paddingBottom: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+          backgroundColor: theme.colors.background,
+          zIndex: 10,
+        }}
+      >
         <View
           style={{
-            paddingHorizontal: 24,
-            paddingTop: 24,
-            paddingBottom: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
-            backgroundColor: theme.colors.background,
-            zIndex: 10,
+            flexDirection: isMobile ? "column" : "row",
+            justifyContent: "space-between",
+            alignItems: isMobile ? "flex-start" : "center",
+            gap: 16,
           }}
         >
+          <ThemeSelector />
+          <View>
+            <Text
+              style={{
+                fontSize: isMobile ? 24 : 28,
+                fontWeight: "700",
+                color: theme.colors.text,
+              }}
+            >
+              Instituto Tecnológico del Sur
+            </Text>
+            <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
+              Gestión de Pagos por Carrera
+            </Text>
+          </View>
           <View
             style={{
-              flexDirection: isMobile ? "column" : "row",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              gap: 16,
-              maxWidth: 1400,
-              alignSelf: "center",
-              width: "100%",
+              width: isMobile ? "100%" : 320,
               position: "relative",
+              zIndex: 20,
             }}
           >
+            <StudentSearchBar
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              onSearch={() => searchImmediately(searchTerm)}
+              onFocus={() => setShowDropdown(true)}
+              isLoading={searchLoading}
+            />
+            {showDropdown && (students.length > 0 || searchLoading) && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 50,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: theme.colors.card,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  maxHeight: 400,
+                  zIndex: 1000,
+                  overflow: "hidden",
+                  shadowColor: theme.colors.text,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 5,
+                }}
+              >
+                <StudentListView
+                  students={students}
+                  loading={searchLoading}
+                  refreshing={refreshing}
+                  onRefresh={() => {
+                    refresh();
+                    setShowDropdown(true);
+                  }}
+                  onLoadMore={loadMore}
+                  hasMore={hasMore}
+                  onSelectStudent={handleSelectStudent}
+                  isDropdown
+                />
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* Contenido principal (scrollable) */}
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || carrerasLoading || cuotasLoading}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 24 }}
+      >
+        {!selectedStudent ? (
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: 400,
+              paddingHorizontal: 16,
+            }}
+          >
+            <View
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 48,
+                backgroundColor: theme.colors.backgroundSecondary,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Text style={{ fontSize: 48 }}>🔍</Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "700",
+                color: theme.colors.text,
+                marginBottom: 8,
+                textAlign: "center",
+              }}
+            >
+              Buscar Estudiante
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: theme.colors.textSecondary,
+                textAlign: "center",
+              }}
+            >
+              Utilice la barra de búsqueda superior para encontrar un estudiante
+              por nombre, CI o matrícula y gestionar sus pagos.
+            </Text>
+          </View>
+        ) : (
+          <View style={{ gap: 24 }}>
+            {/* Student Header */}
+            <StudentSummaryHeader student={selectedStudent} />
+
+            {/* Carreras Inscritas (horizontal scroll) */}
             <View>
               <Text
                 style={{
-                  fontSize: isMobile ? 24 : 28,
-                  fontWeight: "700",
-                  color: theme.colors.text,
-                }}
-              >
-                Instituto Tecnológico del Sur
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
+                  fontSize: 12,
+                  fontWeight: "bold",
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
                   color: theme.colors.textSecondary,
-                  marginTop: 4,
+                  marginBottom: 12,
                 }}
               >
-                Gestión de Matrículas y Cuotas
+                Carreras Inscritas
               </Text>
-            </View>
-            <View
-              style={{
-                width: isMobile ? "100%" : 320,
-                position: "relative",
-                zIndex: 20,
-              }}
-            >
-              <StudentSearchBar
-                value={searchTerm}
-                onChangeText={setSearchTerm}
-                onSearch={handleSearch}
-                onFocus={openDropdownIfResults}
-                isLoading={loading}
-                placeholder="Buscar por CI, nombre o matrícula..."
+              <CarrerasList
+                carreras={carreras}
+                selectedCarrera={selectedCarrera}
+                onSelectCarrera={setSelectedCarrera}
+                loading={carrerasLoading}
               />
-              {showDropdown && (students.length > 0 || loading) && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 50,
-                    left: 0,
-                    right: 0,
-                    backgroundColor: theme.colors.card,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    maxHeight: 400,
-                    zIndex: 30,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    elevation: 5,
-                    overflow: "hidden",
-                  }}
-                >
-                  <StudentListView
-                    students={students}
-                    loading={loading}
-                    refreshing={refreshing}
-                    onRefresh={() => {
-                      refresh();
-                      setShowDropdown(true);
-                    }}
-                    onLoadMore={loadMore}
-                    hasMore={hasMore}
-                    onSelectStudent={handleSelectStudent}
-                    isDropdown={true}
-                  />
-                </View>
-              )}
             </View>
-          </View>
-        </View>
 
-        {/* Contenido principal */}
-        <View style={{ flex: 1 }}>
-          {selectedStudent && studentDetail ? (
-            <StudentDetailView
-              student={selectedStudent}
-              detail={studentDetail}
+            {/* Filtros y tabla de cuotas */}
+            <CuotasTable
+              cuotas={cuotas}
+              loading={cuotasLoading}
+              carrera={selectedCarrera}
+              onRefresh={loadCuotas}
             />
-          ) : loadingDetail ? (
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: theme.colors.textSecondary }}>
-                Cargando detalle...
-              </Text>
-            </View>
-          ) : (
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-                paddingHorizontal: 24,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  color: theme.colors.textSecondary,
-                  textAlign: "center",
-                }}
-              >
-                🔍 Busca un estudiante por CI, nombre o matrícula
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: theme.colors.textMuted,
-                  marginTop: 8,
-                  textAlign: "center",
-                }}
-              >
-                Los resultados aparecerán aquí debajo del buscador.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Botón flotante para limpiar selección y volver a buscar */}
-        {selectedStudent && (
-          <Pressable
-            onPress={clearSelection}
-            style={{
-              position: "absolute",
-              bottom: 24,
-              right: 24,
-              backgroundColor: theme.colors.primary,
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              alignItems: "center",
-              justifyContent: "center",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.2,
-              shadowRadius: 4,
-              elevation: 4,
-            }}
-          >
-            <Text style={{ color: "white", fontWeight: "bold", fontSize: 18 }}>
-              ✕
-            </Text>
-          </Pressable>
+          </View>
         )}
-      </View>
-    </TouchableWithoutFeedback>
+      </ScrollView>
+    </View>
   );
 }

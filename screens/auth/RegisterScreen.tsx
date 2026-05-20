@@ -199,9 +199,7 @@ export default function RegisterScreen() {
           >
             <DatePickerField
               label="Fecha de nacimiento"
-              value={
-                form.fecha_nac ? new Date(form.fecha_nac + "T00:00:00") : null
-              }
+              value={form.fecha_nac || null}
               onChange={(isoDate) => handleChange("fecha_nac")(isoDate)}
               error={errors.fecha_nac as string | undefined}
             />

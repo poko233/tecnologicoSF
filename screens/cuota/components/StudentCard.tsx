@@ -22,7 +22,10 @@ export const StudentCard: React.FC<StudentCardProps> = ({
   return (
     <Animated.View entering={FadeInUp.delay(index * 30).duration(300)}>
       <Pressable
-        onPress={() => onPress(student)}
+        onPress={() => {
+          onPress(student);
+        }}
+        android_ripple={{ color: theme.colors.primarySubtle }}
         style={({ pressed }) => ({
           backgroundColor: theme.colors.card,
           borderRadius: compact ? 8 : 16,

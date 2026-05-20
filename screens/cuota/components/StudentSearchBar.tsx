@@ -17,6 +17,7 @@ interface StudentSearchBarProps {
   onFocus?: () => void; // nueva
   placeholder?: string;
   isLoading?: boolean;
+  isDropdownOpen?: boolean;
 }
 
 export const StudentSearchBar: React.FC<StudentSearchBarProps> = ({
@@ -26,6 +27,7 @@ export const StudentSearchBar: React.FC<StudentSearchBarProps> = ({
   onFocus,
   placeholder = "Buscar por CI, nombre o matrícula...",
   isLoading = false,
+  isDropdownOpen = false,
 }) => {
   const { theme } = useTheme();
   const inputRef = useRef<TextInput>(null);
@@ -55,85 +57,87 @@ export const StudentSearchBar: React.FC<StudentSearchBarProps> = ({
 
   return (
     <Animated.View style={animatedShadow}>
-      <Pressable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={() => inputRef.current?.focus()}
+      <Animated.View
+        pointerEvents="auto"
+        style={[
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.colors.backgroundSecondary,
+            borderRadius: 999,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            gap: 8,
+            flexWrap: "nowrap",
+          },
+          animatedBorderColor,
+        ]}
       >
-        <Animated.View
-          style={[
-            {
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: theme.colors.backgroundSecondary,
-              borderRadius: 999,
-              paddingHorizontal: 12, // reducido de 16
-              paddingVertical: 8,
-              gap: 8, // reducido de 12
-              flexWrap: "nowrap", // evitar salto de línea
-            },
-            animatedBorderColor,
-          ]}
+        <Pressable
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onPress={() => inputRef.current?.focus()}
+          style={{ padding: 4 }}
         >
           <Ionicons
             name="search"
             size={20}
             color={theme.colors.textSecondary}
           />
-          <TextInput
-            ref={inputRef}
-            style={{
-              flex: 1,
-              flexShrink: 1, // permite encoger
-              fontSize: 16,
-              fontFamily: "Inter_400Regular",
-              color: theme.colors.text,
-              padding: 0,
-              minWidth: 0, // importante para encoger
-            }}
-            placeholder={placeholder}
-            placeholderTextColor={theme.colors.textMuted}
-            value={value}
-            onChangeText={onChangeText}
-            onSubmitEditing={(e) => onSearch(e.nativeEvent.text)} // 🔥 Enter ejecuta búsqueda
-            onFocus={() => {
-              isFocused.value = withTiming(1, { duration: 200 });
-              onFocus?.();
-            }}
-            onBlur={() => {
-              isFocused.value = withTiming(0, { duration: 200 });
-            }}
-          />
-          {value.length > 0 && (
-            <Pressable onPress={() => onChangeText("")}>
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={theme.colors.textMuted}
-              />
-            </Pressable>
-          )}
-          {/* Botón de búsqueda manual */}
-          <Pressable
-            onPress={(e) => onSearch(value)}
-            disabled={isLoading}
-            style={({ pressed }) => ({
-              backgroundColor: theme.colors.primary,
-              borderRadius: 999,
-              paddingHorizontal: 14,
-              paddingVertical: 6,
-              opacity: pressed || isLoading ? 0.7 : 1,
-              flexShrink: 0,
-            })}
-          >
+        </Pressable>
+        <TextInput
+          ref={inputRef}
+          pointerEvents="auto"
+          style={{
+            flex: 1,
+            flexShrink: 1,
+            fontSize: 16,
+            fontFamily: "Inter_400Regular",
+            color: theme.colors.text,
+            padding: 0,
+            minWidth: 0,
+          }}
+          placeholder={placeholder}
+          placeholderTextColor={theme.colors.textMuted}
+          value={value}
+          onChangeText={onChangeText}
+          onSubmitEditing={(e) => onSearch(e.nativeEvent.text)}
+          onFocus={() => {
+            isFocused.value = withTiming(1, { duration: 200 });
+            onFocus?.();
+          }}
+          onBlur={() => {
+            isFocused.value = withTiming(0, { duration: 200 });
+          }}
+        />
+        {value.length > 0 && (
+          <Pressable onPress={() => onChangeText("")} style={{ padding: 4 }}>
             <Ionicons
-              name="search-outline"
+              name="close-circle"
               size={18}
-              color={theme.colors.primaryForeground}
+              color={theme.colors.textMuted}
             />
           </Pressable>
-        </Animated.View>
-      </Pressable>
+        )}
+        <Pressable
+          onPress={(e) => onSearch(value)}
+          disabled={isLoading}
+          style={({ pressed }) => ({
+            backgroundColor: theme.colors.primary,
+            borderRadius: 999,
+            paddingHorizontal: 14,
+            paddingVertical: 6,
+            opacity: pressed || isLoading ? 0.7 : 1,
+            flexShrink: 0,
+          })}
+        >
+          <Ionicons
+            name="search-outline"
+            size={18}
+            color={theme.colors.primaryForeground}
+          />
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 };

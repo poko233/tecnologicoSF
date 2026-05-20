@@ -84,10 +84,16 @@ function minBirthDateIso(): string {
 }
 
 interface DatePickerFieldProps {
-  value: Date | null;
+  value: string | null;
   onChange: (dateString: string) => void;
   error?: string;
   label: string;
+}
+
+// Extrae año, mes, día de una string ISO (YYYY-MM-DD)
+function parseIso(iso: string): { year: number; month: number; day: number } {
+  const [year, month, day] = iso.split("-").map(Number);
+  return { year, month: month - 1, day };
 }
 
 export const DatePickerField = ({
@@ -98,40 +104,30 @@ export const DatePickerField = ({
 }: DatePickerFieldProps) => {
   const { theme } = useTheme();
   const [visible, setVisible] = useState(false);
-  const [viewYear, setViewYear] = useState(() => {
-    if (value) {
-      return value.getFullYear();
-    }
-    return new Date().getFullYear();
-  });
-  const [viewMonth, setViewMonth] = useState(() => {
-    if (value) {
-      return value.getMonth();
-    }
-    return new Date().getMonth();
-  });
-  const [tempDate, setTempDate] = useState<string>(
-    value
-      ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
-      : "",
-  );
+
+  // Inicializar desde la string ISO o desde la fecha actual en Bolivia
+  const initDate = value ? parseIso(value) : parseIso(todayInBoliviaIso());
+
+  const [viewYear, setViewYear] = useState(initDate.year);
+  const [viewMonth, setViewMonth] = useState(initDate.month);
+  const [tempDate, setTempDate] = useState<string>(value || "");
   const [showMonthGrid, setShowMonthGrid] = useState(false);
   const [editingYear, setEditingYear] = useState(false);
-  const [yearInput, setYearInput] = useState(String(viewYear));
+  const [yearInput, setYearInput] = useState(String(initDate.year));
 
   const todayIso = todayInBoliviaIso();
   const minDateIso = minBirthDateIso();
 
   function open() {
-    setTempDate(
-      value
-        ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
-        : "",
-    );
-    const d = value ? value : new Date();
-    setViewYear(d.getFullYear());
-    setViewMonth(d.getMonth());
-    setYearInput(String(d.getFullYear()));
+    // Inicializar tempDate desde la string ISO
+    setTempDate(value || "");
+
+    // Inicializar viewYear y viewMonth desde la string ISO
+    const date = value ? parseIso(value) : parseIso(todayInBoliviaIso());
+    setViewYear(date.year);
+    setViewMonth(date.month);
+    setYearInput(String(date.year));
+
     setShowMonthGrid(false);
     setEditingYear(false);
     setVisible(true);
@@ -196,11 +192,7 @@ export const DatePickerField = ({
     return { bg: "transparent", text: theme.colors.text, radius: 8 };
   }
 
-  const selectedDisplay = value
-    ? fmtShort(
-        `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`,
-      )
-    : "";
+  const selectedDisplay = value ? fmtShort(value) : "";
 
   return (
     <>

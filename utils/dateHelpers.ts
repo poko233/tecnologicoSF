@@ -1,9 +1,35 @@
+// Extrae solo la parte de fecha (YYYY-MM-DD) de un ISO string completo
+function extractDatePart(isoString: string): string {
+  if (!isoString) return "";
+  // Si contiene "T", extrae la parte antes de la T
+  return isoString.split("T")[0];
+}
+
+// Formato DIA/MES/AÑO (sin hora)
 export function formatDateToDDMMYYYY(
   isoString: string | null | undefined,
 ): string {
   if (!isoString) return "—";
-  const [year, month, day] = isoString.split("-");
+  const datePart = extractDatePart(isoString);
+  const [year, month, day] = datePart.split("-");
   return `${day}/${month}/${year}`;
+}
+
+// Formato DIA/MES/AÑO HH:MM (con hora)
+export function formatDateTimeToDD_MM_YYYY_HH_MM(
+  isoString: string | null | undefined,
+): string {
+  if (!isoString) return "—";
+  const [datePart, timePart] = isoString.split("T");
+  const [year, month, day] = datePart.split("-");
+
+  if (!timePart) return `${day}/${month}/${year}`;
+
+  // Extrae HH:MM de timePart (por si viene con Z o con segundos)
+  const timeWithoutZ = timePart.replace("Z", "");
+  const [hours, minutes] = timeWithoutZ.split(":");
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 // Versión que acepta también Date o timestamp, pero prefiere ISO string
@@ -21,6 +47,7 @@ export function formatDisplayDate(
     iso = `${y}-${m}-${d}`;
   }
   if (!iso) return "—";
-  const [year, month, day] = iso.split("-");
+  const datePart = extractDatePart(iso);
+  const [year, month, day] = datePart.split("-");
   return `${day}/${month}/${year}`;
 }

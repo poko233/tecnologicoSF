@@ -1,5 +1,10 @@
 import { httpClient } from "../../../http/httpClient";
-import { Estudiante, PaginatedResponse } from "../types/cuota.types";
+import {
+  CarreraInscrita,
+  Cuota,
+  Estudiante,
+  PaginatedResponse,
+} from "../types/cuota.types";
 
 // Cambia esta URL según tu endpoint real (ej: '/students/search' o '/cuotas/search')
 const API_SEARCH_STUDENTS = "/api/cuota/search";
@@ -22,5 +27,18 @@ export const cuotaService = {
   },
   getStudentDetail: (studentId: number) => {
     return httpClient.getAuth<any>(`${API_STUDENT_DETAIL}/${studentId}`);
+  },
+  // Obtener carreras en las que está inscrito un estudiante
+  getCarrerasByStudent: (usuarioId: number) => {
+    return httpClient.getAuth<CarreraInscrita[]>(
+      `/api/estudiantes/${usuarioId}/carreras`,
+    );
+  },
+
+  // Obtener cuotas de una carrera específica de un estudiante
+  getCuotasByCarrera: (usuarioId: number, carreraId: number) => {
+    return httpClient.getAuth<Cuota[]>(
+      `/api/estudiantes/${usuarioId}/carreras/${carreraId}/cuotas`,
+    );
   },
 };

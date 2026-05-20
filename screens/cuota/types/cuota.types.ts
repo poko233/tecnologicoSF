@@ -30,3 +30,33 @@ export interface PaginatedResponse<T> {
   to: number;
   total: number;
 }
+export interface Cuota {
+  idCuota: number;
+  idPlanPago: number | null; // puede ser null si no pertenece a un plan
+  idUsuario: number;
+  idCarrera: number | null; // nuevo campo
+  tipo: "MATRICULA" | "MENSUAL";
+  monto: number;
+  numeroCuota: string;
+  fecha_vencimiento: string | null;
+  descuento: number;
+  estadoCuota: "Debe" | "Pagado" | "Condonado";
+  fecha_pago: string | null;
+}
+
+export interface CarreraInscrita {
+  idCarrera: number;
+  nombreCarrera: string;
+  codigo: string;
+  regimen: string;
+  duracion: number;
+  cuotas_por_anio: number;
+  cuota_mensual: number;
+  costo_matricula: number;
+  costo: number;
+  // otros campos que necesites
+}
+
+export interface CuotaConCarrera extends Cuota {
+  carrera?: CarreraInscrita;
+}
