@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import Toast from "react-native-toast-message";
+
 import { ThemedText } from "../../../components/ThemedText";
 import { httpClient } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
+
 import {
     Carrera,
     Grupo,
+    GrupoSeleccionado,
     Materia,
 } from "../types/inscripcion.types";
+
 import CarrerasTable from "./CarrerasTable";
 import GruposModal from "./GruposModal";
 import MateriasModal from "./MateriasModal";
@@ -16,10 +20,17 @@ import TipoInscripcionSelector from "./TipoInscripcionSelector";
 
 type Props = {
   idEstudiante: number | null;
+  gruposSeleccionados: GrupoSeleccionado[];
+  setGruposSeleccionados: (grupos: GrupoSeleccionado[]) => void;
   onFinish?: () => void;
 };
 
-export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
+export default function PasoAcademico({
+  idEstudiante,
+  gruposSeleccionados,
+  setGruposSeleccionados,
+  onFinish,
+}: Props) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
 
@@ -33,6 +44,7 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
 
   const [carreraSeleccionada, setCarreraSeleccionada] =
     useState<Carrera | null>(null);
+
   const [materiaSeleccionada, setMateriaSeleccionada] =
     useState<Materia | null>(null);
 
@@ -55,13 +67,14 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
       const data = response.carreras ?? [];
 
       const filtradas =
-        tipo === "carrera"
-          ? data.filter((item) => item.denominacionTituloProfesional)
-          : data.filter((item) => !item.denominacionTituloProfesional);
+  tipo === "carrera"
+    ? data.filter((item) => item.tipo === "Carrera")
+    : data.filter((item) => item.tipo !== "Carrera");
 
       setCarreras(filtradas);
     } catch (error) {
       console.error(error);
+
       Toast.show({
         type: "error",
         text1: "Error",
@@ -83,9 +96,14 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
         `/api/carreras/${carrera.idCarrera}/materias`
       );
 
-      setMaterias(response.materias ?? []);
+      const materiasDisponibles = (response.materias ?? []).filter(
+  (materia) => !materia.idPrerequisito
+);
+
+setMaterias(materiasDisponibles);
     } catch (error) {
       console.error(error);
+
       Toast.show({
         type: "error",
         text1: "Error",
@@ -110,6 +128,7 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
       setGrupos(response.grupos ?? []);
     } catch (error) {
       console.error(error);
+
       Toast.show({
         type: "error",
         text1: "Error",
@@ -120,7 +139,39 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
     }
   };
 
-  const inscribirGrupo = async (grupo: Grupo) => {
+  const grupoYaSeleccionado = (idGrupo: number) => {
+    return gruposSeleccionados.some((grupo) => grupo.idGrupo === idGrupo);
+  };
+
+  const toggleGrupo = (grupo: Grupo) => {
+  const existe = grupoYaSeleccionado(grupo.idGrupo);
+
+  if (existe) {
+    setGruposSeleccionados(
+      gruposSeleccionados.filter((item) => item.idGrupo !== grupo.idGrupo)
+    );
+    return;
+  }
+
+  const nuevoGrupo: GrupoSeleccionado = {
+    ...grupo,
+    nombreMateria: materiaSeleccionada?.nombreMateria,
+    nombreCarrera: carreraSeleccionada?.nombreCarrera,
+  };
+
+  setGruposSeleccionados([...gruposSeleccionados, nuevoGrupo]);
+
+  setShowGrupos(false);
+  setShowMaterias(true);
+};
+
+  const quitarGrupo = (idGrupo: number) => {
+    setGruposSeleccionados(
+      gruposSeleccionados.filter((grupo) => grupo.idGrupo !== idGrupo)
+    );
+  };
+
+  const inscribirGruposSeleccionados = async () => {
     if (!idEstudiante) {
       Toast.show({
         type: "error",
@@ -134,6 +185,16 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
       Toast.show({
         type: "error",
         text1: "Falta carrera",
+        text2: "Selecciona una carrera.",
+      });
+      return;
+    }
+
+    if (gruposSeleccionados.length === 0) {
+      Toast.show({
+        type: "error",
+        text1: "Sin grupos",
+        text2: "Selecciona al menos un grupo.",
       });
       return;
     }
@@ -141,16 +202,20 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
     try {
       setInscribiendo(true);
 
-      await httpClient.postAuth("/api/inscripciones-academicas", {
-        idUsuario: idEstudiante,
-        idCarrera: carreraSeleccionada.idCarrera,
-        idGrupo: grupo.idGrupo,
-      });
+      await Promise.all(
+        gruposSeleccionados.map((grupo) =>
+          httpClient.postAuth("/api/inscripciones-academicas", {
+            idUsuario: idEstudiante,
+            idCarrera: carreraSeleccionada.idCarrera,
+            idGrupo: grupo.idGrupo,
+          })
+        )
+      );
 
       Toast.show({
         type: "success",
-        text1: "Inscripción completada",
-        text2: `${carreraSeleccionada.nombreCarrera} - ${grupo.nombre}`,
+        text1: "Inscripción académica completada",
+        text2: `${gruposSeleccionados.length} grupo(s) inscrito(s).`,
       });
 
       setShowGrupos(false);
@@ -163,7 +228,7 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
       Toast.show({
         type: "error",
         text1: "No se pudo inscribir",
-        text2: "Verifica que el estudiante no esté inscrito en ese grupo.",
+        text2: "Verifica que el estudiante no esté inscrito en algún grupo.",
       });
     } finally {
       setInscribiendo(false);
@@ -211,7 +276,8 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
             </ThemedText>
 
             <ThemedText style={styles.subtitle}>
-              Selecciona una opción y revisa sus materias para inscribir al grupo.
+              Selecciona una opción, revisa sus materias y elige uno o más
+              grupos.
             </ThemedText>
           </View>
 
@@ -221,6 +287,88 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
             onVerMaterias={cargarMaterias}
           />
         </View>
+      </View>
+
+      <View
+        style={[
+          styles.selectedBox,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <ThemedText style={styles.selectedTitle}>
+          Grupos seleccionados ({gruposSeleccionados.length})
+        </ThemedText>
+
+        {gruposSeleccionados.length === 0 ? (
+          <ThemedText style={styles.emptyText}>
+            Todavía no seleccionaste ningún grupo.
+          </ThemedText>
+        ) : (
+          <View style={styles.selectedList}>
+            {gruposSeleccionados.map((grupo) => (
+  <View
+    key={grupo.idGrupo}
+    style={[
+      styles.selectedItem,
+      {
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.background,
+      },
+    ]}
+  >
+    <View style={{ flex: 1 }}>
+      <ThemedText style={styles.groupName}>
+        {grupo.nombreCarrera ?? "Sin carrera"}
+      </ThemedText>
+
+      <ThemedText style={styles.groupInfo}>
+        Materia: {grupo.nombreMateria ?? "Sin materia"}
+      </ThemedText>
+
+      <ThemedText style={styles.groupInfo}>
+        Grupo: {grupo.nombre} · Paralelo {grupo.paralelo}
+      </ThemedText>
+
+      <ThemedText style={styles.groupInfo}>
+        Turno: {grupo.turno} · Horario: {grupo.horario}
+      </ThemedText>
+    </View>
+
+    <Pressable
+      onPress={() => quitarGrupo(grupo.idGrupo)}
+      style={[
+        styles.removeButton,
+        { borderColor: theme.colors.border },
+      ]}
+    >
+      <ThemedText style={{ color: theme.colors.primary }}>
+        Quitar
+      </ThemedText>
+    </Pressable>
+  </View>
+))}
+          </View>
+        )}
+
+        <Pressable
+          onPress={inscribirGruposSeleccionados}
+          disabled={inscribiendo || gruposSeleccionados.length === 0}
+          style={[
+            styles.finishButton,
+            {
+              backgroundColor: theme.colors.primary,
+              opacity:
+                inscribiendo || gruposSeleccionados.length === 0 ? 0.55 : 1,
+            },
+          ]}
+        >
+          <ThemedText style={styles.finishText}>
+            {inscribiendo ? "Inscribiendo..." : "Continuar con documentos"}
+          </ThemedText>
+        </Pressable>
       </View>
 
       <MateriasModal
@@ -238,8 +386,9 @@ export default function PasoAcademico({ idEstudiante, onFinish }: Props) {
         grupos={grupos}
         loading={loadingGrupos}
         inscribiendo={inscribiendo}
+        gruposSeleccionados={gruposSeleccionados}
         onClose={() => setShowGrupos(false)}
-        onInscribir={inscribirGrupo}
+        onToggleGrupo={toggleGrupo}
       />
     </View>
   );
@@ -277,5 +426,54 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     opacity: 0.75,
+  },
+  selectedBox: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 18,
+    gap: 14,
+  },
+  selectedTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  emptyText: {
+    opacity: 0.7,
+  },
+  selectedList: {
+    gap: 10,
+  },
+  selectedItem: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  groupName: {
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  groupInfo: {
+    fontSize: 13,
+    opacity: 0.75,
+    marginTop: 3,
+  },
+  removeButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  finishButton: {
+    height: 54,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  finishText: {
+    color: "#fff",
+    fontWeight: "900",
   },
 });
