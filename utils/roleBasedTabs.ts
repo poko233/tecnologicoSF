@@ -10,8 +10,27 @@ const roleTabMap: Record<string, TabDefinition[]> = {
     { name: "horario", title: "Horario", icon: "calendar-outline" },
     { name: "perfil", title: "Perfil", icon: "person-outline" },
   ],
-  Personal: [{ name: "perfil", title: "Perfil", icon: "person-outline" }],
+  Personal: [
+    { name: "perfil", title: "Perfil", icon: "person-outline" },
+    { name: "registro", title: "Registro", icon: "create-outline" },
+  ],
   Administrador: [
+    { name: "perfil", title: "Perfil", icon: "person-outline" },
+    { name: "registro", title: "Registro", icon: "create-outline" },
+  ],
+  Rector: [
+    { name: "perfil", title: "Perfil", icon: "person-outline" },
+    { name: "registro", title: "Registro", icon: "create-outline" },
+  ],
+  "Director Administrativo": [
+    { name: "perfil", title: "Perfil", icon: "person-outline" },
+    { name: "registro", title: "Registro", icon: "create-outline" },
+  ],
+  "Director Academico": [
+    { name: "perfil", title: "Perfil", icon: "person-outline" },
+    { name: "registro", title: "Registro", icon: "create-outline" },
+  ],
+  Fundador: [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
     { name: "registro", title: "Registro", icon: "create-outline" },
   ],
