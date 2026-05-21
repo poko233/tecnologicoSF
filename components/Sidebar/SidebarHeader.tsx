@@ -44,7 +44,6 @@ export const SidebarHeader = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [hoveredRole, setHoveredRole] = useState<string | null>(null);
-  // Guardamos el layout de cada badge para saber en qué fila está
   const badgeLayouts = useRef<Record<string, BadgeLayout>>({});
   const [tooltipBottom, setTooltipBottom] = useState(BADGE_SIZE + 6);
 
@@ -62,10 +61,6 @@ export const SidebarHeader = () => {
     setHoveredRole(role);
     const layout = badgeLayouts.current[role];
     if (layout) {
-      // tooltipBottom = distancia desde el fondo del wrapper hasta encima del badge
-      // wrapper height = total rows * (BADGE_SIZE + GAP) - GAP
-      // bottom del tooltip = (wrapper height - layout.y) + margen
-      // Simplificado: cuánto falta desde ese badge hasta el fondo del wrapper
       const totalRows = Math.ceil(roles.length / BADGES_PER_ROW);
       const wrapperHeight =
         totalRows * BADGE_SIZE + (totalRows - 1) * BADGE_GAP;
@@ -79,7 +74,7 @@ export const SidebarHeader = () => {
         paddingHorizontal: 16,
         paddingTop: 12,
         paddingBottom: 12,
-        borderBottomWidth: 1,
+        borderBottomWidth: 1, // Restablecido permanentemente
         borderBottomColor: theme.colors.border,
         marginBottom: 4,
       }}
@@ -164,7 +159,6 @@ export const SidebarHeader = () => {
               pointerEvents="none"
               style={{
                 position: "absolute",
-                // Se actualiza dinámicamente según la fila del badge
                 bottom: tooltipBottom,
                 alignSelf: "center",
                 backgroundColor: theme.colors.text,
@@ -220,7 +214,6 @@ export const SidebarHeader = () => {
                   onPress={() =>
                     setHoveredRole(hoveredRole === role ? null : role)
                   }
-                  // onLayout captura la posición Y de cada badge dentro del flex wrap
                   onLayout={(e) => {
                     badgeLayouts.current[role] = { y: e.nativeEvent.layout.y };
                   }}

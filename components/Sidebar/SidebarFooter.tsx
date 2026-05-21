@@ -1,5 +1,6 @@
 // components/Sidebar/SidebarFooter.tsx
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { LogOut } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -12,11 +13,14 @@ import {
 import Toast from "react-native-toast-message";
 import logoImg from "../../assets/images/logo_texto.png";
 import { useAuth } from "../../contexts/AuthContext";
+import { useMobileDrawer } from "../../contexts/MobileDrawerContext"; // ← añadido
 import { useTheme } from "../../theme/useTheme";
 
 export const SidebarFooter = () => {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+  const router = useRouter();
+  const { closeDrawer } = useMobileDrawer(); // ← añadido
   const [loading, setLoading] = useState(false);
   const [hovered, setHovered] = useState(false);
 
@@ -32,7 +36,12 @@ export const SidebarFooter = () => {
         text2: "Has salido correctamente.",
         visibilityTime: 3000,
       });
+      // 1. Cerramos el drawer móvil si está abierto
+      closeDrawer();
+      // 2. Redirigimos inmediatamente al login
+      router.replace("/");
     } catch (e) {
+      // Si falla, no redirigimos; el ProtectedRoute se encargará
     } finally {
       setLoading(false);
     }
@@ -60,7 +69,7 @@ export const SidebarFooter = () => {
         gap: 8,
       }}
     >
-      {/* Logo más grande */}
+      {/* Logo */}
       <Image
         source={logoImg}
         style={{ flex: 1, height: 35 }}
@@ -68,7 +77,7 @@ export const SidebarFooter = () => {
         contentPosition="left center"
       />
 
-      {/* Botón logout con borde, ícono + texto */}
+      {/* Botón logout */}
       <Pressable
         onPress={handleLogout}
         disabled={loading}

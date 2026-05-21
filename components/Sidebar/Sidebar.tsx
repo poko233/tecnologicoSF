@@ -1,3 +1,4 @@
+// components/Sidebar/Sidebar.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { Href, usePathname, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -18,13 +19,15 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { useAuth } from "../../contexts/AuthContext";
+import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../theme/useTheme";
+import { getTabsForRoles } from "../../utils/roleBasedTabs";
 import { resolveIcon } from "./iconMap";
 import { SidebarFooter } from "./SidebarFooter";
 import { SidebarHeader } from "./SidebarHeader";
 import { MiFormulario, MiModulo, useMisModulos } from "./useMisModulos";
 
-// Habilitar LayoutAnimation en Android
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -32,12 +35,13 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* ──────────────────────────────────────────────
    Sub-item (Formulario)
-───────────────────────────────────────────────────────────── */
-const FormularioItem: React.FC<{ formulario: MiFormulario }> = ({
-  formulario,
-}) => {
+────────────────────────────────────────────── */
+const FormularioItem: React.FC<{
+  formulario: MiFormulario;
+  onNavigate?: () => void;
+}> = ({ formulario, onNavigate }) => {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -54,10 +58,15 @@ const FormularioItem: React.FC<{ formulario: MiFormulario }> = ({
     ? resolveIcon(formulario.icono)
     : "document-text-outline";
 
+  const handlePress = useCallback(() => {
+    onNavigate?.();
+    router.push(formulario.ruta as Href);
+  }, [formulario.ruta, onNavigate]);
+
   return (
     <Animated.View style={animStyle}>
       <Pressable
-        onPress={() => router.push(formulario.ruta as Href)}
+        onPress={handlePress}
         onPressIn={() => {
           scale.value = withSpring(0.97, { damping: 15, stiffness: 200 });
         }}
@@ -69,14 +78,12 @@ const FormularioItem: React.FC<{ formulario: MiFormulario }> = ({
           isActive && { backgroundColor: c.primary + "18" },
         ]}
       >
-        {/* línea vertical izquierda */}
         <View
           style={[
             styles.subLine,
             { backgroundColor: isActive ? c.primary : c.border },
           ]}
         />
-
         <Ionicons
           name={iconName}
           size={15}
@@ -94,7 +101,6 @@ const FormularioItem: React.FC<{ formulario: MiFormulario }> = ({
         >
           {formulario.nombre}
         </Text>
-
         {isActive && (
           <View
             style={[styles.activeIndicator, { backgroundColor: c.primary }]}
@@ -105,18 +111,19 @@ const FormularioItem: React.FC<{ formulario: MiFormulario }> = ({
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
+/* ──────────────────────────────────────────────
    Módulo item (colapsable si tiene formularios)
-───────────────────────────────────────────────────────────── */
-const ModuloItem: React.FC<{ modulo: MiModulo }> = ({ modulo }) => {
+────────────────────────────────────────────── */
+const ModuloItem: React.FC<{
+  modulo: MiModulo;
+  onNavigate?: () => void;
+}> = ({ modulo, onNavigate }) => {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const pathname = usePathname();
 
   const hasChildren = modulo.formularios.length > 0;
-
-  // ¿algún sub-item está activo?
   const anyChildActive = modulo.formularios.some(
     (f) => pathname === f.ruta || pathname.startsWith(f.ruta + "/"),
   );
@@ -142,9 +149,10 @@ const ModuloItem: React.FC<{ modulo: MiModulo }> = ({ modulo }) => {
       chevron.value = withTiming(expanded ? 0 : 1, { duration: 200 });
       setExpanded((v) => !v);
     } else {
+      onNavigate?.();
       router.push(href as Href);
     }
-  }, [hasChildren, expanded, href]);
+  }, [hasChildren, expanded, href, onNavigate]);
 
   const rowActive = isActive || anyChildActive;
 
@@ -169,7 +177,6 @@ const ModuloItem: React.FC<{ modulo: MiModulo }> = ({ modulo }) => {
             rowActive && hasChildren && { backgroundColor: c.primary + "12" },
           ]}
         >
-          {/* Ícono con fondo si activo */}
           <View
             style={[
               styles.moduleIconWrap,
@@ -196,7 +203,6 @@ const ModuloItem: React.FC<{ modulo: MiModulo }> = ({ modulo }) => {
             {modulo.nombre}
           </Text>
 
-          {/* Chevron animado si tiene hijos */}
           {hasChildren && (
             <Animated.View style={chevronStyle}>
               <Ionicons
@@ -209,11 +215,10 @@ const ModuloItem: React.FC<{ modulo: MiModulo }> = ({ modulo }) => {
         </Pressable>
       </Animated.View>
 
-      {/* Sub-items colapsables */}
       {hasChildren && expanded && (
         <View style={styles.subList}>
           {modulo.formularios.map((f) => (
-            <FormularioItem key={f.id} formulario={f} />
+            <FormularioItem key={f.id} formulario={f} onNavigate={onNavigate} />
           ))}
         </View>
       )}
@@ -221,31 +226,68 @@ const ModuloItem: React.FC<{ modulo: MiModulo }> = ({ modulo }) => {
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
+/* ──────────────────────────────────────────────
    Sidebar principal
-───────────────────────────────────────────────────────────── */
-export const Sidebar = () => {
+────────────────────────────────────────────── */
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { modulos, loading, error } = useMisModulos();
+  const { modulos, loading, error, refetch } = useMisModulos();
+  const { user } = useAuth();
+  const router = useRouter();
+  const { isDesktop } = useResponsive();
 
+  const tabs = getTabsForRoles(user?.roles ?? []);
+  const homeRoute = tabs.length > 0 ? `/${tabs[0].name}` : "/perfil";
+
+  const handleHomePress = useCallback(() => {
+    onNavigate?.();
+    router.push(homeRoute as Href);
+  }, [homeRoute, onNavigate]);
+
+  const scaleHome = useSharedValue(1);
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleHome.value }],
+  }));
   return (
     <View
       style={[
         styles.sidebar,
-        { backgroundColor: c.card, borderRightColor: c.border },
+        {
+          backgroundColor: c.card,
+          borderRightColor: c.border,
+          borderRightWidth: 1, // <-- Restaurado de forma fija para que cruce todo el alto
+          width: isDesktop ? 240 : "100%",
+        },
+        !isDesktop && { flex: 1 },
       ]}
     >
       {/* Logo */}
-      <View style={[styles.logoRow, { borderBottomColor: c.border }]}>
-        <View style={[styles.logoIcon, { backgroundColor: c.primary }]}>
-          <Ionicons name="business" size={16} color={c.primaryForeground} />
-        </View>
-        <Text style={[styles.logoText, { color: c.text }]} numberOfLines={1}>
-          TECNOLOGICOSF
-        </Text>
-      </View>
-      {/* ── HEADER: avatar, nombre, roles ── */}
+      <Animated.View style={logoAnimatedStyle}>
+        <Pressable
+          onPress={handleHomePress}
+          onPressIn={() => {
+            scaleHome.value = withSpring(0.97, { damping: 15, stiffness: 200 });
+          }}
+          onPressOut={() => {
+            scaleHome.value = withSpring(1, { damping: 12, stiffness: 180 });
+          }}
+          style={[styles.logoRow, { borderBottomColor: c.border }]}
+          accessibilityLabel="Ir a inicio"
+        >
+          <View style={[styles.logoIcon, { backgroundColor: c.primary }]}>
+            <Ionicons name="business" size={16} color={c.primaryForeground} />
+          </View>
+          <Text style={[styles.logoText, { color: c.text }]} numberOfLines={1}>
+            TECNOLOGICOSF
+          </Text>
+        </Pressable>
+      </Animated.View>
+
       <SidebarHeader />
       {/* Nav */}
       <ScrollView
@@ -263,17 +305,25 @@ export const Sidebar = () => {
         )}
 
         {!loading && error && (
-          <View
+          <Pressable
+            onPress={() => refetch()}
             style={[
               styles.errorBox,
               { backgroundColor: "#FFF1F2", borderColor: "#FECDD3" },
             ]}
+            accessibilityLabel="Reintentar carga de módulos"
           >
             <Ionicons name="alert-circle-outline" size={16} color="#E11D48" />
             <Text style={[styles.errorText, { color: "#E11D48" }]}>
               {error}
             </Text>
-          </View>
+            <Ionicons
+              name="refresh-outline"
+              size={16}
+              color="#E11D48"
+              style={{ marginLeft: "auto" }}
+            />
+          </Pressable>
         )}
 
         {!loading && !error && modulos.length === 0 && (
@@ -288,25 +338,24 @@ export const Sidebar = () => {
         {!loading &&
           !error &&
           modulos.map((modulo) => (
-            <ModuloItem key={modulo.id} modulo={modulo} />
+            <ModuloItem
+              key={modulo.id}
+              modulo={modulo}
+              onNavigate={onNavigate}
+            />
           ))}
       </ScrollView>
-      {/* ── FOOTER: logo + logout ── */}
+
       <SidebarFooter />
     </View>
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
-   Estilos
-───────────────────────────────────────────────────────────── */
+/* ───────────────── Estilos (sin cambios) ───────────────── */
 const styles = StyleSheet.create({
   sidebar: {
     width: 240,
-    borderRightWidth: 1,
   },
-
-  /* Logo */
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -328,15 +377,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     flexShrink: 1,
   },
-
-  /* Nav */
   nav: {
     paddingHorizontal: 10,
     paddingVertical: 12,
     gap: 2,
   },
-
-  /* Módulo */
   moduleItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -356,8 +401,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
   },
-
-  /* Sub-items */
   subList: {
     marginLeft: 20,
     marginTop: 2,
@@ -386,8 +429,6 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 3,
   },
-
-  /* Estados */
   center: {
     alignItems: "center",
     paddingVertical: 24,

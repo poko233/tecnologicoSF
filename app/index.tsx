@@ -1,10 +1,16 @@
+// app/index.tsx
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ProtectedRoute } from "../components/ProtectedRoute";
-import { Sidebar } from "../components/Sidebar/Sidebar";
 import { ThemeSelector } from "../components/ThemeSelector";
 import { useTheme } from "../theme/useTheme";
 
@@ -12,13 +18,13 @@ export default function IndexScreen() {
   const { theme } = useTheme();
 
   const content = (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}> 
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={theme.dark ? "light" : "dark"} />
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={[styles.appName, { color: theme.colors.text }]}> 
+            <Text style={[styles.appName, { color: theme.colors.text }]}>
               TECNOLOGICOSF
             </Text>
             <Text
@@ -27,12 +33,16 @@ export default function IndexScreen() {
               Showcase del sistema de temas
             </Text>
           </View>
+
+          {/* Navegación a otras pantallas (sidebar, etc.) */}
           <TouchableOpacity onPress={() => router.push("/configuraciones")}>
-            <Text>Ir a Configuraciones</Text>
+            <Text style={{ color: theme.colors.primary, padding: 16 }}>
+              Ir a Configuraciones
+            </Text>
           </TouchableOpacity>
 
           {/* Selector de temas */}
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}> 
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Themes
           </Text>
           <ThemeSelector />
@@ -41,35 +51,8 @@ export default function IndexScreen() {
     </View>
   );
 
-  if (Platform.OS === "web") {
-    return (
-      <ProtectedRoute>
-        <View
-          style={{
-            flex: 1,
-            flexDirection: "row",
-            backgroundColor: theme.colors.background,
-          }}
-        >
-          <Sidebar />
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: theme.colors.backgroundSecondary,
-            }}
-          >
-            {content}
-          </View>
-        </View>
-      </ProtectedRoute>
-    );
-  }
-
-  return (
-    <ProtectedRoute>
-      {content}
-    </ProtectedRoute>
-  );
+  // Envolvemos con ProtectedRoute (sin Sidebar ni layout de escritorio)
+  return <ProtectedRoute>{content}</ProtectedRoute>;
 }
 
 const styles = StyleSheet.create({
@@ -102,10 +85,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginTop: 24,
     marginBottom: 12,
-  },
-  actions: {
-    paddingHorizontal: 24,
-    gap: 12,
-    marginTop: 24,
   },
 });

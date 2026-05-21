@@ -127,6 +127,7 @@ export const CuotasTable: React.FC<Props> = ({
           borderWidth: 1,
           borderColor: theme.colors.border,
           width: "100%",
+          overflow: "hidden",
         }}
       >
         {/* Filters Bar */}
