@@ -7,10 +7,10 @@ import { httpClient } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 
 import {
-    Carrera,
-    Grupo,
-    GrupoSeleccionado,
-    Materia,
+  Carrera,
+  Grupo,
+  GrupoSeleccionado,
+  Materia,
 } from "../types/inscripcion.types";
 
 import CarrerasTable from "./CarrerasTable";
@@ -56,34 +56,44 @@ export default function PasoAcademico({
   const [showMaterias, setShowMaterias] = useState(false);
   const [showGrupos, setShowGrupos] = useState(false);
 
-  const cargarCarreras = async () => {
-    try {
-      setLoadingCarreras(true);
+ const normalizarTipo = (value?: string | null) =>
+  String(value ?? "").trim().toLowerCase();
 
-      const response = await httpClient.getAuth<{ carreras: Carrera[] }>(
-        "/api/carreras"
-      );
+const obtenerCarreras = (response: any): Carrera[] => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response.carreras)) return response.carreras;
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.resultado)) return response.resultado;
+  return [];
+};
 
-      const data = response.carreras ?? [];
+const cargarCarreras = async () => {
+  try {
+    setLoadingCarreras(true);
 
-      const filtradas =
+    const response = await httpClient.getAuth<any>("/api/carreras");
+
+    console.log("RESPUESTA CARRERAS:", response);
+
+    const data = obtenerCarreras(response);
+
+const filtradas =
   tipo === "carrera"
-    ? data.filter((item) => item.tipo === "Carrera")
-    : data.filter((item) => item.tipo !== "Carrera");
+    ? data.filter((item) => normalizarTipo(item.tipo).includes("carrera"))
+    : data.filter((item) => !normalizarTipo(item.tipo).includes("carrera"));
+    setCarreras(filtradas);
+  } catch (error) {
+    console.error("ERROR CARRERAS:", error);
 
-      setCarreras(filtradas);
-    } catch (error) {
-      console.error(error);
-
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "No se pudieron cargar las carreras.",
-      });
-    } finally {
-      setLoadingCarreras(false);
-    }
-  };
+    Toast.show({
+      type: "error",
+      text1: "Error",
+      text2: "No se pudieron cargar las carreras.",
+    });
+  } finally {
+    setLoadingCarreras(false);
+  }
+};
 
   const cargarMaterias = async (carrera: Carrera) => {
     try {
