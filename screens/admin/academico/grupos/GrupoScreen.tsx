@@ -1,17 +1,22 @@
 import React from 'react'
-import { StatusBadge } from '../components/StatusBadge'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
+import { StatusBadge } from '../components/StatusBadge'
 import { useAdminCrud } from '../hooks/useAdminCrud'
 import { ColumnDef } from '../types/admin.types'
+import { Grupo } from './grupo.types'
 import { GrupoForm } from './GrupoForm'
 import { grupoService } from './grupoService'
-import { Grupo } from './grupo.types'
 
 const columns: ColumnDef[] = [
   { key: 'nombre', header: 'Nombre', flex: 1 },
+  { key: 'codigo', header: 'Código', width: 100 },
+  { key: 'paralelo', header: 'Paralelo', width: 80 },
   { key: 'turno', header: 'Turno', width: 90 },
+  { key: 'hora_inicio', header: 'Inicio', width: 80 },
+  { key: 'hora_fin', header: 'Fin', width: 80 },
   { key: 'gestion', header: 'Gestión', width: 90 },
   { key: 'cupos', header: 'Cupos', width: 70 },
+  { key: 'tipo', header: 'Tipo', width: 90 },
   { key: 'estado', header: 'Estado', width: 110, render: (val) => <StatusBadge status={val} /> },
 ]
 

@@ -41,17 +41,22 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
   const lbl = [styles.label, { color: theme.colors.text }]
 
   const handleSave = async () => {
-    setSaving(true)
-    await onSave({
-      nombre: form.nombre, codigo: form.codigo,
-      paralelo: form.paralelo || undefined, turno: form.turno,
-      hora_inicio: form.hora_inicio, hora_fin: form.hora_fin,
-      gestion: form.gestion, cupos: Number(form.cupos),
-      tipo: form.tipo || undefined,
-      estado: form.activo ? 'activo' : 'inactivo',
-    })
-    setSaving(false)
-  }
+  setSaving(true)
+  await onSave({
+    nombre: form.nombre,
+    codigo: form.codigo,
+    turno: form.turno,
+    hora_inicio: form.hora_inicio,
+    hora_fin: form.hora_fin,
+    gestion: form.gestion,
+    cupos: Number(form.cupos),
+    estado: form.activo ? 'activo' : 'inactivo',
+    // Solo se mandan si tienen valor
+    ...(form.paralelo.trim() && { paralelo: form.paralelo }),
+    ...(form.tipo.trim() && { tipo: form.tipo }),
+  })
+  setSaving(false)
+}
 
   return (
     <View>

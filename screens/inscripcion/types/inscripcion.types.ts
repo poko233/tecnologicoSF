@@ -20,7 +20,7 @@ export interface GrupoSeleccionado {
   horario: number | string;
   gestion: string;
   cupos: number | string;
-  tipo: "Capacitacion" | "Curso";
+  tipo: string;
   estado: string;
   nombreMateria?: string;
   nombreCarrera?: string;
@@ -81,7 +81,7 @@ export interface Grupo {
   horario: number | string;
   gestion: string;
   cupos: number | string;
-  tipo: "Capacitacion" | "Curso";
+  tipo: string;
   estado: string;
 }
 
