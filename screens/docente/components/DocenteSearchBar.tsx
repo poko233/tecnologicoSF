@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
-import { ThemeSelector } from "../../../components/ThemeSelector";
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../contexts/ThemeContext";
 
@@ -77,7 +76,7 @@ export default function DocenteSearchBar({
           </ThemedText>
         </Pressable>
 
-        <ThemeSelector />
+        
       </View>
     </View>
   );

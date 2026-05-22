@@ -12,9 +12,9 @@ import { ThemedText } from "../../components/ThemedText";
 import { useTheme } from "../../contexts/ThemeContext";
 
 import AsignacionPanel from "./components/AsignacionPanel";
+import CarrerasMateriasPanel from "./components/CarrerasMateriasPanel";
 import DocenteSelectorModal from "./components/DocenteSelectorModal";
 import GruposPanel from "./components/GruposPanel";
-import MateriasPanel from "./components/MateriasPanel";
 import { useAsignacionDocente } from "./hooks/useAsignacionDocente";
 
 export default function AsignacionDocenteScreen() {
@@ -26,14 +26,20 @@ export default function AsignacionDocenteScreen() {
     loading,
     saving,
 
-    materias,
+    carrerasFiltradas,
+    materiasPorSemestre,
     grupos,
     docentes,
     asignaciones,
     asignacionesMateria,
 
+    searchCarrera,
+    setSearchCarrera,
     searchMateria,
     setSearchMateria,
+
+    carreraSeleccionada,
+    seleccionarCarrera,
 
     materiaSeleccionada,
     seleccionarMateria,
@@ -97,7 +103,7 @@ export default function AsignacionDocenteScreen() {
             <ThemedText
               style={[styles.subtitle, { color: theme.colors.textSecondary }]}
             >
-              Selecciona una materia, asigna un docente y marca los grupos.
+              Selecciona carrera, materia, docente y grupos.
             </ThemedText>
           </View>
 
@@ -110,7 +116,7 @@ export default function AsignacionDocenteScreen() {
             { flexDirection: isMobile ? "column" : "row" },
           ]}
         >
-          <StatCard label="Materias" value={materias.length} />
+          <StatCard label="Carreras" value={carrerasFiltradas.length} />
           <StatCard label="Grupos" value={grupos.length} />
           <StatCard label="Docentes activos" value={docentes.length} />
         </View>
@@ -122,12 +128,17 @@ export default function AsignacionDocenteScreen() {
           ]}
         >
           <View style={{ flex: 1 }}>
-            <MateriasPanel
-              materias={materias}
+            <CarrerasMateriasPanel
+              carreras={carrerasFiltradas}
+              materiasPorSemestre={materiasPorSemestre}
               asignaciones={asignaciones}
+              carreraSeleccionada={carreraSeleccionada}
               materiaSeleccionada={materiaSeleccionada}
-              search={searchMateria}
-              onSearchChange={setSearchMateria}
+              searchCarrera={searchCarrera}
+              searchMateria={searchMateria}
+              onSearchCarreraChange={setSearchCarrera}
+              onSearchMateriaChange={setSearchMateria}
+              onSelectCarrera={seleccionarCarrera}
               onSelectMateria={seleccionarMateria}
             />
           </View>
@@ -168,14 +179,10 @@ export default function AsignacionDocenteScreen() {
             <ThemedText
               style={[styles.footerText, { color: theme.colors.textSecondary }]}
             >
-              {materiaSeleccionada
-                ? "Materia seleccionada"
-                : "Falta seleccionar materia"}{" "}
-              ·{" "}
-              {idDocenteSeleccionado
-                ? "Docente seleccionado"
-                : "Falta docente"}{" "}
-              · {gruposSeleccionados.length} grupo(s)
+              {carreraSeleccionada ? "Carrera seleccionada" : "Falta carrera"} ·{" "}
+              {materiaSeleccionada ? "Materia seleccionada" : "Falta materia"} ·{" "}
+              {idDocenteSeleccionado ? "Docente seleccionado" : "Falta docente"} ·{" "}
+              {gruposSeleccionados.length} grupo(s)
             </ThemedText>
           </View>
 
