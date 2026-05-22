@@ -15,25 +15,29 @@ export function AdminTable({ columns, data, onEdit, onDelete }: Props) {
   const { theme } = useTheme()
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={[styles.table, { borderColor: theme.colors.border }]}>
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false} 
+      nestedScrollEnabled
+      contentContainerStyle={{ flexGrow: 1 }}
+    >
+      {/* Eliminamos el estilo styles.table que causaba el recuadro exterior */}
+      <View style={{ width: '100%' }}>
         {/* Header */}
-        <View style={[styles.headerRow, { backgroundColor: theme.colors.secondary }]}>
+        <View style={[styles.headerRow, { backgroundColor: theme.colors.secondary, borderBottomWidth: 1, borderColor: theme.colors.border }]}>
           {columns.map((col) => (
             <Text
               key={col.key}
               style={[
                 styles.headerCell,
-                { color: theme.colors.text, borderColor: theme.colors.border },
+                { color: theme.colors.text },
                 col.width ? { width: col.width } : { flex: col.flex ?? 1 },
               ]}
             >
               {col.header}
             </Text>
           ))}
-          <Text style={[styles.headerCell, styles.actionsCell, {
-            color: theme.colors.text, borderColor: theme.colors.border,
-          }]}>
+          <Text style={[styles.headerCell, styles.actionsCell, { color: theme.colors.text }]}>
             Acciones
           </Text>
         </View>
@@ -44,7 +48,11 @@ export function AdminTable({ columns, data, onEdit, onDelete }: Props) {
             key={index}
             style={[
               styles.row,
-              { backgroundColor: index % 2 === 0 ? theme.colors.card : theme.colors.backgroundSecondary },
+              { 
+                backgroundColor: index % 2 === 0 ? theme.colors.card : theme.colors.backgroundSecondary,
+                borderBottomWidth: 1, // Solo línea abajo para separar filas
+                borderColor: theme.colors.border 
+              },
             ]}
           >
             {columns.map((col) => {
@@ -54,7 +62,6 @@ export function AdminTable({ columns, data, onEdit, onDelete }: Props) {
                   key={col.key}
                   style={[
                     styles.cell,
-                    { borderColor: theme.colors.border },
                     col.width ? { width: col.width } : { flex: col.flex ?? 1 },
                   ]}
                 >
@@ -70,7 +77,7 @@ export function AdminTable({ columns, data, onEdit, onDelete }: Props) {
                 </View>
               )
             })}
-            <View style={[styles.cell, styles.actionsCell, { borderColor: theme.colors.border }]}>
+            <View style={[styles.cell, styles.actionsCell]}>
               <View style={styles.actionBtns}>
                 <Pressable
                   onPress={() => onEdit(item)}
@@ -98,21 +105,18 @@ export function AdminTable({ columns, data, onEdit, onDelete }: Props) {
 }
 
 const styles = StyleSheet.create({
-  table: { borderWidth: 1, borderRadius: 10, overflow: 'hidden', minWidth: '100%' },
   headerRow: { flexDirection: 'row' },
   headerCell: {
-    padding: 12,
+    padding: 16,
     fontWeight: '700',
-    fontSize: 13,
-    borderRightWidth: 1,
+    fontSize: 14,
   },
-  row: { flexDirection: 'row', borderTopWidth: 1 },
+  row: { flexDirection: 'row' },
   cell: {
-    padding: 12,
+    padding: 14,
     justifyContent: 'center',
-    borderRightWidth: 1,
   },
-  cellText: { fontSize: 13 },
+  cellText: { fontSize: 14 },
   actionsCell: { width: 160 },
   actionBtns: { flexDirection: 'row', gap: 6 },
   actionBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
