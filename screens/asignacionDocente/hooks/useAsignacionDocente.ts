@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Toast from "react-native-toast-message";
-
 import { httpClient } from "../../../http/httpClient";
+import { asignacionDocenteService } from "../services/asignacionDocenteService";
 import {
     AsignacionDocente,
     AsignacionDocenteResponse,
@@ -63,7 +63,28 @@ export function useAsignacionDocente() {
   useEffect(() => {
     cargarDatos();
   }, []);
+const eliminarAsignacion = async (idMateria: number, idDocente: number) => {
+  try {
+    setSaving(true);
 
+    await asignacionDocenteService.eliminarAsignacion(idMateria, idDocente);
+
+    Toast.show({
+      type: "success",
+      text1: "Asignación eliminada",
+    });
+
+    await cargarDatos();
+  } catch (error) {
+    Toast.show({
+      type: "error",
+      text1: "Error",
+      text2: "No se pudo eliminar la asignación",
+    });
+  } finally {
+    setSaving(false);
+  }
+};
   const carrerasFiltradas = useMemo(() => {
     const text = searchCarrera.trim().toLowerCase();
 
@@ -143,20 +164,11 @@ export function useAsignacionDocente() {
   };
 
   const seleccionarMateria = (materia: Materia) => {
-    setMateriaSeleccionada(materia);
+  setMateriaSeleccionada(materia);
 
-    const actuales = asignaciones.filter(
-      (item) => item.idMateria === materia.idMateria
-    );
-
-    if (actuales.length > 0) {
-      setIdDocenteSeleccionado(actuales[0].idDocente);
-      setGruposSeleccionados(actuales.map((item) => item.idGrupo));
-    } else {
-      setIdDocenteSeleccionado(null);
-      setGruposSeleccionados([]);
-    }
-  };
+  setIdDocenteSeleccionado(null);
+  setGruposSeleccionados([]);
+};
 
   const toggleGrupo = (idGrupo: number) => {
     setGruposSeleccionados((prev) =>
@@ -283,5 +295,7 @@ export function useAsignacionDocente() {
 
     guardarAsignacion,
     limpiarAsignacion,
+
+    eliminarAsignacion,
   };
 }

@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import {
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
+} from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../contexts/ThemeContext";
@@ -26,6 +32,8 @@ type Props = {
   onSearchMateriaChange: (value: string) => void;
   onSelectCarrera: (carrera: Carrera) => void;
   onSelectMateria: (materia: Materia) => void;
+  onVerAsignaciones: (materia: Materia) => void;
+  onAsignarDocente: (materia: Materia) => void;
 };
 
 function esCarrera(carrera: Carrera) {
@@ -44,13 +52,19 @@ export default function CarrerasMateriasPanel({
   onSearchMateriaChange,
   onSelectCarrera,
   onSelectMateria,
+  onVerAsignaciones,
+  onAsignarDocente,
 }: Props) {
   const { theme } = useTheme();
+
   const [tab, setTab] = useState<TabTipo>("carreras");
   const [materiasModalVisible, setMateriasModalVisible] = useState(false);
 
   const carrerasMostradas = useMemo(() => {
-    if (tab === "carreras") return carreras.filter(esCarrera);
+    if (tab === "carreras") {
+      return carreras.filter(esCarrera);
+    }
+
     return carreras.filter((item) => !esCarrera(item));
   }, [carreras, tab]);
 
@@ -70,8 +84,10 @@ export default function CarrerasMateriasPanel({
             Carreras y programas
           </ThemedText>
 
-          <ThemedText style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Filtra por tipo y elige una opción para ver sus materias.
+          <ThemedText
+            style={[styles.subtitle, { color: theme.colors.textSecondary }]}
+          >
+            Filtra por tipo y selecciona una carrera para ver sus materias.
           </ThemedText>
         </View>
 
@@ -81,21 +97,35 @@ export default function CarrerasMateriasPanel({
             style={[
               styles.tab,
               {
-                backgroundColor: tab === "carreras" ? theme.colors.primary : theme.colors.input,
-                borderColor: tab === "carreras" ? theme.colors.primary : theme.colors.border,
+                backgroundColor:
+                  tab === "carreras"
+                    ? theme.colors.primary
+                    : theme.colors.input,
+                borderColor:
+                  tab === "carreras"
+                    ? theme.colors.primary
+                    : theme.colors.border,
               },
             ]}
           >
             <Ionicons
               name="school-outline"
               size={18}
-              color={tab === "carreras" ? theme.colors.primaryForeground : theme.colors.text}
+              color={
+                tab === "carreras"
+                  ? theme.colors.primaryForeground
+                  : theme.colors.text
+              }
             />
+
             <ThemedText
               style={[
                 styles.tabText,
                 {
-                  color: tab === "carreras" ? theme.colors.primaryForeground : theme.colors.text,
+                  color:
+                    tab === "carreras"
+                      ? theme.colors.primaryForeground
+                      : theme.colors.text,
                 },
               ]}
             >
@@ -108,21 +138,35 @@ export default function CarrerasMateriasPanel({
             style={[
               styles.tab,
               {
-                backgroundColor: tab === "otros" ? theme.colors.primary : theme.colors.input,
-                borderColor: tab === "otros" ? theme.colors.primary : theme.colors.border,
+                backgroundColor:
+                  tab === "otros"
+                    ? theme.colors.primary
+                    : theme.colors.input,
+                borderColor:
+                  tab === "otros"
+                    ? theme.colors.primary
+                    : theme.colors.border,
               },
             ]}
           >
             <Ionicons
               name="albums-outline"
               size={18}
-              color={tab === "otros" ? theme.colors.primaryForeground : theme.colors.text}
+              color={
+                tab === "otros"
+                  ? theme.colors.primaryForeground
+                  : theme.colors.text
+              }
             />
+
             <ThemedText
               style={[
                 styles.tabText,
                 {
-                  color: tab === "otros" ? theme.colors.primaryForeground : theme.colors.text,
+                  color:
+                    tab === "otros"
+                      ? theme.colors.primaryForeground
+                      : theme.colors.text,
                 },
               ]}
             >
@@ -140,12 +184,20 @@ export default function CarrerasMateriasPanel({
             },
           ]}
         >
-          <Ionicons name="search" size={20} color={theme.colors.text} />
+          <Ionicons
+            name="search"
+            size={20}
+            color={theme.colors.text}
+          />
 
           <TextInput
             value={searchCarrera}
             onChangeText={onSearchCarreraChange}
-            placeholder={tab === "carreras" ? "Buscar carrera..." : "Buscar curso/programa..."}
+            placeholder={
+              tab === "carreras"
+                ? "Buscar carrera..."
+                : "Buscar curso/programa..."
+            }
             placeholderTextColor={theme.colors.textTertiary}
             style={[styles.input, { color: theme.colors.text }]}
           />
@@ -161,7 +213,9 @@ export default function CarrerasMateriasPanel({
             <CarreraCard
               key={carrera.idCarrera}
               carrera={carrera}
-              active={carreraSeleccionada?.idCarrera === carrera.idCarrera}
+              active={
+                carreraSeleccionada?.idCarrera === carrera.idCarrera
+              }
               onPress={() => {
                 onSelectCarrera(carrera);
                 setMateriasModalVisible(true);
@@ -169,30 +223,6 @@ export default function CarrerasMateriasPanel({
             />
           ))}
         </ScrollView>
-
-        {carreraSeleccionada && (
-          <View
-            style={[
-              styles.selectedBox,
-              {
-                backgroundColor: theme.colors.primarySubtle,
-                borderColor: theme.colors.primary,
-              },
-            ]}
-          >
-            <Ionicons name="checkmark-circle-outline" size={22} color={theme.colors.primary} />
-
-            <View style={{ flex: 1 }}>
-              <ThemedText style={[styles.selectedTitle, { color: theme.colors.text }]}>
-                Selección activa
-              </ThemedText>
-
-              <ThemedText style={[styles.selectedText, { color: theme.colors.textSecondary }]}>
-                Toca una tarjeta para abrir sus materias.
-              </ThemedText>
-            </View>
-          </View>
-        )}
       </View>
 
       <MateriasCarreraModal
@@ -204,6 +234,8 @@ export default function CarrerasMateriasPanel({
         searchMateria={searchMateria}
         onSearchMateriaChange={onSearchMateriaChange}
         onSelectMateria={onSelectMateria}
+        onVerAsignaciones={onVerAsignaciones}
+        onAsignarDocente={onAsignarDocente}
         onClose={() => setMateriasModalVisible(false)}
       />
     </>
@@ -218,19 +250,23 @@ const styles = StyleSheet.create({
     gap: 14,
     minHeight: 300,
   },
+
   title: {
     fontSize: 22,
     fontWeight: "900",
   },
+
   subtitle: {
     fontSize: 13,
     marginTop: 3,
     fontWeight: "600",
   },
+
   tabs: {
     flexDirection: "row",
     gap: 10,
   },
+
   tab: {
     borderWidth: 1,
     borderRadius: 16,
@@ -240,10 +276,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
   },
+
   tabText: {
     fontSize: 13,
     fontWeight: "900",
   },
+
   searchBox: {
     borderWidth: 1,
     borderRadius: 16,
@@ -253,30 +291,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 9,
   },
+
   input: {
     flex: 1,
     fontSize: 14,
     outlineStyle: "none" as any,
   },
+
   horizontalContent: {
     gap: 12,
     paddingBottom: 8,
-  },
-  selectedBox: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  selectedTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  selectedText: {
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: "600",
   },
 });

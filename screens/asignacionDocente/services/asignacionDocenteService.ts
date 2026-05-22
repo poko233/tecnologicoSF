@@ -23,4 +23,9 @@ export const asignacionDocenteService = {
       `/api/asignacion-docente/materia/${idMateria}`
     );
   },
+  eliminarAsignacion(idMateria: number, idDocente: number) {
+  return httpClient.deleteAuth<{ message: string }>(
+    `/api/asignacion-docente/${idMateria}/${idDocente}`
+  );
+},
 };

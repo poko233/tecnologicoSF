@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -12,15 +13,20 @@ import { ThemedText } from "../../components/ThemedText";
 import { useTheme } from "../../contexts/ThemeContext";
 
 import AsignacionPanel from "./components/AsignacionPanel";
+import AsignacionesMateriaModal from "./components/AsignacionesMateriaModal";
 import CarrerasMateriasPanel from "./components/CarrerasMateriasPanel";
 import DocenteSelectorModal from "./components/DocenteSelectorModal";
 import GruposPanel from "./components/GruposPanel";
 import { useAsignacionDocente } from "./hooks/useAsignacionDocente";
+import { Materia } from "./types/asignacionDocente.types";
 
 export default function AsignacionDocenteScreen() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 980;
+
+  const [asignacionesModalVisible, setAsignacionesModalVisible] =
+    useState(false);
 
   const {
     loading,
@@ -55,6 +61,8 @@ export default function AsignacionDocenteScreen() {
 
     guardarAsignacion,
     limpiarAsignacion,
+
+    eliminarAsignacion,
   } = useAsignacionDocente();
 
   const puedeGuardar =
@@ -62,6 +70,24 @@ export default function AsignacionDocenteScreen() {
     !!idDocenteSeleccionado &&
     gruposSeleccionados.length > 0 &&
     !saving;
+
+  const asignacionesDeMateriaSeleccionada = useMemo(() => {
+    if (!materiaSeleccionada) return [];
+
+    return asignaciones.filter(
+      (item) => item.idMateria === materiaSeleccionada.idMateria
+    );
+  }, [asignaciones, materiaSeleccionada]);
+
+  const verAsignacionesMateria = (materia: Materia) => {
+    seleccionarMateria(materia);
+    setAsignacionesModalVisible(true);
+  };
+
+  const asignarDocenteMateria = (materia: Materia) => {
+    seleccionarMateria(materia);
+    setDocenteModalVisible(true);
+  };
 
   if (loading) {
     return (
@@ -106,8 +132,6 @@ export default function AsignacionDocenteScreen() {
               Selecciona carrera, materia, docente y grupos.
             </ThemedText>
           </View>
-
-          
         </View>
 
         <View
@@ -140,6 +164,8 @@ export default function AsignacionDocenteScreen() {
               onSearchMateriaChange={setSearchMateria}
               onSelectCarrera={seleccionarCarrera}
               onSelectMateria={seleccionarMateria}
+              onVerAsignaciones={verAsignacionesMateria}
+              onAsignarDocente={asignarDocenteMateria}
             />
           </View>
 
@@ -150,7 +176,10 @@ export default function AsignacionDocenteScreen() {
               asignacionesMateria={asignacionesMateria}
               idDocenteSeleccionado={idDocenteSeleccionado}
               saving={saving}
-              onOpenDocenteModal={() => setDocenteModalVisible(true)}
+              onOpenDocenteModal={() => {
+                if (!materiaSeleccionada) return;
+                setDocenteModalVisible(true);
+              }}
               onLimpiar={limpiarAsignacion}
             />
           </View>
@@ -168,6 +197,8 @@ export default function AsignacionDocenteScreen() {
             {
               backgroundColor: theme.colors.card,
               borderColor: theme.colors.border,
+              flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "stretch" : "center",
             },
           ]}
         >
@@ -230,6 +261,14 @@ export default function AsignacionDocenteScreen() {
           setIdDocenteSeleccionado(docente.idDocente);
           setDocenteModalVisible(false);
         }}
+      />
+
+      <AsignacionesMateriaModal
+        visible={asignacionesModalVisible}
+        materia={materiaSeleccionada}
+        asignaciones={asignacionesDeMateriaSeleccionada}
+        onClose={() => setAsignacionesModalVisible(false)}
+         onEliminar={eliminarAsignacion}
       />
     </>
   );
@@ -316,8 +355,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     gap: 14,
-    flexDirection: "row",
-    alignItems: "center",
   },
   footerTitle: {
     fontSize: 18,

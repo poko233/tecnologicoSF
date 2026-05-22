@@ -26,6 +26,8 @@ type Props = {
   searchMateria: string;
   onSearchMateriaChange: (value: string) => void;
   onSelectMateria: (materia: Materia) => void;
+  onVerAsignaciones: (materia: Materia) => void;
+  onAsignarDocente: (materia: Materia) => void;
   onClose: () => void;
 };
 
@@ -52,6 +54,8 @@ export default function MateriasCarreraModal({
   searchMateria,
   onSearchMateriaChange,
   onSelectMateria,
+  onVerAsignaciones,
+  onAsignarDocente,
   onClose,
 }: Props) {
   const { theme } = useTheme();
@@ -154,18 +158,31 @@ export default function MateriasCarreraModal({
 
                   <View style={styles.materiasGrid}>
                     {grupo.materias.map((materia) => {
-                      const total = asignaciones.filter(
+                      const asignacionesMateria = asignaciones.filter(
                         (item) => item.idMateria === materia.idMateria
-                      ).length;
+                      );
+
+                      const totalGruposAsignados = asignacionesMateria.length;
+
+                      const totalDocentesAsignados = new Set(
+                        asignacionesMateria.map((item) => item.idDocente)
+                      ).size;
 
                       return (
                         <MateriaCard
                           key={materia.idMateria}
                           materia={materia}
-                          totalGruposAsignados={total}
+                          totalGruposAsignados={totalGruposAsignados}
+                          totalDocentesAsignados={totalDocentesAsignados}
                           active={materiaSeleccionada?.idMateria === materia.idMateria}
-                          onPress={() => {
+                          onVerAsignaciones={() => {
                             onSelectMateria(materia);
+                            onVerAsignaciones(materia);
+                            onClose();
+                          }}
+                          onAsignarDocente={() => {
+                            onSelectMateria(materia);
+                            onAsignarDocente(materia);
                             onClose();
                           }}
                         />
