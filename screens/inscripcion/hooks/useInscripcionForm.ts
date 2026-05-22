@@ -5,59 +5,80 @@ import {
   InscripcionFormData,
 } from "../types/inscripcion.types";
 
-const initialForm: InscripcionFormData = {
-  apellidoPaterno: "",
-  apellidoMaterno: "",
-  nombres: "",
+const initialForm: InscripcionFormData =
+  {
+    apellidoPaterno: "",
 
-  genero: "Masculino",
+    apellidoMaterno: "",
 
-  carnet: "",
+    nombres: "",
 
-  expedidoEn: "Cochabamba",
+    genero: "Masculino",
 
-  fechaNacimiento: "",
+    carnet: "",
 
-  direccion: "",
+    email: "",
 
-  celular: "",
+    expedidoEn: "Cochabamba",
 
-  referenciaNombre: "",
+    fechaNacimiento: "",
 
-  referenciaParentesco: "",
+    direccion: "",
 
-  referenciaNumero: "",
+    celular: "",
 
-  gruposSeleccionados: [],
-};
+    referenciaNombre: "",
+
+    referenciaParentesco: "",
+
+    referenciaNumero: "",
+
+    gruposSeleccionados: [],
+  };
 
 export function useInscripcionForm() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] =
+    useState(1);
 
-  const [form, setForm] = useState<InscripcionFormData>(initialForm);
+  const [form, setForm] =
+    useState<InscripcionFormData>(
+      initialForm
+    );
 
-  const updateField = <K extends keyof InscripcionFormData>(
+  const updateField = <
+    K extends keyof InscripcionFormData
+  >(
     field: K,
     value: InscripcionFormData[K]
   ) => {
     setForm((prev) => ({
       ...prev,
+
       [field]: value,
     }));
   };
 
-  const setGruposSeleccionados = (grupos: GrupoSeleccionado[]) => {
+  const setGruposSeleccionados = (
+    grupos: GrupoSeleccionado[]
+  ) => {
     setForm((prev) => ({
       ...prev,
-      gruposSeleccionados: grupos,
+
+      gruposSeleccionados:
+        grupos,
     }));
   };
 
-  const agregarGrupo = (grupo: GrupoSeleccionado) => {
+  const agregarGrupo = (
+    grupo: GrupoSeleccionado
+  ) => {
     setForm((prev) => {
-      const existe = prev.gruposSeleccionados.some(
-        (g) => g.idGrupo === grupo.idGrupo
-      );
+      const existe =
+        prev.gruposSeleccionados.some(
+          (g) =>
+            g.idGrupo ===
+            grupo.idGrupo
+        );
 
       if (existe) {
         return prev;
@@ -65,6 +86,7 @@ export function useInscripcionForm() {
 
       return {
         ...prev,
+
         gruposSeleccionados: [
           ...prev.gruposSeleccionados,
           grupo,
@@ -73,18 +95,25 @@ export function useInscripcionForm() {
     });
   };
 
-  const quitarGrupo = (idGrupo: number) => {
+  const quitarGrupo = (
+    idGrupo: number
+  ) => {
     setForm((prev) => ({
       ...prev,
-      gruposSeleccionados: prev.gruposSeleccionados.filter(
-        (grupo) => grupo.idGrupo !== idGrupo
-      ),
+
+      gruposSeleccionados:
+        prev.gruposSeleccionados.filter(
+          (grupo) =>
+            grupo.idGrupo !==
+            idGrupo
+        ),
     }));
   };
 
   const limpiarGrupos = () => {
     setForm((prev) => ({
       ...prev,
+
       gruposSeleccionados: [],
     }));
   };
@@ -99,25 +128,33 @@ export function useInscripcionForm() {
 
   const resetForm = () => {
     setForm(initialForm);
+
     setStep(1);
   };
 
   return {
     form,
+
     setForm,
 
     updateField,
 
     step,
+
     setStep,
+
     nextStep,
+
     prevStep,
 
     resetForm,
 
     setGruposSeleccionados,
+
     agregarGrupo,
+
     quitarGrupo,
+
     limpiarGrupos,
   };
 }

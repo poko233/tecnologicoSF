@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Linking,
-    Platform,
-    Pressable,
-    View,
+  ActivityIndicator,
+  Image,
+  Linking,
+  Platform,
+  Pressable,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -106,6 +106,7 @@ export default function DocumentoCard({
             text1: "Archivo inválido",
             text2: "No se pudo leer el archivo seleccionado.",
           });
+
           return;
         }
 
@@ -142,6 +143,7 @@ export default function DocumentoCard({
 
   const esImagen = mimeType?.startsWith("image/");
   const esPdf = mimeType === "application/pdf";
+  const existeArchivo = Boolean(archivoNombre && previewUri);
 
   return (
     <View
@@ -149,7 +151,7 @@ export default function DocumentoCard({
         flex: 1,
         minWidth: 280,
         borderWidth: 1,
-        borderColor: theme.colors.border,
+        borderColor: existeArchivo ? theme.colors.primary : theme.colors.border,
         backgroundColor: theme.colors.card,
         borderRadius: 22,
         padding: 20,
@@ -161,24 +163,43 @@ export default function DocumentoCard({
           width: 56,
           height: 56,
           borderRadius: 16,
-          backgroundColor: theme.colors.secondary,
+          backgroundColor: existeArchivo
+            ? `${theme.colors.primary}22`
+            : theme.colors.background,
+          borderWidth: 1,
+          borderColor: existeArchivo
+            ? `${theme.colors.primary}55`
+            : theme.colors.border,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
         <Ionicons
-          name="document-text-outline"
+          name={existeArchivo ? "checkmark-circle" : "document-text-outline"}
           size={28}
-          color={theme.colors.primary}
+          color={existeArchivo ? theme.colors.primary : theme.colors.muted}
         />
       </View>
 
       <View>
-        <ThemedText style={{ fontSize: 22, fontWeight: "900" }}>
+        <ThemedText
+          style={{
+            fontSize: 22,
+            fontWeight: "900",
+            color: theme.colors.text,
+          }}
+        >
           {titulo}
         </ThemedText>
 
-        <ThemedText style={{ marginTop: 6, opacity: 0.75, lineHeight: 22 }}>
+        <ThemedText
+          style={{
+            marginTop: 6,
+            color: theme.colors.muted,
+            lineHeight: 22,
+            fontWeight: "600",
+          }}
+        >
           {descripcion}
         </ThemedText>
       </View>
@@ -187,7 +208,10 @@ export default function DocumentoCard({
         style={{
           borderWidth: 1,
           borderStyle: "dashed",
-          borderColor: theme.colors.border,
+          borderColor: existeArchivo ? theme.colors.primary : theme.colors.border,
+          backgroundColor: existeArchivo
+            ? `${theme.colors.primary}12`
+            : theme.colors.background,
           borderRadius: 16,
           padding: 18,
           alignItems: "center",
@@ -195,14 +219,34 @@ export default function DocumentoCard({
         }}
       >
         <Ionicons
-          name={archivoNombre ? "checkmark-circle" : "cloud-upload-outline"}
+          name={existeArchivo ? "checkmark-circle" : "cloud-upload-outline"}
           size={24}
-          color={archivoNombre ? theme.colors.primary : theme.colors.text}
+          color={existeArchivo ? theme.colors.primary : theme.colors.muted}
         />
 
-        <ThemedText style={{ fontSize: 12, opacity: 0.75, textAlign: "center" }}>
+        <ThemedText
+          style={{
+            fontSize: 12,
+            color: existeArchivo ? theme.colors.text : theme.colors.muted,
+            textAlign: "center",
+            fontWeight: "800",
+          }}
+        >
           {archivoNombre || "PDF, JPG o PNG - máximo 5MB"}
         </ThemedText>
+
+        {existeArchivo && (
+          <ThemedText
+            style={{
+              fontSize: 11,
+              color: theme.colors.primary,
+              textAlign: "center",
+              fontWeight: "900",
+            }}
+          >
+            Documento cargado correctamente
+          </ThemedText>
+        )}
       </View>
 
       {previewUri && esImagen && (
@@ -213,6 +257,8 @@ export default function DocumentoCard({
             height: 240,
             borderRadius: 18,
             resizeMode: "cover",
+            borderWidth: 1,
+            borderColor: theme.colors.border,
           }}
         />
       )}
@@ -237,6 +283,7 @@ export default function DocumentoCard({
           style={{
             borderWidth: 1,
             borderColor: theme.colors.border,
+            backgroundColor: theme.colors.background,
             borderRadius: 16,
             padding: 18,
             flexDirection: "row",
@@ -251,11 +298,22 @@ export default function DocumentoCard({
           />
 
           <View style={{ flex: 1 }}>
-            <ThemedText style={{ fontWeight: "900" }}>
+            <ThemedText
+              style={{
+                fontWeight: "900",
+                color: theme.colors.text,
+              }}
+            >
               Vista previa PDF
             </ThemedText>
 
-            <ThemedText style={{ opacity: 0.7, marginTop: 4 }}>
+            <ThemedText
+              style={{
+                color: theme.colors.muted,
+                marginTop: 4,
+                fontWeight: "600",
+              }}
+            >
               Toca para abrir el documento completo.
             </ThemedText>
           </View>
@@ -270,6 +328,7 @@ export default function DocumentoCard({
             borderRadius: 14,
             borderWidth: 1,
             borderColor: theme.colors.border,
+            backgroundColor: theme.colors.background,
             justifyContent: "center",
             alignItems: "center",
             flexDirection: "row",
@@ -282,7 +341,12 @@ export default function DocumentoCard({
             color={theme.colors.primary}
           />
 
-          <ThemedText style={{ color: theme.colors.primary, fontWeight: "900" }}>
+          <ThemedText
+            style={{
+              color: theme.colors.primary,
+              fontWeight: "900",
+            }}
+          >
             Ver archivo completo
           </ThemedText>
         </Pressable>
@@ -299,16 +363,37 @@ export default function DocumentoCard({
           alignItems: "center",
           flexDirection: "row",
           gap: 8,
+          opacity: subiendo ? 0.7 : 1,
         }}
       >
         {subiendo ? (
-          <ActivityIndicator color="#fff" />
+          <>
+            <ActivityIndicator color="#fff" />
+
+            <ThemedText
+              style={{
+                color: "#fff",
+                fontWeight: "900",
+              }}
+            >
+              Subiendo...
+            </ThemedText>
+          </>
         ) : (
           <>
-            <Ionicons name="add-circle-outline" size={20} color="#fff" />
+            <Ionicons
+              name={existeArchivo ? "refresh-circle-outline" : "add-circle-outline"}
+              size={20}
+              color="#fff"
+            />
 
-            <ThemedText style={{ color: "#fff", fontWeight: "900" }}>
-              {archivoNombre ? "Cambiar Archivo" : "Subir Archivo"}
+            <ThemedText
+              style={{
+                color: "#fff",
+                fontWeight: "900",
+              }}
+            >
+              {existeArchivo ? "Cambiar Archivo" : "Subir Archivo"}
             </ThemedText>
           </>
         )}

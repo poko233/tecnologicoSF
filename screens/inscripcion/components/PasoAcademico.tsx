@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../../components/ThemedText";
@@ -56,44 +61,48 @@ export default function PasoAcademico({
   const [showMaterias, setShowMaterias] = useState(false);
   const [showGrupos, setShowGrupos] = useState(false);
 
- const normalizarTipo = (value?: string | null) =>
-  String(value ?? "").trim().toLowerCase();
+  const normalizarTipo = (value?: string | null) =>
+    String(value ?? "").trim().toLowerCase();
 
-const obtenerCarreras = (response: any): Carrera[] => {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response.carreras)) return response.carreras;
-  if (Array.isArray(response.data)) return response.data;
-  if (Array.isArray(response.resultado)) return response.resultado;
-  return [];
-};
+  const obtenerCarreras = (response: any): Carrera[] => {
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response.carreras)) return response.carreras;
+    if (Array.isArray(response.data)) return response.data;
+    if (Array.isArray(response.resultado)) return response.resultado;
 
-const cargarCarreras = async () => {
-  try {
-    setLoadingCarreras(true);
+    return [];
+  };
 
-    const response = await httpClient.getAuth<any>("/api/carreras");
+  const cargarCarreras = async () => {
+    try {
+      setLoadingCarreras(true);
 
-    console.log("RESPUESTA CARRERAS:", response);
+      const response = await httpClient.getAuth<any>("/api/carreras");
 
-    const data = obtenerCarreras(response);
+      const data = obtenerCarreras(response);
 
-const filtradas =
-  tipo === "carrera"
-    ? data.filter((item) => normalizarTipo(item.tipo).includes("carrera"))
-    : data.filter((item) => !normalizarTipo(item.tipo).includes("carrera"));
-    setCarreras(filtradas);
-  } catch (error) {
-    console.error("ERROR CARRERAS:", error);
+      const filtradas =
+        tipo === "carrera"
+          ? data.filter((item) =>
+              normalizarTipo(item.tipo).includes("carrera")
+            )
+          : data.filter(
+              (item) => !normalizarTipo(item.tipo).includes("carrera")
+            );
 
-    Toast.show({
-      type: "error",
-      text1: "Error",
-      text2: "No se pudieron cargar las carreras.",
-    });
-  } finally {
-    setLoadingCarreras(false);
-  }
-};
+      setCarreras(filtradas);
+    } catch (error) {
+      console.error("ERROR CARRERAS:", error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudieron cargar las carreras.",
+      });
+    } finally {
+      setLoadingCarreras(false);
+    }
+  };
 
   const cargarMaterias = async (carrera: Carrera) => {
     try {
@@ -102,15 +111,15 @@ const filtradas =
       setLoadingMaterias(true);
       setMaterias([]);
 
-      const response = await httpClient.getAuth<{ materias: Materia[] }>(
-        `/api/carreras/${carrera.idCarrera}/materias`
-      );
+      const response = await httpClient.getAuth<{
+        materias: Materia[];
+      }>(`/api/carreras/${carrera.idCarrera}/materias`);
 
       const materiasDisponibles = (response.materias ?? []).filter(
-  (materia) => !materia.idPrerequisito
-);
+        (materia) => !materia.idPrerequisito
+      );
 
-setMaterias(materiasDisponibles);
+      setMaterias(materiasDisponibles);
     } catch (error) {
       console.error(error);
 
@@ -131,9 +140,9 @@ setMaterias(materiasDisponibles);
       setLoadingGrupos(true);
       setGrupos([]);
 
-      const response = await httpClient.getAuth<{ grupos: Grupo[] }>(
-        `/api/materias/${materia.idMateria}/grupos`
-      );
+      const response = await httpClient.getAuth<{
+        grupos: Grupo[];
+      }>(`/api/materias/${materia.idMateria}/grupos`);
 
       setGrupos(response.grupos ?? []);
     } catch (error) {
@@ -154,26 +163,27 @@ setMaterias(materiasDisponibles);
   };
 
   const toggleGrupo = (grupo: Grupo) => {
-  const existe = grupoYaSeleccionado(grupo.idGrupo);
+    const existe = grupoYaSeleccionado(grupo.idGrupo);
 
-  if (existe) {
-    setGruposSeleccionados(
-      gruposSeleccionados.filter((item) => item.idGrupo !== grupo.idGrupo)
-    );
-    return;
-  }
+    if (existe) {
+      setGruposSeleccionados(
+        gruposSeleccionados.filter((item) => item.idGrupo !== grupo.idGrupo)
+      );
 
-  const nuevoGrupo: GrupoSeleccionado = {
-    ...grupo,
-    nombreMateria: materiaSeleccionada?.nombreMateria,
-    nombreCarrera: carreraSeleccionada?.nombreCarrera,
+      return;
+    }
+
+    const nuevoGrupo: GrupoSeleccionado = {
+      ...grupo,
+      nombreMateria: materiaSeleccionada?.nombreMateria,
+      nombreCarrera: carreraSeleccionada?.nombreCarrera,
+    };
+
+    setGruposSeleccionados([...gruposSeleccionados, nuevoGrupo]);
+
+    setShowGrupos(false);
+    setShowMaterias(true);
   };
-
-  setGruposSeleccionados([...gruposSeleccionados, nuevoGrupo]);
-
-  setShowGrupos(false);
-  setShowMaterias(true);
-};
 
   const quitarGrupo = (idGrupo: number) => {
     setGruposSeleccionados(
@@ -188,6 +198,7 @@ setMaterias(materiasDisponibles);
         text1: "Falta estudiante",
         text2: "Primero debes registrar los datos del estudiante.",
       });
+
       return;
     }
 
@@ -197,6 +208,7 @@ setMaterias(materiasDisponibles);
         text1: "Falta carrera",
         text2: "Selecciona una carrera.",
       });
+
       return;
     }
 
@@ -206,6 +218,7 @@ setMaterias(materiasDisponibles);
         text1: "Sin grupos",
         text2: "Selecciona al menos un grupo.",
       });
+
       return;
     }
 
@@ -281,11 +294,25 @@ setMaterias(materiasDisponibles);
           ]}
         >
           <View style={styles.header}>
-            <ThemedText style={styles.title}>
+            <ThemedText
+              style={[
+                styles.title,
+                {
+                  color: theme.colors.text,
+                },
+              ]}
+            >
               Oferta Académica Disponible
             </ThemedText>
 
-            <ThemedText style={styles.subtitle}>
+            <ThemedText
+              style={[
+                styles.subtitle,
+                {
+                  color: theme.colors.muted,
+                },
+              ]}
+            >
               Selecciona una opción, revisa sus materias y elige uno o más
               grupos.
             </ThemedText>
@@ -308,58 +335,108 @@ setMaterias(materiasDisponibles);
           },
         ]}
       >
-        <ThemedText style={styles.selectedTitle}>
+        <ThemedText
+          style={[
+            styles.selectedTitle,
+            {
+              color: theme.colors.text,
+            },
+          ]}
+        >
           Grupos seleccionados ({gruposSeleccionados.length})
         </ThemedText>
 
         {gruposSeleccionados.length === 0 ? (
-          <ThemedText style={styles.emptyText}>
+          <ThemedText
+            style={[
+              styles.emptyText,
+              {
+                color: theme.colors.muted,
+              },
+            ]}
+          >
             Todavía no seleccionaste ningún grupo.
           </ThemedText>
         ) : (
           <View style={styles.selectedList}>
             {gruposSeleccionados.map((grupo) => (
-  <View
-    key={grupo.idGrupo}
-    style={[
-      styles.selectedItem,
-      {
-        borderColor: theme.colors.border,
-        backgroundColor: theme.colors.background,
-      },
-    ]}
-  >
-    <View style={{ flex: 1 }}>
-      <ThemedText style={styles.groupName}>
-        {grupo.nombreCarrera ?? "Sin carrera"}
-      </ThemedText>
+              <View
+                key={grupo.idGrupo}
+                style={[
+                  styles.selectedItem,
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+              >
+                <View style={{ flex: 1 }}>
+                  <ThemedText
+                    style={[
+                      styles.groupName,
+                      {
+                        color: theme.colors.text,
+                      },
+                    ]}
+                  >
+                    {grupo.nombreCarrera ?? "Sin carrera"}
+                  </ThemedText>
 
-      <ThemedText style={styles.groupInfo}>
-        Materia: {grupo.nombreMateria ?? "Sin materia"}
-      </ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.groupInfo,
+                      {
+                        color: theme.colors.muted,
+                      },
+                    ]}
+                  >
+                    Materia: {grupo.nombreMateria ?? "Sin materia"}
+                  </ThemedText>
 
-      <ThemedText style={styles.groupInfo}>
-        Grupo: {grupo.nombre} · Paralelo {grupo.paralelo}
-      </ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.groupInfo,
+                      {
+                        color: theme.colors.muted,
+                      },
+                    ]}
+                  >
+                    Grupo: {grupo.nombre} · Paralelo {grupo.paralelo}
+                  </ThemedText>
 
-      <ThemedText style={styles.groupInfo}>
-        Turno: {grupo.turno} · Horario: {grupo.horario}
-      </ThemedText>
-    </View>
+                  <ThemedText
+                    style={[
+                      styles.groupInfo,
+                      {
+                        color: theme.colors.muted,
+                      },
+                    ]}
+                  >
+                    Turno: {grupo.turno} · Horario: {grupo.horario}
+                  </ThemedText>
+                </View>
 
-    <Pressable
-      onPress={() => quitarGrupo(grupo.idGrupo)}
-      style={[
-        styles.removeButton,
-        { borderColor: theme.colors.border },
-      ]}
-    >
-      <ThemedText style={{ color: theme.colors.primary }}>
-        Quitar
-      </ThemedText>
-    </Pressable>
-  </View>
-))}
+                <Pressable
+                  onPress={() => quitarGrupo(grupo.idGrupo)}
+                  style={[
+                    styles.removeButton,
+                    {
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.card,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={{
+                      color: theme.colors.primary,
+                      fontWeight: "900",
+                    }}
+                  >
+                    Quitar
+                  </ThemedText>
+                </Pressable>
+              </View>
+            ))}
           </View>
         )}
 
@@ -370,12 +447,18 @@ setMaterias(materiasDisponibles);
             styles.finishButton,
             {
               backgroundColor: theme.colors.primary,
-              opacity:
-                inscribiendo || gruposSeleccionados.length === 0 ? 0.55 : 1,
+              opacity: inscribiendo || gruposSeleccionados.length === 0 ? 0.55 : 1,
             },
           ]}
         >
-          <ThemedText style={styles.finishText}>
+          <ThemedText
+            style={[
+              styles.finishText,
+              {
+                color: "#FFFFFF",
+              },
+            ]}
+          >
             {inscribiendo ? "Inscribiendo..." : "Continuar con documentos"}
           </ThemedText>
         </Pressable>
@@ -408,9 +491,11 @@ const styles = StyleSheet.create({
   container: {
     gap: 18,
   },
+
   layout: {
     gap: 18,
   },
+
   left: {
     borderWidth: 1,
     borderRadius: 18,
@@ -418,6 +503,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 330,
   },
+
   right: {
     flex: 1,
     borderWidth: 1,
@@ -425,34 +511,43 @@ const styles = StyleSheet.create({
     padding: 18,
     minHeight: 420,
   },
+
   header: {
     marginBottom: 16,
     gap: 4,
   },
+
   title: {
     fontSize: 22,
     fontWeight: "900",
   },
+
   subtitle: {
     fontSize: 14,
-    opacity: 0.75,
+    fontWeight: "600",
   },
+
   selectedBox: {
     borderWidth: 1,
     borderRadius: 18,
     padding: 18,
     gap: 14,
   },
+
   selectedTitle: {
     fontSize: 18,
     fontWeight: "900",
   },
+
   emptyText: {
-    opacity: 0.7,
+    fontSize: 14,
+    fontWeight: "600",
   },
+
   selectedList: {
     gap: 10,
   },
+
   selectedItem: {
     borderWidth: 1,
     borderRadius: 14,
@@ -461,29 +556,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
+
   groupName: {
     fontSize: 15,
     fontWeight: "900",
   },
+
   groupInfo: {
     fontSize: 13,
-    opacity: 0.75,
+    fontWeight: "700",
     marginTop: 3,
   },
+
   removeButton: {
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
+
   finishButton: {
     height: 54,
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
   },
+
   finishText: {
-    color: "#fff",
     fontWeight: "900",
   },
 });
