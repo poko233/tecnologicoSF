@@ -14,6 +14,7 @@ import Toast from "react-native-toast-message";
 import logoImg from "../../assets/images/logo_texto.png";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMobileDrawer } from "../../contexts/MobileDrawerContext"; // ← añadido
+import { useModulesStore } from "../../store/modulesStore"; // ← añadido
 import { useTheme } from "../../theme/useTheme";
 
 export const SidebarFooter = () => {
@@ -38,6 +39,7 @@ export const SidebarFooter = () => {
       });
       // 1. Cerramos el drawer móvil si está abierto
       closeDrawer();
+      useModulesStore.getState().clearModulos(); // ← limpiar store
       // 2. Redirigimos inmediatamente al login
       router.replace("/");
     } catch (e) {

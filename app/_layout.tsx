@@ -2,6 +2,7 @@
 import { Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { MobileDrawer } from "../components/MobileDrawer";
 import { Toaster } from "../components/Toaster";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
@@ -15,7 +16,6 @@ function AppContent() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  // Solo mostramos el drawer (y por tanto el Sidebar) si hay sesión activa
   const showDrawer = !!user && pathname !== "/";
 
   return (
@@ -32,10 +32,12 @@ function AppContent() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

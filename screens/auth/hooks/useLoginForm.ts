@@ -1,11 +1,11 @@
-import { router, useLocalSearchParams } from "expo-router";
+// screens/auth/hooks/useLoginForm.ts
+import { getTabsForRoles } from "@/utils/roleBasedTabs";
+import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Toast from "react-native-toast-message";
 import { useAuth } from "../../../contexts/AuthContext";
 import { loginUser } from "../services/auth.service";
 import type { LoginRequest, ValidationErrors } from "../types/auth.types";
-
-const HOME_ROUTE = "/"; // cambia esto si tu home real es otra ruta
 
 const validateField = (name: keyof LoginRequest, value: string): string => {
   switch (name) {
@@ -31,13 +31,17 @@ export function useLoginForm() {
   >({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const { user } = useAuth();
+
+  // Si ya hay sesión, redirigir a perfil directamente
   useEffect(() => {
-    if (user && !redirect) {
-      router.replace("/");
+    if (user) {
+      const tabs = getTabsForRoles(user.roles);
+      const homeRoute = tabs.length > 0 ? `/${tabs[0].name}` : "/perfil";
+      router.replace(homeRoute as any);
     }
-  }, [user, redirect]);
+  }, [user]);
+
   const handleChange = useCallback(
     (field: keyof LoginRequest) => (value: string) => {
       setForm((prev) => ({ ...prev, [field]: value }));
@@ -79,22 +83,17 @@ export function useLoginForm() {
 
     try {
       const response = await loginUser(form);
-      await login(response.token);
+      const userData = await login(response.token);
 
       Toast.show({
         type: "success",
         text1: "Inicio de sesión exitoso",
         text2: "Bienvenido de nuevo.",
       });
-      console.log("redirect:", redirect);
-      const safeRedirect =
-        typeof redirect === "string" && redirect.startsWith("/")
-          ? redirect
-          : HOME_ROUTE;
-
-      // Ejemplo: redirect = "/(tabs)/Rol"
-      console.log("safeRedirect:", safeRedirect);
-      router.replace(safeRedirect as any); // <-- único cast necesario (pero inocuo)
+      // Calcular la ruta de inicio según los roles
+      const tabs = getTabsForRoles(userData.roles);
+      const homeRoute = tabs.length > 0 ? `/${tabs[0].name}` : "/perfil";
+      router.replace(homeRoute as any);
     } catch (err: any) {
       const message = err?.message || "Error inesperado";
       setServerError(message);

@@ -21,12 +21,16 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAuth } from "../../contexts/AuthContext";
 import { useResponsive } from "../../hooks/useResponsive";
+import {
+  MiFormulario,
+  MiModulo,
+  useModulesStore,
+} from "../../store/modulesStore"; // ← store
 import { useTheme } from "../../theme/useTheme";
 import { getTabsForRoles } from "../../utils/roleBasedTabs";
 import { resolveIcon } from "./iconMap";
 import { SidebarFooter } from "./SidebarFooter";
 import { SidebarHeader } from "./SidebarHeader";
-import { MiFormulario, MiModulo, useMisModulos } from "./useMisModulos";
 
 if (
   Platform.OS === "android" &&
@@ -236,7 +240,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { modulos, loading, error, refetch } = useMisModulos();
+  const { modulos, loading, error, fetchModulos } = useModulesStore();
   const { user } = useAuth();
   const router = useRouter();
   const { isDesktop } = useResponsive();
@@ -253,6 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   const logoAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scaleHome.value }],
   }));
+
   return (
     <View
       style={[
@@ -260,13 +265,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
         {
           backgroundColor: c.card,
           borderRightColor: c.border,
-          borderRightWidth: 1, // <-- Restaurado de forma fija para que cruce todo el alto
+          borderRightWidth: 1,
           width: isDesktop ? 240 : "100%",
         },
         !isDesktop && { flex: 1 },
       ]}
     >
-      {/* Logo */}
+      {/* Logo táctil */}
       <Animated.View style={logoAnimatedStyle}>
         <Pressable
           onPress={handleHomePress}
@@ -289,7 +294,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
       </Animated.View>
 
       <SidebarHeader />
-      {/* Nav */}
+
+      {/* Lista de módulos */}
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
@@ -306,12 +312,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
 
         {!loading && error && (
           <Pressable
-            onPress={() => refetch()}
+            onPress={() => fetchModulos()}
             style={[
               styles.errorBox,
               { backgroundColor: "#FFF1F2", borderColor: "#FECDD3" },
             ]}
-            accessibilityLabel="Reintentar carga de módulos"
           >
             <Ionicons name="alert-circle-outline" size={16} color="#E11D48" />
             <Text style={[styles.errorText, { color: "#E11D48" }]}>
