@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useMemo } from "react";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useThemeStore } from "../store/themeStore";
 import { themes } from "../theme/themes";
@@ -29,12 +29,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     (name: ThemeName) => {
       setThemeName(name);
     },
-    [setThemeName],
+    [setThemeName]
   );
 
   const value = useMemo(
     () => ({ theme, setTheme, toggleTheme }),
-    [theme, setTheme, toggleTheme],
+    [theme, setTheme, toggleTheme]
   );
 
   return (
@@ -50,3 +50,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     </ThemeContext.Provider>
   );
 };
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}

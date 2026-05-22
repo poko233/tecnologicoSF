@@ -1,9 +1,10 @@
+import { useTheme } from '@theme'
 import React, { useEffect, useState } from 'react'
 import {
-  ActivityIndicator, Pressable, ScrollView, StyleSheet,
-  Switch, Text, TextInput, View,
+  ActivityIndicator, Pressable,
+  StyleSheet,
+  Switch, Text, TextInput, View
 } from 'react-native'
-import { useTheme } from '@theme'
 import { Area } from '../areas/area.types'
 import { areaService } from '../areas/areaService'
 import { Carrera } from './carrera.types'
@@ -20,6 +21,7 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
   const { theme } = useTheme()
   const [areas, setAreas] = useState<Area[]>([])
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const [form, setForm] = useState({
     nombreCarrera: '',
@@ -61,9 +63,37 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
     }
   }, [initialData])
 
-  const set = (key: string) => (val: string) => setForm(f => ({ ...f, [key]: val }))
+  const set = (key: string) => (val: string) => {
+    setForm(f => ({ ...f, [key]: val }))
+    // Limpia el error del campo cuando el usuario escribe
+    if (errors[key]) setErrors(e => { const copy = { ...e }; delete copy[key]; return copy })
+  }
+
+  // inp ahora acepta el nombre del campo para pintar el borde rojo si hay error
+  const inp = (field?: string) => [
+    styles.input,
+    {
+      backgroundColor: theme.colors.background,
+      borderColor: field && errors[field] ? '#e53935' : theme.colors.inputBorder,
+      color: theme.colors.text,
+    },
+  ]
+
+  const lbl = [styles.label, { color: theme.colors.text }]
 
   const handleSave = async () => {
+    const e: Record<string, string> = {}
+    if (!form.nombreCarrera.trim())                  e.nombreCarrera = 'El nombre es obligatorio'
+    if (!form.codigo.trim())                         e.codigo = 'El código es obligatorio'
+    if (!form.cargaHoraria.trim())                   e.cargaHoraria = 'La carga horaria es obligatoria'
+    if (!form.denominacionTitutloProfesional.trim()) e.denominacionTitutloProfesional = 'La denominación es obligatoria'
+    if (!form.idArea)                                e.idArea = 'Debes seleccionar un área'
+    if (!form.duracion)                              e.duracion = 'La duración en años es obligatoria'
+    if (!form.duracion_meses)                        e.duracion_meses = 'La duración en meses es obligatoria'
+    if (!form.cuotas_por_anio)                       e.cuotas_por_anio = 'Las cuotas por año son obligatorias'
+
+    if (Object.keys(e).length > 0) { setErrors(e); return }
+    setErrors({})
     setSaving(true)
     await onSave({
       nombreCarrera: form.nombreCarrera,
@@ -75,7 +105,7 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
       cargaHoraria: form.cargaHoraria,
       costo_matricula: form.costo_matricula ? Number(form.costo_matricula) : undefined,
       cuota_mensual: form.cuota_mensual ? Number(form.cuota_mensual) : undefined,
-      cuotas_por_anio: form.cuotas_por_anio ? Number(form.cuotas_por_anio) : undefined,
+      cuotas_por_anio: form.cuotas_por_anio ? Number(form.cuotas_por_anio) : 0,
       denominacionTitutloProfesional: form.denominacionTitutloProfesional,
       idArea: Number(form.idArea),
       estadoCarrera: form.estadoCarrera ? 'activo' : 'inactivo',
@@ -83,20 +113,23 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
     setSaving(false)
   }
 
-  const inp = [styles.input, { backgroundColor: theme.colors.background, borderColor: theme.colors.inputBorder, color: theme.colors.text }]
-  const lbl = [styles.label, { color: theme.colors.text }]
-
   return (
     <View>
+      {/* Nombre */}
       <Text style={lbl}>Nombre *</Text>
-      <TextInput style={inp} value={form.nombreCarrera} onChangeText={set('nombreCarrera')} placeholder="Nombre de la carrera" placeholderTextColor={theme.colors.textMuted} />
+      <TextInput style={inp('nombreCarrera')} value={form.nombreCarrera} onChangeText={set('nombreCarrera')} placeholder="Nombre de la carrera" placeholderTextColor={theme.colors.textMuted} />
+      {errors.nombreCarrera && <Text style={styles.errorText}>{errors.nombreCarrera}</Text>}
 
+      {/* Código */}
       <Text style={lbl}>Código *</Text>
-      <TextInput style={inp} value={form.codigo} onChangeText={set('codigo')} placeholder="ISC-001" placeholderTextColor={theme.colors.textMuted} />
+      <TextInput style={inp('codigo')} value={form.codigo} onChangeText={set('codigo')} placeholder="ISC-001" placeholderTextColor={theme.colors.textMuted} />
+      {errors.codigo && <Text style={styles.errorText}>{errors.codigo}</Text>}
 
+      {/* Tipo */}
       <Text style={lbl}>Tipo</Text>
-      <TextInput style={inp} value={form.tipo} onChangeText={set('tipo')} placeholder="Ej: Licenciatura" placeholderTextColor={theme.colors.textMuted} />
+      <TextInput style={inp()} value={form.tipo} onChangeText={set('tipo')} placeholder="Ej: Licenciatura" placeholderTextColor={theme.colors.textMuted} />
 
+      {/* Régimen */}
       <Text style={lbl}>Régimen</Text>
       <View style={styles.chipRow}>
         {REGIMEN_OPTS.map(r => (
@@ -107,36 +140,45 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
         ))}
       </View>
 
+      {/* Duración */}
       <View style={styles.row2}>
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Duración (años)</Text>
-          <TextInput style={inp} value={form.duracion} onChangeText={set('duracion')} keyboardType="numeric" placeholder="5" placeholderTextColor={theme.colors.textMuted} />
+          <TextInput style={inp('duracion')} value={form.duracion} onChangeText={set('duracion')} keyboardType="numeric" placeholder="5" placeholderTextColor={theme.colors.textMuted} />
+          {errors.duracion && <Text style={styles.errorText}>{errors.duracion}</Text>}
         </View>
         <View style={{ width: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Duración (meses)</Text>
-          <TextInput style={inp} value={form.duracion_meses} onChangeText={set('duracion_meses')} keyboardType="numeric" placeholder="60" placeholderTextColor={theme.colors.textMuted} />
+          <TextInput style={inp('duracion_meses')} value={form.duracion_meses} onChangeText={set('duracion_meses')} keyboardType="numeric" placeholder="60" placeholderTextColor={theme.colors.textMuted} />
+          {errors.duracion_meses && <Text style={styles.errorText}>{errors.duracion_meses}</Text>}
         </View>
       </View>
 
+      {/* Carga horaria */}
       <Text style={lbl}>Carga Horaria *</Text>
-      <TextInput style={inp} value={form.cargaHoraria} onChangeText={set('cargaHoraria')} placeholder="40 horas semanales" placeholderTextColor={theme.colors.textMuted} />
+      <TextInput style={inp('cargaHoraria')} value={form.cargaHoraria} onChangeText={set('cargaHoraria')} placeholder="40 horas semanales" placeholderTextColor={theme.colors.textMuted} />
+      {errors.cargaHoraria && <Text style={styles.errorText}>{errors.cargaHoraria}</Text>}
 
+      {/* Costos */}
       <View style={styles.row2}>
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Costo matrícula (Bs.)</Text>
-          <TextInput style={inp} value={form.costo_matricula} onChangeText={set('costo_matricula')} keyboardType="numeric" placeholder="500" placeholderTextColor={theme.colors.textMuted} />
+          <TextInput style={inp()} value={form.costo_matricula} onChangeText={set('costo_matricula')} keyboardType="numeric" placeholder="500" placeholderTextColor={theme.colors.textMuted} />
         </View>
         <View style={{ width: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Cuota mensual (Bs.)</Text>
-          <TextInput style={inp} value={form.cuota_mensual} onChangeText={set('cuota_mensual')} keyboardType="numeric" placeholder="350" placeholderTextColor={theme.colors.textMuted} />
+          <TextInput style={inp()} value={form.cuota_mensual} onChangeText={set('cuota_mensual')} keyboardType="numeric" placeholder="350" placeholderTextColor={theme.colors.textMuted} />
         </View>
       </View>
 
-      <Text style={lbl}>Cuotas por año</Text>
-      <TextInput style={inp} value={form.cuotas_por_anio} onChangeText={set('cuotas_por_anio')} keyboardType="numeric" placeholder="12" placeholderTextColor={theme.colors.textMuted} />
+      {/* Cuotas por año */}
+      <Text style={lbl}>Cuotas por año *</Text>
+      <TextInput style={inp('cuotas_por_anio')} value={form.cuotas_por_anio} onChangeText={set('cuotas_por_anio')} keyboardType="numeric" placeholder="12" placeholderTextColor={theme.colors.textMuted} />
+      {errors.cuotas_por_anio && <Text style={styles.errorText}>{errors.cuotas_por_anio}</Text>}
 
+      {/* Costo estimado (solo edición) */}
       {initialData?.costo != null && (
         <View style={[styles.costoBox, { backgroundColor: theme.colors.secondary, borderColor: theme.colors.border }]}>
           <Text style={{ color: theme.colors.text, fontWeight: '600' }}>
@@ -146,24 +188,33 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
         </View>
       )}
 
+      {/* Denominación */}
       <Text style={lbl}>Denominación del título *</Text>
-      <TextInput style={[...inp, styles.multiline]} value={form.denominacionTitutloProfesional} onChangeText={set('denominacionTitutloProfesional')} placeholder="Licenciado en..." placeholderTextColor={theme.colors.textMuted} multiline numberOfLines={2} />
+      <TextInput style={[inp('denominacionTitutloProfesional'), styles.multiline]} value={form.denominacionTitutloProfesional} onChangeText={set('denominacionTitutloProfesional')} placeholder="Licenciado en..." placeholderTextColor={theme.colors.textMuted} multiline numberOfLines={2} />
+      {errors.denominacionTitutloProfesional && <Text style={styles.errorText}>{errors.denominacionTitutloProfesional}</Text>}
 
+      {/* Área */}
       <Text style={lbl}>Área *</Text>
-      <View style={styles.chipRow}>
+      <View style={[styles.chipRow, errors.idArea ? styles.chipRowError : null]}>
         {areas.map(a => (
-          <Pressable key={a.idArea} onPress={() => setForm(f => ({ ...f, idArea: String(a.idArea) }))}
-            style={[styles.chip, { backgroundColor: form.idArea === String(a.idArea) ? theme.colors.primary : theme.colors.secondary, borderColor: theme.colors.border }]}>
+          <Pressable key={a.idArea} onPress={() => {
+            setForm(f => ({ ...f, idArea: String(a.idArea) }))
+            setErrors(e => { const copy = { ...e }; delete copy.idArea; return copy })
+          }}
+            style={[styles.chip, { backgroundColor: form.idArea === String(a.idArea) ? theme.colors.primary : theme.colors.secondary, borderColor: form.idArea === String(a.idArea) ? theme.colors.primary : theme.colors.border }]}>
             <Text style={{ color: form.idArea === String(a.idArea) ? theme.colors.primaryForeground : theme.colors.text, fontSize: 13 }}>{a.nombre}</Text>
           </Pressable>
         ))}
       </View>
+      {errors.idArea && <Text style={styles.errorText}>{errors.idArea}</Text>}
 
+      {/* Estado */}
       <View style={styles.switchRow}>
         <Text style={[lbl, { marginBottom: 0, marginTop: 0 }]}>Estado activo</Text>
         <Switch value={form.estadoCarrera} onValueChange={v => setForm(f => ({ ...f, estadoCarrera: v }))} thumbColor={form.estadoCarrera ? theme.colors.primary : '#ccc'} trackColor={{ false: '#ddd', true: theme.colors.primary + '60' }} />
       </View>
 
+      {/* Botones */}
       <View style={styles.btns}>
         <Pressable onPress={onCancel} style={[styles.btn, styles.btnOutline, { borderColor: theme.colors.border }]}>
           <Text style={[styles.btnText, { color: theme.colors.text }]}>Cancelar</Text>
@@ -182,6 +233,7 @@ const styles = StyleSheet.create({
   multiline: { height: 70, textAlignVertical: 'top' },
   row2: { flexDirection: 'row', marginTop: 0 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  chipRowError: { borderWidth: 1, borderColor: '#e53935', borderRadius: 8, padding: 6 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
   costoBox: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 12, gap: 4 },
@@ -189,4 +241,5 @@ const styles = StyleSheet.create({
   btn: { flex: 1, paddingVertical: 12, borderRadius: 9, alignItems: 'center' },
   btnOutline: { borderWidth: 1, backgroundColor: 'transparent' },
   btnText: { fontWeight: '700', fontSize: 15 },
+  errorText: { color: '#e53935', fontSize: 12, marginTop: 3 },
 })

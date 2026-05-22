@@ -15,6 +15,6 @@ export const grupoService = {
     return res.data ?? (res as any)
   },
   delete: async (id: number): Promise<void> => {
-    await httpClient.deleteAuth(`/grupos/${id}`)
+    await httpClient.deleteAuth(`/api/grupos/${id}`)
   },
 }

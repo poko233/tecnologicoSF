@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert } from 'react-native'
+import { Alert, Platform } from 'react-native'
 import Toast from 'react-native-toast-message'
 import { CrudConfig } from '../types/admin.types'
 
@@ -58,6 +58,24 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
   }
 
   const handleDelete = (item: T) => {
+    const id = item[idField] as number
+
+    // Web no soporta Alert.alert con múltiples botones
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('¿Estás seguro de que deseas eliminar este registro?')
+      if (!confirmed) return
+      deleteFn(id)
+        .then(() => {
+          Toast.show({ type: 'success', text1: 'Eliminado correctamente' })
+          refresh()
+        })
+        .catch((e: any) => {
+          Toast.show({ type: 'error', text1: 'Error', text2: e?.message || 'No se pudo eliminar' })
+        })
+      return
+    }
+
+    // Mobile — funciona normal
     Alert.alert(
       'Confirmar eliminación',
       '¿Estás seguro de que deseas eliminar este registro?',
@@ -68,7 +86,7 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteFn(item[idField] as number)
+              await deleteFn(id)
               Toast.show({ type: 'success', text1: 'Eliminado correctamente' })
               refresh()
             } catch (e: any) {
@@ -79,7 +97,6 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
       ]
     )
   }
-
   const handleSave = async (formData: Partial<T>) => {
     setSaving(true)
     try {

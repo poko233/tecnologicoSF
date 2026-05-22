@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-    ActivityIndicator,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
@@ -31,7 +31,10 @@ export default function MateriasModal({
 }: Props) {
   const { theme } = useTheme();
 
-  const esAnual = carrera?.regimen === "Anual";
+  const regimen = String(carrera?.regimen ?? "").toLowerCase();
+
+  const esAnual = regimen === "anual";
+  const esMensual = regimen === "mensual";
 
   const materiasAgrupadas = materias.reduce<Record<number, Materia[]>>(
     (acc, materia) => {
@@ -53,7 +56,15 @@ export default function MateriasModal({
     .sort((a, b) => a - b);
 
   const obtenerTituloGrupo = (numero: number) => {
-    return esAnual ? `Año ${numero}` : `Semestre ${numero}`;
+    if (esAnual) return `Año ${numero}`;
+    if (esMensual) return `Mes ${numero}`;
+    return `Semestre ${numero}`;
+  };
+
+  const obtenerEtiquetaPeriodo = () => {
+    if (esAnual) return "Año";
+    if (esMensual) return "Mes";
+    return "Semestre";
   };
 
   return (
@@ -70,18 +81,50 @@ export default function MateriasModal({
         >
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <ThemedText style={styles.title}>Materias</ThemedText>
+              <ThemedText
+                style={[
+                  styles.title,
+                  {
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
+                Materias
+              </ThemedText>
 
-              <ThemedText style={styles.subtitle}>
+              <ThemedText
+                style={[
+                  styles.subtitle,
+                  {
+                    color: theme.colors.muted,
+                  },
+                ]}
+              >
                 {carrera?.nombreCarrera ?? "Carrera no seleccionada"}
               </ThemedText>
 
-              <ThemedText style={styles.note}>
+              <ThemedText
+                style={[
+                  styles.note,
+                  {
+                    color: theme.colors.muted,
+                  },
+                ]}
+              >
                 Solo se muestran materias sin prerequisito.
               </ThemedText>
             </View>
 
-            <Pressable onPress={onClose} style={styles.closeButton}>
+            <Pressable
+              onPress={onClose}
+              style={[
+                styles.closeButton,
+                {
+                  backgroundColor: theme.colors.background,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
               <Ionicons name="close" size={26} color={theme.colors.text} />
             </Pressable>
           </View>
@@ -89,7 +132,15 @@ export default function MateriasModal({
           {loading ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator color={theme.colors.primary} />
-              <ThemedText>Cargando materias...</ThemedText>
+
+              <ThemedText
+                style={{
+                  color: theme.colors.text,
+                  fontWeight: "700",
+                }}
+              >
+                Cargando materias...
+              </ThemedText>
             </View>
           ) : materias.length === 0 ? (
             <View style={styles.emptyBox}>
@@ -99,11 +150,25 @@ export default function MateriasModal({
                 color={theme.colors.primary}
               />
 
-              <ThemedText style={styles.emptyTitle}>
+              <ThemedText
+                style={[
+                  styles.emptyTitle,
+                  {
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
                 No hay materias disponibles
               </ThemedText>
 
-              <ThemedText style={styles.emptyText}>
+              <ThemedText
+                style={[
+                  styles.emptyText,
+                  {
+                    color: theme.colors.muted,
+                  },
+                ]}
+              >
                 Todas las materias tienen prerequisito o no existen materias
                 registradas.
               </ThemedText>
@@ -118,7 +183,10 @@ export default function MateriasModal({
                   <View
                     style={[
                       styles.groupHeader,
-                      { backgroundColor: `${theme.colors.primary}18` },
+                      {
+                        backgroundColor: `${theme.colors.primary}22`,
+                        borderColor: `${theme.colors.primary}55`,
+                      },
                     ]}
                   >
                     <Ionicons
@@ -130,7 +198,9 @@ export default function MateriasModal({
                     <ThemedText
                       style={[
                         styles.groupTitle,
-                        { color: theme.colors.primary },
+                        {
+                          color: theme.colors.primary,
+                        },
                       ]}
                     >
                       {obtenerTituloGrupo(grupoNumero)}
@@ -150,16 +220,37 @@ export default function MateriasModal({
                         ]}
                       >
                         <View style={{ flex: 1 }}>
-                          <ThemedText style={styles.materiaTitle}>
+                          <ThemedText
+                            style={[
+                              styles.materiaTitle,
+                              {
+                                color: theme.colors.text,
+                              },
+                            ]}
+                          >
                             {materia.nombreMateria}
                           </ThemedText>
 
-                          <ThemedText style={styles.materiaInfo}>
+                          <ThemedText
+                            style={[
+                              styles.materiaInfo,
+                              {
+                                color: theme.colors.muted,
+                              },
+                            ]}
+                          >
                             Código: {materia.codigo}
                           </ThemedText>
 
-                          <ThemedText style={styles.materiaInfo}>
-                            {esAnual ? "Año" : "Semestre"}: {materia.semestre}
+                          <ThemedText
+                            style={[
+                              styles.materiaInfo,
+                              {
+                                color: theme.colors.muted,
+                              },
+                            ]}
+                          >
+                            {obtenerEtiquetaPeriodo()}: {materia.semestre}
                           </ThemedText>
                         </View>
 
@@ -167,7 +258,9 @@ export default function MateriasModal({
                           onPress={() => onVerGrupos(materia)}
                           style={[
                             styles.button,
-                            { backgroundColor: theme.colors.primary },
+                            {
+                              backgroundColor: theme.colors.primary,
+                            },
                           ]}
                         >
                           <ThemedText style={styles.buttonText}>
@@ -190,11 +283,12 @@ export default function MateriasModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "center",
     alignItems: "center",
     padding: 18,
   },
+
   modal: {
     width: "100%",
     maxWidth: 920,
@@ -204,73 +298,90 @@ const styles = StyleSheet.create({
     padding: 22,
     gap: 18,
   },
+
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
   },
+
   title: {
     fontSize: 26,
     fontWeight: "900",
   },
+
   subtitle: {
     fontSize: 15,
-    opacity: 0.7,
+    fontWeight: "700",
     marginTop: 4,
   },
+
   note: {
     fontSize: 13,
-    opacity: 0.55,
+    fontWeight: "600",
     marginTop: 6,
   },
+
   closeButton: {
     width: 42,
     height: 42,
     borderRadius: 999,
+    borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
   },
+
   loadingBox: {
     padding: 40,
     alignItems: "center",
     gap: 12,
   },
+
   emptyBox: {
     padding: 40,
     alignItems: "center",
     gap: 10,
   },
+
   emptyTitle: {
     fontSize: 18,
     fontWeight: "900",
   },
+
   emptyText: {
-    opacity: 0.7,
     textAlign: "center",
+    fontWeight: "600",
   },
+
   content: {
     gap: 20,
     paddingBottom: 8,
   },
+
   groupSection: {
     gap: 12,
   },
+
   groupHeader: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     borderRadius: 999,
+    borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
+
   groupTitle: {
     fontSize: 15,
     fontWeight: "900",
   },
+
   list: {
     gap: 12,
   },
+
   card: {
     borderWidth: 1,
     borderRadius: 18,
@@ -279,15 +390,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 14,
   },
+
   materiaTitle: {
     fontSize: 17,
     fontWeight: "900",
   },
+
   materiaInfo: {
     fontSize: 14,
-    opacity: 0.7,
+    fontWeight: "700",
     marginTop: 4,
   },
+
   button: {
     height: 48,
     borderRadius: 14,
@@ -295,8 +409,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
   buttonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontWeight: "900",
   },
 });
