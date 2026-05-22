@@ -18,6 +18,16 @@ interface Props {
 const TIPO_OPTS = ['Carrera', 'Certificación', 'Capacitación', 'Cursos'] as const
 const REGIMEN_OPTS = ['Anual', 'Semestral', 'Mensual', 'Otro'] as const
 
+// ── helpers ────────────────────────────────────────────────────────────────
+// Solo dígitos (sin letras ni símbolos)
+const isNumeric = (v: string) => /^\d+(\.\d+)?$/.test(v.trim())
+
+// Filtra automáticamente caracteres no numéricos mientras escribe
+const numericSet = (setter: (v: string) => void) => (val: string) => {
+  // Permite vacío o solo dígitos/punto decimal
+  if (val === '' || /^\d*\.?\d*$/.test(val)) setter(val)
+}
+
 // ── Selector desplegable ───────────────────────────────────────────────────
 function Dropdown({
   label, value, options, onSelect, placeholder, error, theme,
@@ -115,7 +125,8 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
     cuotas_por_semestre: '',
     duracion_meses: '',
     cuota_mensual: '',
-    duracion_personalizada: '',
+    // "Otro" ahora es solo número de meses
+    duracion_meses_otro: '',
     descripcion_cuotas: '',
     cargaHoraria: '',
     costo_matricula: '',
@@ -154,6 +165,14 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
     if (errors[key]) setErrors(e => { const c = { ...e }; delete c[key]; return c })
   }
 
+  // Setter numérico: solo acepta dígitos mientras escribe
+  const setNum = (key: string) => (val: string) => {
+    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+      setForm(f => ({ ...f, [key]: val }))
+      if (errors[key]) setErrors(e => { const c = { ...e }; delete c[key]; return c })
+    }
+  }
+
   const setRegimen = (r: string) => {
     setForm(f => ({ ...f, regimen: r }))
     if (errors.regimen) setErrors(e => { const c = { ...e }; delete c.regimen; return c })
@@ -171,6 +190,7 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
 
   const handleSave = async () => {
     const e: Record<string, string> = {}
+
     if (!form.nombreCarrera.trim())                  e.nombreCarrera = 'El nombre es obligatorio'
     if (!form.codigo.trim())                         e.codigo = 'El código es obligatorio'
     if (!form.tipo)                                  e.tipo = 'El tipo es obligatorio'
@@ -179,65 +199,109 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
     if (!form.denominacionTitutloProfesional.trim()) e.denominacionTitutloProfesional = 'La denominación es obligatoria'
     if (!form.idArea)                                e.idArea = 'Debes seleccionar un área'
 
+    // Validaciones numéricas por régimen
     if (form.regimen === 'Anual') {
-      if (!form.duracion_anios)  e.duracion_anios  = 'La duración en años es obligatoria'
-      if (!form.cuotas_por_anio) e.cuotas_por_anio = 'Las cuotas por año son obligatorias'
+      if (!form.duracion_anios)                    e.duracion_anios = 'La duración en años es obligatoria'
+      else if (!isNumeric(form.duracion_anios))    e.duracion_anios = 'Debe ser un número entero (ej: 5)'
+      else if (Number(form.duracion_anios) < 1 || Number(form.duracion_anios) > 20)
+                                                   e.duracion_anios = 'Debe estar entre 1 y 20 años'
+      if (!form.cuotas_por_anio)                   e.cuotas_por_anio = 'Las cuotas por año son obligatorias'
+      else if (!isNumeric(form.cuotas_por_anio))   e.cuotas_por_anio = 'Debe ser un número entero (ej: 12)'
+      else if (Number(form.cuotas_por_anio) < 1 || Number(form.cuotas_por_anio) > 24)
+                                                   e.cuotas_por_anio = 'Debe estar entre 1 y 24 cuotas'
     }
+
     if (form.regimen === 'Semestral') {
-      if (!form.duracion_semestres)  e.duracion_semestres  = 'La duración en semestres es obligatoria'
-      if (!form.cuotas_por_semestre) e.cuotas_por_semestre = 'Las cuotas por semestre son obligatorias'
+      if (!form.duracion_semestres)                  e.duracion_semestres = 'La duración en semestres es obligatoria'
+      else if (!isNumeric(form.duracion_semestres))  e.duracion_semestres = 'Debe ser un número entero (ej: 10)'
+      else if (Number(form.duracion_semestres) < 1 || Number(form.duracion_semestres) > 40)
+                                                     e.duracion_semestres = 'Debe estar entre 1 y 40 semestres'
+      if (!form.cuotas_por_semestre)                 e.cuotas_por_semestre = 'Las cuotas por semestre son obligatorias'
+      else if (!isNumeric(form.cuotas_por_semestre)) e.cuotas_por_semestre = 'Debe ser un número entero (ej: 6)'
+      else if (Number(form.cuotas_por_semestre) < 1 || Number(form.cuotas_por_semestre) > 12)
+                                                     e.cuotas_por_semestre = 'Debe estar entre 1 y 12 cuotas'
     }
+
     if (form.regimen === 'Mensual') {
-      if (!form.duracion_meses) e.duracion_meses = 'La duración en meses es obligatoria'
-      if (!form.cuota_mensual)  e.cuota_mensual  = 'La cuota mensual es obligatoria'
+      if (!form.duracion_meses)                  e.duracion_meses = 'La duración en meses es obligatoria'
+      else if (!isNumeric(form.duracion_meses))  e.duracion_meses = 'Debe ser un número entero (ej: 6)'
+      else if (Number(form.duracion_meses) < 1 || Number(form.duracion_meses) > 240)
+                                                 e.duracion_meses = 'Debe estar entre 1 y 240 meses'
+      if (!form.cuota_mensual)                   e.cuota_mensual = 'La cuota mensual es obligatoria'
+      else if (!isNumeric(form.cuota_mensual))   e.cuota_mensual = 'Debe ser un número (ej: 350)'
+      else if (Number(form.cuota_mensual) > 99999)
+                                                 e.cuota_mensual = 'Valor demasiado alto (máx: 99.999)'
     }
+
     if (form.regimen === 'Otro') {
-      if (!form.duracion_personalizada) e.duracion_personalizada = 'La duración es obligatoria'
+      if (!form.duracion_meses_otro)                 e.duracion_meses_otro = 'La duración en meses es obligatoria'
+      else if (!isNumeric(form.duracion_meses_otro)) e.duracion_meses_otro = 'Debe ser un número entero (ej: 18)'
+      else if (Number(form.duracion_meses_otro) < 1 || Number(form.duracion_meses_otro) > 240)
+                                                     e.duracion_meses_otro = 'Debe estar entre 1 y 240 meses'
+    }
+
+    // Validar opcionales numéricos si tienen valor
+    if (form.costo_matricula) {
+      if (!isNumeric(form.costo_matricula))        e.costo_matricula = 'Debe ser un número (ej: 500)'
+      else if (Number(form.costo_matricula) > 999999) e.costo_matricula = 'Valor demasiado alto (máx: 999.999)'
+    }
+    if (form.cuota_mensual && form.regimen !== 'Mensual') {
+      if (!isNumeric(form.cuota_mensual))          e.cuota_mensual = 'Debe ser un número (ej: 350)'
+      else if (Number(form.cuota_mensual) > 99999) e.cuota_mensual = 'Valor demasiado alto (máx: 99.999)'
     }
 
     if (Object.keys(e).length > 0) { setErrors(e); return }
     setErrors({})
     setSaving(true)
 
-    let duracion: number | undefined
+    // Construir valores numéricos garantizados
+    let duracion: number
     let duracion_meses: number | undefined
     let cuota_mensual: number | undefined
     let cuotas_por_anio: number | undefined
 
     if (form.regimen === 'Anual') {
-      duracion = Number(form.duracion_anios)
-      duracion_meses = Number(form.duracion_anios) * 12
+      duracion       = Number(form.duracion_anios)
+      duracion_meses = duracion * 12
       cuotas_por_anio = Number(form.cuotas_por_anio)
+      cuota_mensual  = form.cuota_mensual ? Number(form.cuota_mensual) : undefined
     } else if (form.regimen === 'Semestral') {
-      duracion_meses = Number(form.duracion_semestres) * 6
-      duracion = Math.ceil(duracion_meses / 12)   // ← AGREGA ESTA LÍNEA
+      duracion_meses  = Number(form.duracion_semestres) * 6
+      duracion        = Math.ceil(duracion_meses / 12)
       cuotas_por_anio = Number(form.cuotas_por_semestre) * 2
+      cuota_mensual   = form.cuota_mensual ? Number(form.cuota_mensual) : undefined
     } else if (form.regimen === 'Mensual') {
-      duracion_meses = Number(form.duracion_meses)
-      duracion = Math.ceil(duracion_meses / 12)   // ← AGREGA ESTA LÍNEA
-      cuota_mensual = Number(form.cuota_mensual)
+      duracion_meses  = Number(form.duracion_meses)
+      duracion        = Math.ceil(duracion_meses / 12) || 1  // mínimo 1 para no ser null
+      cuota_mensual   = Number(form.cuota_mensual)
       cuotas_por_anio = 12
     } else {
-      duracion_meses = form.duracion_personalizada ? Number(form.duracion_personalizada) : undefined
-      duracion = duracion_meses ? Math.ceil(duracion_meses / 12) : 0  // ← AGREGA ESTA LÍNEA
+      // Otro — duracion_meses_otro ya fue validado como número
+      duracion_meses  = Number(form.duracion_meses_otro)
+      duracion        = Math.ceil(duracion_meses / 12) || 1
+      cuota_mensual   = form.cuota_mensual ? Number(form.cuota_mensual) : undefined
+      cuotas_por_anio = form.cuotas_por_anio ? Number(form.cuotas_por_anio) : undefined
     }
 
-    await onSave({
-      nombreCarrera: form.nombreCarrera,
-      codigo: form.codigo,
-      tipo: form.tipo,
-      regimen: form.regimen as any,
-      duracion,
-      duracion_meses,
-      cargaHoraria: form.cargaHoraria,
-      costo_matricula: form.costo_matricula ? Number(form.costo_matricula) : undefined,
-      cuota_mensual,
-      cuotas_por_anio,
-      denominacionTitutloProfesional: form.denominacionTitutloProfesional,
-      idArea: Number(form.idArea),
-      estadoCarrera: form.estadoCarrera ? 'activo' : 'inactivo',
-    })
-    setSaving(false)
+    try {
+      await onSave({
+        nombreCarrera: form.nombreCarrera,
+        codigo: form.codigo,
+        tipo: form.tipo,
+        regimen: form.regimen as any,
+        duracion,                   // siempre número, nunca null
+        duracion_meses,
+        cargaHoraria: form.cargaHoraria,
+        costo_matricula: form.costo_matricula ? Number(form.costo_matricula) : 0,
+        cuota_mensual,
+        cuotas_por_anio,
+        denominacionTitutloProfesional: form.denominacionTitutloProfesional,
+        idArea: Number(form.idArea),
+        estadoCarrera: form.estadoCarrera ? 'activo' : 'inactivo',
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -297,14 +361,16 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>
                 <Text style={lbl}>Duración (años) *</Text>
-                <TextInput style={inp('duracion_anios')} value={form.duracion_anios} onChangeText={set('duracion_anios')}
+                <TextInput style={inp('duracion_anios')} value={form.duracion_anios}
+                  onChangeText={setNum('duracion_anios')}
                   keyboardType="numeric" placeholder="Ej: 5" placeholderTextColor={theme.colors.textMuted} />
                 {errors.duracion_anios && <Text style={styles.errorText}>{errors.duracion_anios}</Text>}
               </View>
               <View style={{ width: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={lbl}>Cuotas por año *</Text>
-                <TextInput style={inp('cuotas_por_anio')} value={form.cuotas_por_anio} onChangeText={set('cuotas_por_anio')}
+                <TextInput style={inp('cuotas_por_anio')} value={form.cuotas_por_anio}
+                  onChangeText={setNum('cuotas_por_anio')}
                   keyboardType="numeric" placeholder="Ej: 12" placeholderTextColor={theme.colors.textMuted} />
                 {errors.cuotas_por_anio && <Text style={styles.errorText}>{errors.cuotas_por_anio}</Text>}
               </View>
@@ -328,14 +394,16 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>
                 <Text style={lbl}>Duración (semestres) *</Text>
-                <TextInput style={inp('duracion_semestres')} value={form.duracion_semestres} onChangeText={set('duracion_semestres')}
+                <TextInput style={inp('duracion_semestres')} value={form.duracion_semestres}
+                  onChangeText={setNum('duracion_semestres')}
                   keyboardType="numeric" placeholder="Ej: 10" placeholderTextColor={theme.colors.textMuted} />
                 {errors.duracion_semestres && <Text style={styles.errorText}>{errors.duracion_semestres}</Text>}
               </View>
               <View style={{ width: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={lbl}>Cuotas por semestre *</Text>
-                <TextInput style={inp('cuotas_por_semestre')} value={form.cuotas_por_semestre} onChangeText={set('cuotas_por_semestre')}
+                <TextInput style={inp('cuotas_por_semestre')} value={form.cuotas_por_semestre}
+                  onChangeText={setNum('cuotas_por_semestre')}
                   keyboardType="numeric" placeholder="Ej: 6" placeholderTextColor={theme.colors.textMuted} />
                 {errors.cuotas_por_semestre && <Text style={styles.errorText}>{errors.cuotas_por_semestre}</Text>}
               </View>
@@ -359,14 +427,16 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>
                 <Text style={lbl}>Duración (meses) *</Text>
-                <TextInput style={inp('duracion_meses')} value={form.duracion_meses} onChangeText={set('duracion_meses')}
+                <TextInput style={inp('duracion_meses')} value={form.duracion_meses}
+                  onChangeText={setNum('duracion_meses')}
                   keyboardType="numeric" placeholder="Ej: 6" placeholderTextColor={theme.colors.textMuted} />
                 {errors.duracion_meses && <Text style={styles.errorText}>{errors.duracion_meses}</Text>}
               </View>
               <View style={{ width: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={lbl}>Cuota mensual (Bs.) *</Text>
-                <TextInput style={inp('cuota_mensual')} value={form.cuota_mensual} onChangeText={set('cuota_mensual')}
+                <TextInput style={inp('cuota_mensual')} value={form.cuota_mensual}
+                  onChangeText={setNum('cuota_mensual')}
                   keyboardType="numeric" placeholder="350" placeholderTextColor={theme.colors.textMuted} />
                 {errors.cuota_mensual && <Text style={styles.errorText}>{errors.cuota_mensual}</Text>}
               </View>
@@ -379,12 +449,27 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
             <View style={[styles.regimenTag, { backgroundColor: '#d9770618' }]}>
               <Text style={{ color: '#d97706', fontSize: 12, fontWeight: '600' }}>⚙️ Régimen personalizado</Text>
             </View>
-            <Text style={lbl}>Duración personalizada *</Text>
-            <TextInput style={inp('duracion_personalizada')} value={form.duracion_personalizada} onChangeText={set('duracion_personalizada')}
-              placeholder="Ej: 18 meses, 3 trimestres…" placeholderTextColor={theme.colors.textMuted} />
-            {errors.duracion_personalizada && <Text style={styles.errorText}>{errors.duracion_personalizada}</Text>}
 
-            <Text style={lbl}>Descripción de cuotas</Text>
+            {/* AHORA es número de meses, no texto libre */}
+            <Text style={lbl}>Duración (número de meses) *</Text>
+            <TextInput
+              style={inp('duracion_meses_otro')}
+              value={form.duracion_meses_otro}
+              onChangeText={setNum('duracion_meses_otro')}
+              keyboardType="numeric"
+              placeholder="Ej: 18"
+              placeholderTextColor={theme.colors.textMuted}
+            />
+            {errors.duracion_meses_otro && <Text style={styles.errorText}>{errors.duracion_meses_otro}</Text>}
+            {form.duracion_meses_otro ? (
+              <View style={[styles.calcHint, { backgroundColor: theme.colors.secondary, borderColor: theme.colors.border }]}>
+                <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+                  ≈ {Math.ceil(Number(form.duracion_meses_otro) / 12)} año(s) aproximadamente
+                </Text>
+              </View>
+            ) : null}
+
+            <Text style={lbl}>Descripción de cuotas (opcional)</Text>
             <TextInput style={[inp(), styles.multiline]} value={form.descripcion_cuotas} onChangeText={set('descripcion_cuotas')}
               placeholder="Ej: 3 pagos al inicio de cada trimestre"
               placeholderTextColor={theme.colors.textMuted} multiline numberOfLines={2} />
@@ -397,16 +482,20 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
         <View style={styles.row2}>
           <View style={{ flex: 1 }}>
             <Text style={lbl}>Costo matrícula (Bs.)</Text>
-            <TextInput style={inp()} value={form.costo_matricula} onChangeText={set('costo_matricula')}
+            <TextInput style={inp('costo_matricula')} value={form.costo_matricula}
+              onChangeText={setNum('costo_matricula')}
               keyboardType="numeric" placeholder="500" placeholderTextColor={theme.colors.textMuted} />
+            {errors.costo_matricula && <Text style={styles.errorText}>{errors.costo_matricula}</Text>}
           </View>
           {form.regimen !== 'Mensual' && (
             <>
               <View style={{ width: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={lbl}>Cuota mensual (Bs.)</Text>
-                <TextInput style={inp()} value={form.cuota_mensual} onChangeText={set('cuota_mensual')}
+                <TextInput style={inp('cuota_mensual')} value={form.cuota_mensual}
+                  onChangeText={setNum('cuota_mensual')}
                   keyboardType="numeric" placeholder="350" placeholderTextColor={theme.colors.textMuted} />
+                {errors.cuota_mensual && <Text style={styles.errorText}>{errors.cuota_mensual}</Text>}
               </View>
             </>
           )}
