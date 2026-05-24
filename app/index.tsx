@@ -10,14 +10,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ProtectedRoute } from "../components/ProtectedRoute";
 import { ThemeSelector } from "../components/ThemeSelector";
 import { useTheme } from "../theme/useTheme";
 
 export default function IndexScreen() {
   const { theme } = useTheme();
 
-  const content = (
+  return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={theme.dark ? "light" : "dark"} />
       <SafeAreaView style={styles.safe}>
@@ -51,8 +50,6 @@ export default function IndexScreen() {
     </View>
   );
 
-  // Envolvemos con ProtectedRoute (sin Sidebar ni layout de escritorio)
-  return <ProtectedRoute>{content}</ProtectedRoute>;
 }
 
 const styles = StyleSheet.create({
