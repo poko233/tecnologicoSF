@@ -30,6 +30,7 @@ export interface CreateFormularioPayload {
 }
 
 export interface FormularioModuloAssignment {
+  id: number; 
   id_formulario: number;
   id_modulo: number;
   formulario?: string;
