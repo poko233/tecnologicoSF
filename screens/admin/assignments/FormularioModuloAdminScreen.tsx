@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,11 +18,12 @@ import { useFormularios } from "../forms/useFormularios";
 import { useFormularioModulos } from "./useFormularioModulos";
 
 export function FormularioModuloAdminScreen() {
+  const [confirmId, setConfirmId] = useState<number | null>(null);
   const { theme } = useTheme();
   const c = theme.colors;
   const { formularios } = useFormularios();
   const { modulos } = useModulos();
-  const { assignments, loading, saving, assign } = useFormularioModulos();
+ const { assignments, loading, saving, assign, removeAssignment } = useFormularioModulos();
 
   const [modalFormulario, setModalFormulario] = useState(false);
   const [modalModulo, setModalModulo] = useState(false);
@@ -43,6 +45,7 @@ export function FormularioModuloAdminScreen() {
       const modulo = modulos.find((m) => m.id === item.id_modulo)?.modulo ?? item.modulo ?? `#${item.id_modulo}`;
       return {
         key: `${item.id_formulario}-${item.id_modulo}`,
+        id: item.id,
         id_formulario: item.id_formulario,
         id_modulo: item.id_modulo,
         formulario,
@@ -115,6 +118,7 @@ export function FormularioModuloAdminScreen() {
             <Text style={[styles.colId, { color: c.textSecondary }]}>ID Form.</Text>
             <Text style={[styles.colName, { color: c.textSecondary }]}>Formulario</Text>
             <Text style={[styles.colName, { color: c.textSecondary }]}>Módulo</Text>
+            <Text style={{ width: 60, color: c.textSecondary, fontWeight: "700" }}>Acción</Text>
           </View>
 
           {loading ? (
@@ -138,6 +142,12 @@ export function FormularioModuloAdminScreen() {
                   <Text style={[styles.colId, { color: c.text }]}>{item.id_formulario}</Text>
                   <Text style={[styles.colName, { color: c.text }]} numberOfLines={1}>{item.formulario}</Text>
                   <Text style={[styles.colName, { color: c.textSecondary }]} numberOfLines={1}>{item.modulo}</Text>
+                  <TouchableOpacity
+                  onPress={() => setConfirmId(item.id)}
+                  style={{ width: 30, height: 30, borderWidth: 0.5, borderRadius: 8, borderColor: "#F43F5E", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#F43F5E" />
+                </TouchableOpacity>
                 </View>
               )}
             />
@@ -156,7 +166,7 @@ export function FormularioModuloAdminScreen() {
           setModalFormulario(false);
         }}
         getLabel={(item) => item.formulario}
-        getSubtitle={(item) => item.ruta}
+        getSubtitle={(item) => item.ruta ?? undefined}
         emptyText="No hay formularios registrados"
         searchPlaceholder="Buscar formulario..."
       />
@@ -176,6 +186,37 @@ export function FormularioModuloAdminScreen() {
         emptyText="No hay módulos registrados"
         searchPlaceholder="Buscar módulo..."
       />
+
+      <Modal visible={confirmId !== null} transparent animationType="fade">
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setConfirmId(null)}
+          accessible={false}
+        />
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }} pointerEvents="box-none">
+          <View style={[{ backgroundColor: c.card, borderRadius: 20, padding: 24, width: "100%", maxWidth: 360, alignItems: "center", gap: 14, borderWidth: 1, borderColor: c.border }]}>
+            <Ionicons name="trash-outline" size={32} color={c.destructive} />
+            <Text style={{ color: c.text, fontWeight: "700", fontSize: 16 }}>¿Eliminar asignación?</Text>
+            <Text style={{ color: c.textSecondary, textAlign: "center" }}>Esta acción no se puede deshacer.</Text>
+            <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+              <TouchableOpacity
+                onPress={() => setConfirmId(null)}
+                style={{ flex: 1, alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: 10, paddingVertical: 12, borderColor: c.border }}
+              >
+                <Text style={{ color: c.textSecondary }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!confirmId) return;
+                  await removeAssignment(confirmId);
+                  setConfirmId(null);
+                }}
+                style={{ flex: 1, alignItems: "center", justifyContent: "center", borderRadius: 10, paddingVertical: 12, backgroundColor: c.destructive }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -38,6 +38,15 @@ export const adminService = {
     );
   },
 
+  updateFormulario: async (id: number, payload: CreateFormularioPayload): Promise<AdminFormulario> => {
+    const res = await httpClient.putAuth<ApiItem<AdminFormulario>>(
+      `/api/formularios/${id}`,
+      payload,
+      "No se pudo actualizar el formulario",
+    );
+    return res.data;
+  },
+
 
   getFormularioModulos: async (): Promise<FormularioModuloAssignment[]> => {
     const res = await httpClient.getAuth<ApiList<FormularioModuloAssignment>>(
@@ -58,13 +67,10 @@ export const adminService = {
     return res.data;
   },
 
-  deleteFormularioModulo: async (
-    id_formulario: number,
-    id_modulo: number,
-  ): Promise<void> => {
+  deleteFormularioModulo: async (id: number): Promise<void> => {
     await httpClient.deleteAuth<unknown>(
-      `/api/formulario-modulo/${id_formulario}/${id_modulo}`,
-      "No se pudo eliminar la asignación formulario-módulo",
+      `/api/formulario-modulo/${id}`,
+      "No se pudo eliminar la asignación",
     );
   },
 

@@ -47,7 +47,6 @@ export const ICON_CATEGORIES: IconCategory[] = [
 ];
 
 export const AVAILABLE_ICONS: IconOption[] = [
-  // ── Académico / Universitario ──
   { key: "school",          ionicon: "school-outline",           category: "Académico" },
   { key: "book",            ionicon: "book-outline",             category: "Académico" },
   { key: "library",         ionicon: "library-outline",          category: "Académico" },
