@@ -12,6 +12,7 @@ export const Toaster = () => {
       visibilityTime={5000}
       position="top"
       topOffset={60}
+      bottomOffset={0}
     />
   );
 };
