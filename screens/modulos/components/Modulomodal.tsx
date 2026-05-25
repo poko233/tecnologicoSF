@@ -2,8 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@theme"; // ajusta la ruta a tu contexto
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
+  ActivityIndicator, FlatList, KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -11,11 +10,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import {
   AVAILABLE_ICONS,
   CreateModuloPayload,
+  getIconsByCategory,
+  ICON_CATEGORIES,
+  IconCategory,
   Modulo,
 } from "../types/modulo.types";
 
@@ -62,7 +64,19 @@ export function ModuloModal({
     setErrors(e);
     return Object.keys(e).length === 0;
   };
+  const [iconCat, setIconCat] = useState<IconCategory | "Todos">("Académico");
+  const flatListRef = React.useRef<FlatList>(null);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+  const [showLeftArrow, setShowLeftArrow]   = useState(false);
 
+  const CATS = ["Todos", ...ICON_CATEGORIES];
+
+  const scrollCats = (dir: "left" | "right") => {
+    flatListRef.current?.scrollToOffset({
+      offset: dir === "right" ? 999 : 0,
+      animated: true,
+    });
+  };
   const handleSubmit = async () => {
     if (!validate()) return;
     setLoading(true);
@@ -115,6 +129,7 @@ export function ModuloModal({
           <ScrollView
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}  
             showsVerticalScrollIndicator={false}
           >
 
@@ -147,10 +162,89 @@ export function ModuloModal({
 
             <View style={styles.field}>
               <Text style={[styles.label, { color: c.textSecondary }]}>
-                ICONO DEL MÓDULO
+                ÍCONO DEL MÓDULO
               </Text>
-              <View style={[styles.iconGrid, { borderColor: c.border, backgroundColor: c.input }]}>
-                {AVAILABLE_ICONS.map((ic) => {
+
+              {/* Tabs de categoría */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+  
+              {/* Flecha izquierda */}
+              {showLeftArrow && (
+                <TouchableOpacity
+                  onPress={() => scrollCats("left")}
+                  style={[styles.arrowBtn, { borderColor: c.border, backgroundColor: c.input }]}
+                >
+                  <Ionicons name="chevron-back" size={14} color={c.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              <FlatList
+                ref={flatListRef}
+                data={CATS}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item}
+                style={{ flex: 1 }}
+                contentContainerStyle={{ gap: 6, paddingVertical: 2 }}
+                onScroll={(e) => {
+                  const x = e.nativeEvent.contentOffset.x;
+                  const max =
+                    e.nativeEvent.contentSize.width -
+                    e.nativeEvent.layoutMeasurement.width;
+                  setShowLeftArrow(x > 10);
+                  setShowRightArrow(x < max - 10);
+                }}
+                scrollEventThrottle={16}
+                renderItem={({ item: cat }) => {
+                  const active = iconCat === cat;
+                  return (
+                    <TouchableOpacity
+                      onPress={() => setIconCat(cat as any)}
+                      style={[
+                        styles.catChip,
+                        {
+                          backgroundColor: active ? "rgba(45,159,142,0.15)" : c.input,
+                          borderColor: active ? c.primary : c.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "500",
+                          color: active ? c.primary : c.textSecondary,
+                        }}
+                      >
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              {/* Flecha derecha */}
+              {showRightArrow && (
+                <TouchableOpacity
+                  onPress={() => scrollCats("right")}
+                  style={[styles.arrowBtn, { borderColor: c.border, backgroundColor: c.input }]}
+                >
+                  <Ionicons name="chevron-forward" size={14} color={c.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+            </View>
+
+              {/* Grid de íconos */}
+              <View
+                style={[
+                  styles.iconGrid,
+                  { borderColor: c.border, backgroundColor: c.input },
+                ]}
+              >
+                {(iconCat === "Todos"
+                  ? AVAILABLE_ICONS
+                  : getIconsByCategory(iconCat as IconCategory)
+                ).map((ic) => {
                   const selected = iconoKey === ic.key;
                   return (
                     <TouchableOpacity
@@ -162,14 +256,14 @@ export function ModuloModal({
                           backgroundColor: selected
                             ? "rgba(45,159,142,0.15)"
                             : "transparent",
-                          borderColor: selected ? c.text : "transparent",
+                          borderColor: selected ? c.primary : "transparent",
                         },
                       ]}
                     >
                       <Ionicons
                         name={ic.ionicon as any}
                         size={22}
-                        color={selected ? c.text : c.muted}
+                        color={selected ? c.primary : c.muted}
                       />
                     </TouchableOpacity>
                   );
@@ -352,5 +446,19 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  catChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 0.5,
+  },
+  arrowBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 0.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

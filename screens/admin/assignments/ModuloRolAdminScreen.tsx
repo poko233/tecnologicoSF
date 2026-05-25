@@ -1,4 +1,4 @@
-import { resolveIcon } from "@components/Sidebar/iconMap";
+import { getIonicon } from "@/screens/modulos/types/modulo.types";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -29,6 +29,9 @@ const BADGE_COLORS = [
 ];
 const badgeColor = (i: number) => BADGE_COLORS[i % BADGE_COLORS.length];
 
+const resolveIcon = (key: string | null): any => {
+  return getIonicon(key ?? "apps-outline");
+};
 /* ─────────────────────────────────────────────────────────────
    Tipos
 ───────────────────────────────────────────────────────────── */
@@ -279,7 +282,7 @@ export function ModuloRolAdminScreen() {
               backgroundColor:
                 saving || !selectedModuloId || !selectedRolId
                   ? c.muted
-                  : "#059669",
+                  : c.primary,
             },
           ]}
         >
@@ -333,7 +336,7 @@ export function ModuloRolAdminScreen() {
         <View style={[styles.tableCard, { backgroundColor: c.card, borderColor: c.border }]}>
 
           {/* Cabecera verde */}
-          <View style={[styles.tableHead, { backgroundColor: "#059669" }]}>
+          <View style={[styles.tableHead, { backgroundColor: c.primary }]}>
             <Text style={[styles.thId,      { color: "#fff" }]}># ID</Text>
             <Text style={[styles.thRol,     { color: "#fff" }]}>Rol</Text>
             <Text style={[styles.thModulos, { color: "#fff" }]}>Resumen de Módulos</Text>
@@ -341,7 +344,7 @@ export function ModuloRolAdminScreen() {
 
           {loading ? (
             <View style={styles.center}>
-              <ActivityIndicator size="large" color="#059669" />
+              <ActivityIndicator size="large" color= {c.primary} />
             </View>
           ) : rolGroups.length === 0 ? (
             <View style={styles.center}>
