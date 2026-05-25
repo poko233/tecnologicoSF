@@ -14,19 +14,21 @@ import {
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { useTheme } from "../../../theme/useTheme";
+import { AdminFormulario } from "../types/admin.types";
 import { useFormularios } from "./useFormularios";
+
 
 export function FormulariosAdminScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { formularios, loading, saving, createFormulario } = useFormularios();
+ const { formularios, loading, saving, createFormulario, deleteFormulario, updateFormulario } = useFormularios();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [formulario, setFormulario] = useState("");
   const [ruta, setRuta] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-
+  const [confirmId, setConfirmId] = useState<number | null>(null);
   const validate = () => {
     const next: Record<string, string> = {};
     if (!formulario.trim()) next.formulario = "El nombre del formulario es obligatorio";
@@ -35,8 +37,18 @@ export function FormulariosAdminScreen() {
     setErrors(next);
     return Object.keys(next).length === 0;
   };
+  const [editingItem, setEditingItem] = useState<AdminFormulario | null>(null);
+  const openEdit = (item: AdminFormulario) => {
+    setEditingItem(item);
+    setFormulario(item.formulario);
+    setRuta(item.ruta ?? "");
+    setDescripcion(item.descripcion ?? "");
+    setErrors({});
+    setModalVisible(true);
+  };
 
   const openCreate = () => {
+    setEditingItem(null);
     setFormulario("");
     setRuta("");
     setDescripcion("");
@@ -46,22 +58,25 @@ export function FormulariosAdminScreen() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-
     try {
-      const created = await createFormulario({
-        formulario: formulario.trim(),
-        ruta: ruta.trim(),
-        descripcion: descripcion.trim() || undefined,
-      });
-
-      Toast.show({
-        type: "success",
-        text1: "Formulario creado",
-        text2: `Se registró correctamente con ID ${created.id}`,
-      });
+      if (editingItem) {
+        await updateFormulario(editingItem.id, {
+          formulario: formulario.trim(),
+          ruta: ruta.trim(),
+          descripcion: descripcion.trim() || undefined,
+        });
+        Toast.show({ type: "success", text1: "Formulario actualizado" });
+      } else {
+        const created = await createFormulario({
+          formulario: formulario.trim(),
+          ruta: ruta.trim(),
+          descripcion: descripcion.trim() || undefined,
+        });
+        Toast.show({ type: "success", text1: "Formulario creado", text2: `ID ${created.id}` });
+      }
+      setEditingItem(null);
       setModalVisible(false);
-    } catch {
-    }
+    } catch {}
   };
 
   return (
@@ -95,6 +110,7 @@ export function FormulariosAdminScreen() {
               <Text style={[styles.colForm, { color: c.textSecondary }]}>Formulario</Text>
               <Text style={[styles.colRoute, { color: c.textSecondary }]}>Ruta</Text>
               <Text style={[styles.colDesc, { color: c.textSecondary }]}>Descripción</Text>
+              <Text style={{ width: 70, color: c.textSecondary, fontWeight: "700" }}>Acciones</Text>
             </View>
           }
           ListEmptyComponent={
@@ -109,6 +125,19 @@ export function FormulariosAdminScreen() {
               <Text style={[styles.colForm, { color: c.text }]} numberOfLines={1}>{item.formulario}</Text>
               <Text style={[styles.colRoute, { color: c.textSecondary }]} numberOfLines={1}>{item.ruta}</Text>
               <Text style={[styles.colDesc, { color: c.textSecondary }]} numberOfLines={2}>{item.descripcion ?? "—"}</Text>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <TouchableOpacity onPress={() => openEdit(item)} style={[styles.actionBtn, { borderColor: c.border }]} hitSlop={8}
+                >
+                  <Ionicons name="pencil-outline" size={15} color={c.text} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setConfirmId(item.id)}
+                  style={[styles.actionBtn, { borderColor: "#F43F5E" }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#F43F5E" />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         />
@@ -121,7 +150,9 @@ export function FormulariosAdminScreen() {
           <View style={[styles.modalCard, { backgroundColor: c.card }]}> 
             <View style={[styles.modalHeader, { borderBottomColor: c.border }]}> 
               <View>
-                <Text style={[styles.modalTitle, { color: c.text }]}>Nuevo formulario</Text>
+               <Text style={[styles.modalTitle, { color: c.text }]}>
+                {editingItem ? "Editar formulario" : "Nuevo formulario"}
+              </Text>
                 <Text style={[styles.modalSub, { color: c.textSecondary }]}>Registra el formulario y copia el ID de respuesta</Text>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -181,7 +212,32 @@ export function FormulariosAdminScreen() {
           </View>
         </View>
       </Modal>
+      <Modal visible={confirmId !== null} transparent animationType="fade">
+      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setConfirmId(null)} />
+      <View style={styles.modalWrap} pointerEvents="box-none">
+        <View style={[styles.modalCard, { backgroundColor: c.card, padding: 24, alignItems: "center", gap: 14 }]}>
+          <Ionicons name="trash-outline" size={32} color={c.destructive} />
+          <Text style={{ color: c.text, fontWeight: "700", fontSize: 16 }}>¿Eliminar formulario?</Text>
+          <Text style={{ color: c.textSecondary, textAlign: "center" }}>Esta acción no se puede deshacer.</Text>
+          <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+            <TouchableOpacity
+              onPress={() => setConfirmId(null)}
+              style={[styles.secondaryButton, { borderColor: c.border }]}
+            >
+              <Text style={{ color: c.textSecondary }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { deleteFormulario(confirmId!); setConfirmId(null); }}
+              style={[styles.primaryButton, { backgroundColor: c.destructive }]}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700" }}>Eliminar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
     </View>
+    
   );
 }
 
@@ -306,5 +362,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 10,
     paddingVertical: 12,
+  },
+  actionBtn: {
+    width: 30,
+    height: 30,
+    borderWidth: 0.5,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

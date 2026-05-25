@@ -1,4 +1,4 @@
-// components/Sidebar/Sidebar.tsx
+import { getIonicon } from "@/screens/modulos/types/modulo.types";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, usePathname, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -28,7 +28,6 @@ import {
 } from "../../store/modulesStore"; // ← store
 import { useTheme } from "../../theme/useTheme";
 import { getTabsForRoles } from "../../utils/roleBasedTabs";
-import { resolveIcon } from "./iconMap";
 import { SidebarFooter } from "./SidebarFooter";
 import { SidebarHeader } from "./SidebarHeader";
 
@@ -58,9 +57,8 @@ const FormularioItem: React.FC<{
     transform: [{ scale: scale.value }],
   }));
 
-  const iconName = formulario.icono
-    ? resolveIcon(formulario.icono)
-    : "document-text-outline";
+  const iconName = getIonicon(formulario.icono ?? "") as keyof typeof Ionicons.glyphMap;
+
 
   const handlePress = useCallback(() => {
     onNavigate?.();
@@ -141,7 +139,7 @@ const ModuloItem: React.FC<{
   const scale = useSharedValue(1);
   const chevron = useSharedValue(expanded ? 1 : 0);
 
-  const iconName = resolveIcon(modulo.icono);
+  const iconName = getIonicon(modulo.icono) as keyof typeof Ionicons.glyphMap;
 
   const chevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${chevron.value * 180}deg` }],
