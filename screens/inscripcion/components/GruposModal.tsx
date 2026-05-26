@@ -27,6 +27,29 @@ type Props = {
   onToggleGrupo: (grupo: Grupo) => void;
 };
 
+const ordenarDias = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Miercoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Sabado",
+  "Domingo",
+];
+
+function normalizarDia(dia?: string) {
+  if (!dia) return "-";
+  if (dia === "Miercoles") return "Miércoles";
+  if (dia === "Sabado") return "Sábado";
+  return dia;
+}
+
+function formatoHora(hora?: string) {
+  return hora ? hora.slice(0, 5) : "--:--";
+}
+
 export default function GruposModal({
   visible,
   materia,
@@ -40,7 +63,108 @@ export default function GruposModal({
   const { theme } = useTheme();
 
   const estaSeleccionado = (idGrupo: number) => {
-    return gruposSeleccionados.some((grupo) => grupo.idGrupo === idGrupo);
+    return gruposSeleccionados.some(
+      (grupo) => Number(grupo.idGrupo) === Number(idGrupo)
+    );
+  };
+
+  const seleccionadosDeEstaMateria = gruposSeleccionados.filter(
+    (grupo) => Number(grupo.idMateria) === Number(materia?.idMateria)
+  ).length;
+
+  const renderHorarios = (grupo: Grupo) => {
+    const horarios = [...(grupo.horarios ?? [])].sort((a, b) => {
+      const diaA = ordenarDias.indexOf(a.dia);
+      const diaB = ordenarDias.indexOf(b.dia);
+
+      if (diaA !== diaB) return diaA - diaB;
+
+      return String(a.horaInicio).localeCompare(String(b.horaInicio));
+    });
+
+    if (horarios.length === 0) {
+      return (
+        <View
+          style={[
+            styles.emptyHorario,
+            {
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.card,
+            },
+          ]}
+        >
+          <Ionicons
+            name="time-outline"
+            size={16}
+            color={theme.colors.muted}
+          />
+
+          <ThemedText
+            style={[
+              styles.emptyHorarioText,
+              {
+                color: theme.colors.muted,
+              },
+            ]}
+          >
+            Sin horario asignado
+          </ThemedText>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.horariosWrap}>
+        {horarios.map((horario, index) => (
+          <View
+            key={`${grupo.idGrupo}-${horario.idHorario ?? index}`}
+            style={[
+              styles.horarioChip,
+              {
+                backgroundColor: `${theme.colors.primary}14`,
+                borderColor: `${theme.colors.primary}55`,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.horarioIcon,
+                {
+                  backgroundColor: theme.colors.primary,
+                },
+              ]}
+            >
+              <Ionicons name="calendar" size={13} color="#FFFFFF" />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <ThemedText
+                style={[
+                  styles.horarioDia,
+                  {
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
+                {normalizarDia(horario.dia)}
+              </ThemedText>
+
+              <ThemedText
+                style={[
+                  styles.horarioHora,
+                  {
+                    color: theme.colors.muted,
+                  },
+                ]}
+              >
+                {formatoHora(horario.horaInicio)} -{" "}
+                {formatoHora(horario.horaFin)}
+              </ThemedText>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
   };
 
   return (
@@ -62,12 +186,7 @@ export default function GruposModal({
               </ThemedText>
 
               <ThemedText
-                style={[
-                  styles.subtitle,
-                  {
-                    color: theme.colors.muted,
-                  },
-                ]}
+                style={[styles.subtitle, { color: theme.colors.muted }]}
               >
                 {materia?.nombreMateria ?? "Materia no seleccionada"}
               </ThemedText>
@@ -109,23 +228,13 @@ export default function GruposModal({
               />
 
               <ThemedText
-                style={[
-                  styles.emptyTitle,
-                  {
-                    color: theme.colors.text,
-                  },
-                ]}
+                style={[styles.emptyTitle, { color: theme.colors.text }]}
               >
                 No hay grupos disponibles
               </ThemedText>
 
               <ThemedText
-                style={[
-                  styles.emptyText,
-                  {
-                    color: theme.colors.muted,
-                  },
-                ]}
+                style={[styles.emptyText, { color: theme.colors.muted }]}
               >
                 Esta materia todavía no tiene grupos registrados.
               </ThemedText>
@@ -161,9 +270,7 @@ export default function GruposModal({
                         <ThemedText
                           style={[
                             styles.groupName,
-                            {
-                              color: theme.colors.text,
-                            },
+                            { color: theme.colors.text },
                           ]}
                         >
                           {grupo.nombre}
@@ -172,9 +279,7 @@ export default function GruposModal({
                         <ThemedText
                           style={[
                             styles.groupCode,
-                            {
-                              color: theme.colors.muted,
-                            },
+                            { color: theme.colors.muted },
                           ]}
                         >
                           Código: {grupo.codigo ?? "-"}
@@ -183,31 +288,22 @@ export default function GruposModal({
 
                       <Ionicons
                         name={selected ? "checkbox" : "square-outline"}
-                        size={28}
-                        color={selected ? theme.colors.primary : theme.colors.muted}
+                        size={30}
+                        color={
+                          selected ? theme.colors.primary : theme.colors.muted
+                        }
                       />
                     </View>
 
                     <View style={styles.infoGrid}>
                       <View style={styles.infoItem}>
                         <ThemedText
-                          style={[
-                            styles.label,
-                            {
-                              color: theme.colors.muted,
-                            },
-                          ]}
+                          style={[styles.label, { color: theme.colors.muted }]}
                         >
                           PARALELO
                         </ThemedText>
-
                         <ThemedText
-                          style={[
-                            styles.value,
-                            {
-                              color: theme.colors.text,
-                            },
-                          ]}
+                          style={[styles.value, { color: theme.colors.text }]}
                         >
                           {grupo.paralelo ?? "-"}
                         </ThemedText>
@@ -215,23 +311,12 @@ export default function GruposModal({
 
                       <View style={styles.infoItem}>
                         <ThemedText
-                          style={[
-                            styles.label,
-                            {
-                              color: theme.colors.muted,
-                            },
-                          ]}
+                          style={[styles.label, { color: theme.colors.muted }]}
                         >
                           TURNO
                         </ThemedText>
-
                         <ThemedText
-                          style={[
-                            styles.value,
-                            {
-                              color: theme.colors.text,
-                            },
-                          ]}
+                          style={[styles.value, { color: theme.colors.text }]}
                         >
                           {grupo.turno ?? "-"}
                         </ThemedText>
@@ -239,47 +324,12 @@ export default function GruposModal({
 
                       <View style={styles.infoItem}>
                         <ThemedText
-                          style={[
-                            styles.label,
-                            {
-                              color: theme.colors.muted,
-                            },
-                          ]}
-                        >
-                          HORARIO
-                        </ThemedText>
-
-                        <ThemedText
-                          style={[
-                            styles.value,
-                            {
-                              color: theme.colors.text,
-                            },
-                          ]}
-                        >
-                          {grupo.horario ?? "-"}
-                        </ThemedText>
-                      </View>
-
-                      <View style={styles.infoItem}>
-                        <ThemedText
-                          style={[
-                            styles.label,
-                            {
-                              color: theme.colors.muted,
-                            },
-                          ]}
+                          style={[styles.label, { color: theme.colors.muted }]}
                         >
                           CUPOS
                         </ThemedText>
-
                         <ThemedText
-                          style={[
-                            styles.value,
-                            {
-                              color: theme.colors.text,
-                            },
-                          ]}
+                          style={[styles.value, { color: theme.colors.text }]}
                         >
                           {grupo.cupos ?? "-"}
                         </ThemedText>
@@ -287,23 +337,12 @@ export default function GruposModal({
 
                       <View style={styles.infoItem}>
                         <ThemedText
-                          style={[
-                            styles.label,
-                            {
-                              color: theme.colors.muted,
-                            },
-                          ]}
+                          style={[styles.label, { color: theme.colors.muted }]}
                         >
                           GESTIÓN
                         </ThemedText>
-
                         <ThemedText
-                          style={[
-                            styles.value,
-                            {
-                              color: theme.colors.text,
-                            },
-                          ]}
+                          style={[styles.value, { color: theme.colors.text }]}
                         >
                           {grupo.gestion ?? "-"}
                         </ThemedText>
@@ -311,27 +350,47 @@ export default function GruposModal({
 
                       <View style={styles.infoItem}>
                         <ThemedText
-                          style={[
-                            styles.label,
-                            {
-                              color: theme.colors.muted,
-                            },
-                          ]}
+                          style={[styles.label, { color: theme.colors.muted }]}
                         >
                           TIPO
                         </ThemedText>
+                        <ThemedText
+                          style={[styles.value, { color: theme.colors.text }]}
+                        >
+                          {grupo.tipo ?? "-"}
+                        </ThemedText>
+                      </View>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.horarioBox,
+                        {
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.card,
+                        },
+                      ]}
+                    >
+                      <View style={styles.horarioBoxHeader}>
+                        <Ionicons
+                          name="time-outline"
+                          size={18}
+                          color={theme.colors.primary}
+                        />
 
                         <ThemedText
                           style={[
-                            styles.value,
+                            styles.horarioBoxTitle,
                             {
                               color: theme.colors.text,
                             },
                           ]}
                         >
-                          {grupo.tipo ?? "-"}
+                          Horario del grupo
                         </ThemedText>
                       </View>
+
+                      {renderHorarios(grupo)}
                     </View>
                   </Pressable>
                 );
@@ -339,23 +398,9 @@ export default function GruposModal({
             </ScrollView>
           )}
 
-          <View
-            style={[
-              styles.footer,
-              {
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.footerText,
-                {
-                  color: theme.colors.text,
-                },
-              ]}
-            >
-              Seleccionados: {gruposSeleccionados.length}
+          <View style={[styles.footer, { borderColor: theme.colors.border }]}>
+            <ThemedText style={[styles.footerText, { color: theme.colors.text }]}>
+              Seleccionados: {seleccionadosDeEstaMateria}
             </ThemedText>
 
             <Pressable
@@ -387,7 +432,7 @@ const styles = StyleSheet.create({
 
   modal: {
     width: "100%",
-    maxWidth: 850,
+    maxWidth: 920,
     maxHeight: "90%",
     borderWidth: 1,
     borderRadius: 22,
@@ -450,7 +495,7 @@ const styles = StyleSheet.create({
 
   card: {
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     gap: 14,
   },
@@ -462,24 +507,24 @@ const styles = StyleSheet.create({
   },
 
   groupName: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "900",
   },
 
   groupCode: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     marginTop: 3,
   },
 
   infoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 12,
   },
 
   infoItem: {
-    minWidth: 120,
+    minWidth: 110,
     flex: 1,
   },
 
@@ -490,8 +535,77 @@ const styles = StyleSheet.create({
 
   value: {
     fontSize: 14,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+
+  horarioBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+  },
+
+  horarioBoxHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  horarioBoxTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  horariosWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  horarioChip: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    minWidth: 175,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  horarioIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  horarioDia: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  horarioHora: {
+    fontSize: 12,
     fontWeight: "800",
     marginTop: 2,
+  },
+
+  emptyHorario: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  emptyHorarioText: {
+    fontSize: 12,
+    fontWeight: "800",
   },
 
   footer: {

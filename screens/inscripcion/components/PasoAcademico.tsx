@@ -20,6 +20,7 @@ import {
 
 import CarrerasTable from "./CarrerasTable";
 import GruposModal from "./GruposModal";
+import HorarioSeleccionadoModal from "./HorarioSeleccionadoModal";
 import MateriasModal from "./MateriasModal";
 import TipoInscripcionSelector from "./TipoInscripcionSelector";
 
@@ -60,6 +61,7 @@ export default function PasoAcademico({
 
   const [showMaterias, setShowMaterias] = useState(false);
   const [showGrupos, setShowGrupos] = useState(false);
+  const [showHorario, setShowHorario] = useState(false);
 
   const normalizarTipo = (value?: string | null) =>
     String(value ?? "").trim().toLowerCase();
@@ -163,27 +165,32 @@ export default function PasoAcademico({
   };
 
   const toggleGrupo = (grupo: Grupo) => {
-    const existe = grupoYaSeleccionado(grupo.idGrupo);
+  if (!materiaSeleccionada) return;
 
-    if (existe) {
-      setGruposSeleccionados(
-        gruposSeleccionados.filter((item) => item.idGrupo !== grupo.idGrupo)
-      );
+  const existe = grupoYaSeleccionado(grupo.idGrupo);
 
-      return;
-    }
+  if (existe) {
+    setGruposSeleccionados(
+      gruposSeleccionados.filter(
+        (item) => Number(item.idGrupo) !== Number(grupo.idGrupo)
+      )
+    );
 
-    const nuevoGrupo: GrupoSeleccionado = {
-      ...grupo,
-      nombreMateria: materiaSeleccionada?.nombreMateria,
-      nombreCarrera: carreraSeleccionada?.nombreCarrera,
-    };
+    return;
+  }
 
-    setGruposSeleccionados([...gruposSeleccionados, nuevoGrupo]);
-
-    setShowGrupos(false);
-    setShowMaterias(true);
+  const nuevoGrupo: GrupoSeleccionado = {
+    ...grupo,
+    idMateria: materiaSeleccionada.idMateria,
+    nombreMateria: materiaSeleccionada.nombreMateria,
+    nombreCarrera: carreraSeleccionada?.nombreCarrera,
   };
+
+  setGruposSeleccionados([...gruposSeleccionados, nuevoGrupo]);
+
+  setShowGrupos(false);
+  setShowMaterias(true);
+};
 
   const quitarGrupo = (idGrupo: number) => {
     setGruposSeleccionados(
@@ -412,7 +419,15 @@ export default function PasoAcademico({
                       },
                     ]}
                   >
-                    Turno: {grupo.turno} · Horario: {grupo.horario}
+                    Turno: {grupo.turno} · Horarios:{" "}
+                    {grupo.horarios?.length
+                      ? grupo.horarios
+                          .map(
+                            (h) =>
+                              `${h.dia} ${h.horaInicio.slice(0, 5)}-${h.horaFin.slice(0, 5)}`
+                          )
+                          .join(" / ")
+                      : "Sin horario"}
                   </ThemedText>
                 </View>
 
@@ -440,38 +455,66 @@ export default function PasoAcademico({
           </View>
         )}
 
-        <Pressable
-          onPress={inscribirGruposSeleccionados}
-          disabled={inscribiendo || gruposSeleccionados.length === 0}
-          style={[
-            styles.finishButton,
-            {
-              backgroundColor: theme.colors.primary,
-              opacity: inscribiendo || gruposSeleccionados.length === 0 ? 0.55 : 1,
-            },
-          ]}
-        >
-          <ThemedText
+        <View style={styles.actionsRow}>
+          <Pressable
+            onPress={() => setShowHorario(true)}
+            disabled={gruposSeleccionados.length === 0}
             style={[
-              styles.finishText,
+              styles.scheduleButton,
               {
-                color: "#FFFFFF",
+                borderColor: theme.colors.border,
+                backgroundColor: theme.colors.card,
+                opacity: gruposSeleccionados.length === 0 ? 0.55 : 1,
               },
             ]}
           >
-            {inscribiendo ? "Inscribiendo..." : "Continuar con documentos"}
-          </ThemedText>
-        </Pressable>
+            <ThemedText
+              style={[
+                styles.scheduleText,
+                {
+                  color: theme.colors.text,
+                },
+              ]}
+            >
+              Ver horario
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={inscribirGruposSeleccionados}
+            disabled={inscribiendo || gruposSeleccionados.length === 0}
+            style={[
+              styles.finishButton,
+              {
+                backgroundColor: theme.colors.primary,
+                opacity:
+                  inscribiendo || gruposSeleccionados.length === 0 ? 0.55 : 1,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.finishText,
+                {
+                  color: "#FFFFFF",
+                },
+              ]}
+            >
+              {inscribiendo ? "Inscribiendo..." : "Continuar con documentos"}
+            </ThemedText>
+          </Pressable>
+        </View>
       </View>
 
       <MateriasModal
-        visible={showMaterias}
-        carrera={carreraSeleccionada}
-        materias={materias}
-        loading={loadingMaterias}
-        onClose={() => setShowMaterias(false)}
-        onVerGrupos={cargarGrupos}
-      />
+  visible={showMaterias}
+  carrera={carreraSeleccionada}
+  materias={materias}
+  loading={loadingMaterias}
+  gruposSeleccionados={gruposSeleccionados}
+  onClose={() => setShowMaterias(false)}
+  onVerGrupos={cargarGrupos}
+/>
 
       <GruposModal
         visible={showGrupos}
@@ -482,6 +525,12 @@ export default function PasoAcademico({
         gruposSeleccionados={gruposSeleccionados}
         onClose={() => setShowGrupos(false)}
         onToggleGrupo={toggleGrupo}
+      />
+
+      <HorarioSeleccionadoModal
+        visible={showHorario}
+        gruposSeleccionados={gruposSeleccionados}
+        onClose={() => setShowHorario(false)}
       />
     </View>
   );
@@ -575,7 +624,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 
+  actionsRow: {
+    flexDirection: "row",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+
+  scheduleButton: {
+    height: 54,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 22,
+    minWidth: 170,
+  },
+
+  scheduleText: {
+    fontWeight: "900",
+  },
+
   finishButton: {
+    flex: 1,
+    minWidth: 230,
     height: 54,
     borderRadius: 14,
     justifyContent: "center",
