@@ -1,3 +1,5 @@
+// screens/cuota/components/CuotasTable.tsx (modificado con selección múltiple)
+import { useResponsive } from "@/hooks/useResponsive";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -14,18 +16,18 @@ import {
   getSequentialSemestersFromCuotas,
 } from "../../../utils/semesterHelpers";
 import { CarreraInscrita, Cuota } from "../types/cuota.types";
-import { PaymentModal } from "./PaymentModal";
-import { SummaryCards } from "./SummaryCards";
-
-import { useResponsive } from "@/hooks/useResponsive";
 import { FilterDropdown } from "./FilterDropdown";
 import { FilterGroup } from "./FilterGroup";
+import { PaymentMulticuotaModal } from "./PaymentMulticuotaModal";
+import { SummaryCards } from "./SummaryCards";
 
 interface Props {
   cuotas: Cuota[];
   loading: boolean;
   carrera: CarreraInscrita | null;
   onRefresh: () => void;
+  // Propiedades adicionales para la integración con la pantalla principal
+  selectedStudentId: number;
 }
 
 export const CuotasTable: React.FC<Props> = ({
@@ -33,20 +35,21 @@ export const CuotasTable: React.FC<Props> = ({
   loading,
   carrera,
   onRefresh,
+  selectedStudentId,
 }) => {
   const { theme } = useTheme();
-  const [selectedCuota, setSelectedCuota] = useState<Cuota | null>(null);
+  const [selectedCuotas, setSelectedCuotas] = useState<Set<number>>(new Set());
   const [modalVisible, setModalVisible] = useState(false);
 
   // Filtros
   const [filterYear, setFilterYear] = useState<string>("todos");
   const [filterType, setFilterType] = useState<string>("todos");
-  const [tableWidth, setTableWidth] = useState(0);
   const [sequentialSemester, setSequentialSemester] = useState<
     number | "todos"
   >("todos");
   const { isMobile } = useResponsive();
 
+  // Años disponibles
   const years = useMemo(() => {
     const yearsSet = new Set<string>();
     cuotas.forEach((c) => {
@@ -55,11 +58,13 @@ export const CuotasTable: React.FC<Props> = ({
     return Array.from(yearsSet).sort();
   }, [cuotas]);
 
+  // Opciones de semestre para régimen semestral
   const semesterOptions = useMemo(() => {
     if (!carrera || carrera.regimen !== "Semestral") return [];
     return getSequentialSemestersFromCuotas(cuotas, carrera.cuotas_por_anio);
   }, [cuotas, carrera]);
 
+  // Filtrar cuotas
   const filteredCuotas = useMemo(() => {
     let filtered = [...cuotas];
     filtered.sort((a, b) =>
@@ -71,7 +76,6 @@ export const CuotasTable: React.FC<Props> = ({
         c.fecha_vencimiento?.startsWith(filterYear),
       );
     }
-
     if (carrera?.regimen === "Semestral" && sequentialSemester !== "todos") {
       filtered = filterCuotasBySequentialSemester(
         filtered,
@@ -79,13 +83,13 @@ export const CuotasTable: React.FC<Props> = ({
         carrera.cuotas_por_anio,
       );
     }
-
     if (filterType !== "todos") {
       filtered = filtered.filter((c) => c.tipo === filterType);
     }
     return filtered;
   }, [cuotas, filterYear, sequentialSemester, filterType, carrera]);
 
+  // Totales
   const totalPagado = filteredCuotas
     .filter((c) => c.estadoCuota === "Pagado")
     .reduce((s, c) => s + c.monto, 0);
@@ -102,57 +106,49 @@ export const CuotasTable: React.FC<Props> = ({
     return cuota.fecha_vencimiento < today;
   };
 
-  const handlePago = (cuota: Cuota) => {
-    setSelectedCuota(cuota);
+  const toggleCuotaSelection = (idCuota: number) => {
+    setSelectedCuotas((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(idCuota)) newSet.delete(idCuota);
+      else newSet.add(idCuota);
+      return newSet;
+    });
+  };
+
+  const handleOpenPaymentModal = () => {
     setModalVisible(true);
   };
 
-  const handleConfirmPayment = async (
-    cuotaId: number,
-    metodo: string,
-    comprobante: string,
-    observacion: string,
-  ) => {
-    console.log("Pagar cuota", cuotaId, metodo, comprobante, observacion);
+  const handlePaymentSuccess = () => {
+    setSelectedCuotas(new Set());
     onRefresh();
   };
+
+  const cuotasParaPagar = useMemo(
+    () => filteredCuotas.filter((c) => selectedCuotas.has(c.idCuota)),
+    [filteredCuotas, selectedCuotas],
+  );
+
   if (!carrera) return null;
 
   return (
     <>
       <View
+        className="rounded-xl border overflow-hidden"
         style={{
           backgroundColor: theme.colors.card,
-          borderRadius: 12,
-          borderWidth: 1,
           borderColor: theme.colors.border,
-          width: "100%",
-          overflow: "hidden",
         }}
       >
-        {/* Filters Bar */}
+        {/* Barra de filtros */}
         <View
-          style={{
-            padding: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
-            backgroundColor: theme.colors.card,
-            flexDirection: isMobile ? "column" : "row",
-            alignItems: isMobile ? "flex-start" : "flex-end",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
+          className={`p-4 border-b flex-wrap ${isMobile ? "flex-col gap-3" : "flex-row justify-between items-end"}`}
+          style={{ borderColor: theme.colors.border }}
         >
-          {/* Izquierda: Semestre/Año + Tipo juntos */}
           <View
-            style={{
-              flexDirection: isMobile ? "column" : "row",
-              alignItems: isMobile ? "flex-start" : "flex-end",
-              gap: 12,
-            }}
+            className={`flex-wrap ${isMobile ? "flex-col gap-3" : "flex-row items-end gap-4"}`}
           >
-            {/* Semestre o Año */}
-            {carrera?.regimen !== "Semestral" && (
+            {carrera.regimen !== "Semestral" && (
               <FilterDropdown
                 label="Año Académico"
                 value={filterYear}
@@ -163,7 +159,7 @@ export const CuotasTable: React.FC<Props> = ({
                 onChange={setFilterYear}
               />
             )}
-            {carrera?.regimen === "Semestral" && (
+            {carrera.regimen === "Semestral" && (
               <FilterDropdown
                 label="Semestre"
                 value={sequentialSemester}
@@ -177,8 +173,6 @@ export const CuotasTable: React.FC<Props> = ({
                 onChange={setSequentialSemester}
               />
             )}
-
-            {/* Tipo — al lado en desktop, abajo en mobile */}
             <FilterGroup
               label="Tipo"
               options={[
@@ -190,323 +184,268 @@ export const CuotasTable: React.FC<Props> = ({
               onChange={setFilterType}
             />
           </View>
-
-          {/* Derecha: Estado de Cuenta */}
-          <Pressable
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 6,
-            }}
-          >
-            <Ionicons
-              name="print-outline"
-              size={18}
-              color={theme.colors.primary}
-            />
-            <Text
-              style={{
-                color: theme.colors.primary,
-                fontWeight: "500",
-                fontSize: 14,
-              }}
+          {/* Botón para abrir pago múltiple */}
+          {selectedCuotas.size > 0 && (
+            <Pressable
+              onPress={handleOpenPaymentModal}
+              className="flex-row items-center gap-2 px-4 py-2 rounded-full"
+              style={{ backgroundColor: theme.colors.primary }}
             >
-              Estado de Cuenta
-            </Text>
-          </Pressable>
+              <Ionicons name="wallet-outline" size={16} color="white" />
+              <Text className="text-white font-bold text-sm">
+                Pagar {selectedCuotas.size} cuota
+                {selectedCuotas.size > 1 ? "s" : ""}
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {loading ? (
-          <ActivityIndicator
-            style={{ margin: 40 }}
-            color={theme.colors.primary}
-          />
+          <ActivityIndicator className="my-10" color={theme.colors.primary} />
         ) : filteredCuotas.length === 0 ? (
-          <View style={{ padding: 40, alignItems: "center" }}>
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 16 }}>
+          <View className="py-10 items-center">
+            <Text style={{ color: theme.colors.textSecondary }}>
               No hay cuotas que coincidan con los filtros.
             </Text>
           </View>
         ) : (
-          <View
-            onLayout={(e) => setTableWidth(e.nativeEvent.layout.width)}
-            style={{ width: "100%" }}
-          >
-            <ScrollView horizontal style={{ width: "100%" }}>
-              <View style={{ minWidth: tableWidth, paddingBottom: 16 }}>
-                {/* Header */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    paddingVertical: 12,
-                    paddingHorizontal: 16,
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.colors.border,
-                  }}
-                >
-                  <View style={{ flex: 2.5 }}>
-                    <Text
-                      style={{
-                        fontWeight: "500",
-                        color: theme.colors.textSecondary,
-                        fontSize: 12,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Concepto
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1.5 }}>
-                    <Text
-                      style={{
-                        fontWeight: "500",
-                        color: theme.colors.textSecondary,
-                        fontSize: 12,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Vencimiento
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1.5, alignItems: "flex-end" }}>
-                    <Text
-                      style={{
-                        fontWeight: "500",
-                        color: theme.colors.textSecondary,
-                        fontSize: 12,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        textAlign: "right",
-                      }}
-                    >
-                      Monto (Bs.)
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1.5, alignItems: "center" }}>
-                    <Text
-                      style={{
-                        fontWeight: "500",
-                        color: theme.colors.textSecondary,
-                        fontSize: 12,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        textAlign: "center",
-                      }}
-                    >
-                      Estado
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1.5, alignItems: "flex-end" }}>
-                    <Text
-                      style={{
-                        fontWeight: "500",
-                        color: theme.colors.textSecondary,
-                        fontSize: 12,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        textAlign: "right",
-                      }}
-                    >
-                      Acción
-                    </Text>
-                  </View>
+          <ScrollView horizontal contentContainerStyle={{ minWidth: "100%" }}>
+            <View className="w-full" style={{ minWidth: "100%" }}>
+              {/* Cabecera de la tabla */}
+              <View
+                className="flex-row py-3 px-4"
+                style={{
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  borderBottomWidth: 1,
+                  borderColor: theme.colors.border,
+                }}
+              >
+                <View className="w-10" />
+                <View className="flex-[2.5]">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Concepto
+                  </Text>
                 </View>
-                {filteredCuotas.map((cuota) => {
-                  const overdue = isOverdue(cuota);
-                  return (
-                    <View
-                      key={cuota.idCuota}
-                      style={{
-                        flexDirection: "row",
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: theme.colors.border,
-                        backgroundColor: overdue
-                          ? theme.colors.destructive + "20"
+                <View className="flex-[1.5]">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Vencimiento
+                  </Text>
+                </View>
+                <View className="flex-[1.5] items-end">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider text-right"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Monto (Bs.)
+                  </Text>
+                </View>
+                <View className="flex-[1.5] items-center">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider text-center"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Estado
+                  </Text>
+                </View>
+                <View className="flex-[1.5] items-end">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider text-right"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Acción
+                  </Text>
+                </View>
+              </View>
+              {filteredCuotas.map((cuota) => {
+                const overdue = isOverdue(cuota);
+                const isSelected = selectedCuotas.has(cuota.idCuota);
+                const isPending = cuota.estadoCuota === "Debe";
+
+                return (
+                  <Pressable
+                    key={cuota.idCuota}
+                    disabled={!isPending}
+                    onPress={() => toggleCuotaSelection(cuota.idCuota)}
+                    className={`flex-row py-3.5 px-4 border-b`}
+                    style={{
+                      borderColor: theme.colors.border,
+                      backgroundColor: isSelected
+                        ? theme.colors.primary + "12"
+                        : overdue
+                          ? theme.colors.destructive + "15"
                           : theme.colors.card,
-                        borderLeftWidth: overdue ? 4 : 0,
-                        borderLeftColor: overdue
+                      borderLeftWidth: 4,
+                      borderLeftColor: isSelected
+                        ? theme.colors.primary
+                        : overdue
                           ? theme.colors.destructive
                           : "transparent",
-                      }}
-                    >
-                      <View
-                        style={{
-                          flex: 2.5,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 8,
-                          paddingLeft: overdue ? 8 : 0,
-                        }}
-                      >
-                        <Ionicons
-                          name={
-                            overdue
-                              ? "warning"
-                              : cuota.tipo === "MATRICULA"
-                                ? "receipt-outline"
-                                : "calendar-outline"
-                          }
-                          size={18}
-                          color={
-                            overdue
-                              ? theme.colors.destructive
-                              : theme.colors.textTertiary
-                          }
-                        />
-                        <Text
-                          style={{
-                            fontWeight: "500",
-                            color: theme.colors.text,
-                            fontSize: 14,
-                          }}
-                        >
-                          {cuota.tipo === "MATRICULA"
-                            ? "Matrícula"
-                            : `Mensualidad ${cuota.numeroCuota}`}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1.5, justifyContent: "center" }}>
-                        <Text
-                          style={{
-                            color: overdue
-                              ? theme.colors.destructive
-                              : theme.colors.textSecondary,
-                            fontSize: 14,
-                            fontWeight: overdue ? "500" : "400",
-                          }}
-                        >
-                          {formatDisplayDate(cuota.fecha_vencimiento)}
-                        </Text>
-                      </View>
-                      <View
-                        style={{
-                          flex: 1.5,
-                          alignItems: "flex-end",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontWeight: "500",
-                            color: theme.colors.text,
-                            fontSize: 14,
-                            textAlign: "right",
-                          }}
-                        >
-                          {cuota.monto.toFixed(2)}
-                        </Text>
-                      </View>
-                      <View
-                        style={{
-                          flex: 1.5,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
+                    }}
+                  >
+                    {/* Checkbox de selección (solo cuotas pendientes) */}
+                    <View className="w-10 justify-center items-center">
+                      {isPending && (
                         <View
+                          className="w-5 h-5 rounded border items-center justify-center"
                           style={{
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 9999,
-                            borderWidth: overdue ? 1 : 0,
-                            borderColor: overdue
-                              ? theme.colors.destructive + "33"
+                            borderColor: isSelected
+                              ? theme.colors.primary
+                              : theme.colors.border,
+                            backgroundColor: isSelected
+                              ? theme.colors.primary
                               : "transparent",
-                            backgroundColor:
-                              cuota.estadoCuota === "Pagado"
-                                ? theme.colors.success + "20"
-                                : overdue
-                                  ? theme.colors.destructive + "20"
-                                  : theme.colors.backgroundTertiary,
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 4,
                           }}
                         >
-                          {cuota.estadoCuota === "Pagado" && (
+                          {isSelected && (
                             <Ionicons
                               name="checkmark"
-                              size={12}
-                              color={theme.colors.success}
+                              size={14}
+                              color="white"
                             />
                           )}
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              fontWeight: "500",
-                              color:
-                                cuota.estadoCuota === "Pagado"
-                                  ? theme.colors.success
-                                  : overdue
-                                    ? theme.colors.destructive
-                                    : theme.colors.textSecondary,
-                            }}
-                          >
-                            {cuota.estadoCuota === "Pagado"
-                              ? "Pagado"
-                              : overdue
-                                ? "Vencido"
-                                : "Pendiente"}
-                          </Text>
                         </View>
-                      </View>
-                      <View
+                      )}
+                    </View>
+
+                    <View className="flex-[2.5] flex-row items-center gap-2">
+                      <Ionicons
+                        name={
+                          overdue
+                            ? "warning"
+                            : cuota.tipo === "MATRICULA"
+                              ? "receipt-outline"
+                              : "calendar-outline"
+                        }
+                        size={16}
+                        color={
+                          isSelected
+                            ? theme.colors.primary
+                            : overdue
+                              ? theme.colors.destructive
+                              : theme.colors.textTertiary
+                        }
+                      />
+                      <Text
+                        className="text-sm font-semibold"
+                        style={{ color: theme.colors.text }}
+                      >
+                        {cuota.tipo === "MATRICULA"
+                          ? "Matrícula"
+                          : `Mensualidad ${cuota.numeroCuota}`}
+                      </Text>
+                    </View>
+                    <View className="flex-[1.5] justify-center">
+                      <Text
+                        className="text-sm"
                         style={{
-                          flex: 1.5,
-                          alignItems: "flex-end",
-                          justifyContent: "center",
+                          color: overdue
+                            ? theme.colors.destructive
+                            : theme.colors.textSecondary,
                         }}
                       >
-                        {cuota.estadoCuota === "Debe" ? (
-                          <Pressable
-                            onPress={() => handlePago(cuota)}
-                            style={{
-                              backgroundColor: overdue
-                                ? theme.colors.primary
-                                : theme.colors.card,
-                              borderWidth: overdue ? 0 : 1,
-                              borderColor: theme.colors.primary,
-                              paddingHorizontal: 12,
-                              paddingVertical: 6,
-                              borderRadius: 6,
-                            }}
-                          >
-                            <Text
-                              style={{
-                                color: overdue
-                                  ? theme.colors.primaryForeground
-                                  : theme.colors.primary,
-                                fontSize: 14,
-                                fontWeight: "500",
-                              }}
-                            >
-                              Pagar
-                            </Text>
-                          </Pressable>
-                        ) : (
-                          <Pressable style={{ padding: 4 }}>
-                            <Ionicons
-                              name="eye-outline"
-                              size={20}
-                              color={theme.colors.primary}
-                            />
-                          </Pressable>
+                        {formatDisplayDate(cuota.fecha_vencimiento)}
+                      </Text>
+                    </View>
+                    <View className="flex-[1.5] items-end justify-center">
+                      <Text
+                        className="text-sm font-bold"
+                        style={{ color: theme.colors.text }}
+                      >
+                        {cuota.monto.toFixed(2)}
+                      </Text>
+                    </View>
+                    <View className="flex-[1.5] items-center justify-center">
+                      <View
+                        className="px-2 py-1 rounded-full flex-row items-center gap-1"
+                        style={{
+                          backgroundColor:
+                            cuota.estadoCuota === "Pagado"
+                              ? theme.colors.success + "20"
+                              : overdue
+                                ? theme.colors.destructive + "20"
+                                : theme.colors.backgroundTertiary,
+                          borderWidth: overdue ? 1 : 0,
+                          borderColor: overdue
+                            ? theme.colors.destructive + "33"
+                            : "transparent",
+                        }}
+                      >
+                        {cuota.estadoCuota === "Pagado" && (
+                          <Ionicons
+                            name="checkmark"
+                            size={12}
+                            color={theme.colors.success}
+                          />
                         )}
+                        <Text
+                          className="text-xs font-semibold"
+                          style={{
+                            color:
+                              cuota.estadoCuota === "Pagado"
+                                ? theme.colors.success
+                                : overdue
+                                  ? theme.colors.destructive
+                                  : theme.colors.textSecondary,
+                          }}
+                        >
+                          {cuota.estadoCuota === "Pagado"
+                            ? "Pagado"
+                            : overdue
+                              ? "Vencido"
+                              : "Pendiente"}
+                        </Text>
                       </View>
                     </View>
-                  );
-                })}
-              </View>
-            </ScrollView>
-          </View>
+                    <View className="flex-[1.5] items-end justify-center">
+                      {isPending ? (
+                        <Pressable
+                          onPress={(e) => {
+                            // Detener propagación para que no dispare el toggle al hacer click en el botón de pago
+                            e.stopPropagation();
+                            setSelectedCuotas(new Set([cuota.idCuota]));
+                            setModalVisible(true);
+                          }}
+                          className="px-3 py-1.5 rounded-lg"
+                          style={{
+                            backgroundColor: overdue
+                              ? theme.colors.primary
+                              : "transparent",
+                            borderWidth: overdue ? 0 : 1,
+                            borderColor: theme.colors.primary,
+                          }}
+                        >
+                          <Text
+                            className="text-sm font-semibold"
+                            style={{
+                              color: overdue
+                                ? theme.colors.primaryForeground
+                                : theme.colors.primary,
+                            }}
+                          >
+                            Pagar
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Pressable className="p-1">
+                          <Ionicons
+                            name="eye-outline"
+                            size={18}
+                            color={theme.colors.primary}
+                          />
+                        </Pressable>
+                      )}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
         )}
       </View>
 
@@ -516,11 +455,13 @@ export const CuotasTable: React.FC<Props> = ({
         proximaVencimiento={proximaVencimiento}
       />
 
-      <PaymentModal
+      {/* Modal de pago multicuota */}
+      <PaymentMulticuotaModal
         visible={modalVisible}
-        cuota={selectedCuota}
+        cuotas={cuotasParaPagar}
+        idUsuario={selectedStudentId}
         onClose={() => setModalVisible(false)}
-        onConfirm={handleConfirmPayment}
+        onPaymentSuccess={handlePaymentSuccess}
       />
     </>
   );

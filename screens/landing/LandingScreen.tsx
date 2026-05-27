@@ -1,7 +1,10 @@
+// screens/landing/LandingScreen.tsx
 import React, { useCallback } from "react";
-import { Linking, ScrollView, View } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
-import { useResponsive } from "../../hooks/useResponsive";
+import { Linking, Platform, View } from "react-native";
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from "react-native-reanimated";
 import { useTheme } from "../../theme/useTheme";
 import { BenefitsSection } from "./components/BenefitsSection";
 import { CareersSection } from "./components/CareersSection";
@@ -12,9 +15,15 @@ import { HeroSection } from "./components/HeroSection";
 
 export default function LandingScreen() {
   const { theme } = useTheme();
-  const { isDesktop } = useResponsive();
+  const scrollY = useSharedValue(0);
   const mouseX = useSharedValue(-1000);
   const mouseY = useSharedValue(-1000);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   const handleMouseMove = useCallback(
     (e: any) => {
@@ -37,24 +46,23 @@ export default function LandingScreen() {
 
   return (
     <ViewWithMouse
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      onMouseMove={Platform.OS === "web" ? handleMouseMove : undefined}
+      onMouseLeave={Platform.OS === "web" ? handleMouseLeave : undefined}
       style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
       <FloatingParticles mouseX={mouseX} mouseY={mouseY} />
-      <ScrollView
-        contentContainerStyle={{
-          alignItems: "center",
-          paddingBottom: 40,
-        }}
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ alignItems: "center", paddingBottom: 40 }}
       >
-        <HeroSection onCtaPress={handleWhatsApp} />
+        <HeroSection onCtaPress={handleWhatsApp} scrollY={scrollY} />
         <CareersSection />
         <BenefitsSection />
         <ContactSection onWhatsApp={handleWhatsApp} />
         <FooterSection />
-      </ScrollView>
+      </Animated.ScrollView>
     </ViewWithMouse>
   );
 }
