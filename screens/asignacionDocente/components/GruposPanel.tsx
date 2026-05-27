@@ -23,6 +23,13 @@ function getGrupoNombre(grupo: Grupo) {
   return grupo.nombreGrupo ?? grupo.nombre ?? `Grupo ${grupo.idGrupo}`;
 }
 
+function getHorariosSearch(grupo: Grupo) {
+  return (grupo.horarios ?? [])
+    .map((h) => `${h.dia} ${h.horaInicio} ${h.horaFin}`)
+    .join(" ")
+    .toLowerCase();
+}
+
 export default function GruposPanel({
   grupos,
   gruposSeleccionados,
@@ -46,11 +53,13 @@ export default function GruposPanel({
 
       const nombre = getGrupoNombre(grupo).toLowerCase();
       const turno = grupo.turno?.toLowerCase() ?? "";
+      const horarios = getHorariosSearch(grupo);
 
       return (
         !text ||
         nombre.includes(text) ||
         turno.includes(text) ||
+        horarios.includes(text) ||
         String(grupo.idGrupo).includes(text)
       );
     });
@@ -81,7 +90,8 @@ export default function GruposPanel({
           <ThemedText
             style={[styles.subtitle, { color: theme.colors.textSecondary }]}
           >
-            Busca, filtra y marca los grupos que dictará el docente.
+            Busca, filtra y marca los grupos que dictará el docente. Los horarios
+            salen debajo de cada grupo.
           </ThemedText>
         </View>
 
@@ -115,7 +125,7 @@ export default function GruposPanel({
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Buscar grupo por nombre, turno o ID..."
+            placeholder="Buscar por grupo, turno, ID, día u hora..."
             placeholderTextColor={theme.colors.textTertiary}
             style={[styles.input, { color: theme.colors.text }]}
           />
@@ -175,6 +185,30 @@ export default function GruposPanel({
               onPress={() => onToggleGrupo(grupo.idGrupo)}
             />
           ))}
+
+          {gruposFiltrados.length === 0 && (
+            <View
+              style={[
+                styles.emptyBox,
+                {
+                  backgroundColor: theme.colors.input,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="search-outline"
+                size={26}
+                color={theme.colors.textSecondary}
+              />
+
+              <ThemedText
+                style={[styles.emptyText, { color: theme.colors.textSecondary }]}
+              >
+                No se encontraron grupos.
+              </ThemedText>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -245,12 +279,25 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   gruposScroll: {
-    maxHeight: 360,
+    maxHeight: 430,
   },
   gruposGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
     paddingBottom: 10,
+  },
+  emptyBox: {
+    width: "100%",
+    minHeight: 120,
+    borderWidth: 1,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

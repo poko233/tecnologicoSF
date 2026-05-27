@@ -10,13 +10,18 @@ import {
 
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
-import { Carrera, Materia } from "../types/inscripcion.types";
+import {
+  Carrera,
+  GrupoSeleccionado,
+  Materia,
+} from "../types/inscripcion.types";
 
 type Props = {
   visible: boolean;
   carrera: Carrera | null;
   materias: Materia[];
   loading: boolean;
+  gruposSeleccionados: GrupoSeleccionado[];
   onClose: () => void;
   onVerGrupos: (materia: Materia) => void;
 };
@@ -26,6 +31,7 @@ export default function MateriasModal({
   carrera,
   materias,
   loading,
+  gruposSeleccionados,
   onClose,
   onVerGrupos,
 }: Props) {
@@ -38,11 +44,9 @@ export default function MateriasModal({
 
   const materiasAgrupadas = materias.reduce<Record<number, Materia[]>>(
     (acc, materia) => {
-      const grupo = materia.semestre || 1;
+      const grupo = Number(materia.semestre || 1);
 
-      if (!acc[grupo]) {
-        acc[grupo] = [];
-      }
+      if (!acc[grupo]) acc[grupo] = [];
 
       acc[grupo].push(materia);
 
@@ -67,6 +71,12 @@ export default function MateriasModal({
     return "Semestre";
   };
 
+  const estaInscrita = (materia: Materia) => {
+    return gruposSeleccionados.some(
+      (grupo) => Number(grupo.idMateria) === Number(materia.idMateria)
+    );
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
@@ -81,37 +91,18 @@ export default function MateriasModal({
         >
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <ThemedText
-                style={[
-                  styles.title,
-                  {
-                    color: theme.colors.text,
-                  },
-                ]}
-              >
+              <ThemedText style={[styles.title, { color: theme.colors.text }]}>
                 Materias
               </ThemedText>
 
               <ThemedText
-                style={[
-                  styles.subtitle,
-                  {
-                    color: theme.colors.muted,
-                  },
-                ]}
+                style={[styles.subtitle, { color: theme.colors.muted }]}
               >
                 {carrera?.nombreCarrera ?? "Carrera no seleccionada"}
               </ThemedText>
 
-              <ThemedText
-                style={[
-                  styles.note,
-                  {
-                    color: theme.colors.muted,
-                  },
-                ]}
-              >
-                Solo se muestran materias sin prerequisito.
+              <ThemedText style={[styles.note, { color: theme.colors.muted }]}>
+                Marca un grupo para inscribirte a una materia.
               </ThemedText>
             </View>
 
@@ -151,23 +142,13 @@ export default function MateriasModal({
               />
 
               <ThemedText
-                style={[
-                  styles.emptyTitle,
-                  {
-                    color: theme.colors.text,
-                  },
-                ]}
+                style={[styles.emptyTitle, { color: theme.colors.text }]}
               >
                 No hay materias disponibles
               </ThemedText>
 
               <ThemedText
-                style={[
-                  styles.emptyText,
-                  {
-                    color: theme.colors.muted,
-                  },
-                ]}
+                style={[styles.emptyText, { color: theme.colors.muted }]}
               >
                 Todas las materias tienen prerequisito o no existen materias
                 registradas.
@@ -208,67 +189,149 @@ export default function MateriasModal({
                   </View>
 
                   <View style={styles.list}>
-                    {materiasAgrupadas[grupoNumero].map((materia) => (
-                      <View
-                        key={materia.idMateria}
-                        style={[
-                          styles.card,
-                          {
-                            backgroundColor: theme.colors.background,
-                            borderColor: theme.colors.border,
-                          },
-                        ]}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <ThemedText
-                            style={[
-                              styles.materiaTitle,
-                              {
-                                color: theme.colors.text,
-                              },
-                            ]}
-                          >
-                            {materia.nombreMateria}
-                          </ThemedText>
+                    {materiasAgrupadas[grupoNumero].map((materia) => {
+                      const inscrita = estaInscrita(materia);
 
-                          <ThemedText
-                            style={[
-                              styles.materiaInfo,
-                              {
-                                color: theme.colors.muted,
-                              },
-                            ]}
-                          >
-                            Código: {materia.codigo}
-                          </ThemedText>
-
-                          <ThemedText
-                            style={[
-                              styles.materiaInfo,
-                              {
-                                color: theme.colors.muted,
-                              },
-                            ]}
-                          >
-                            {obtenerEtiquetaPeriodo()}: {materia.semestre}
-                          </ThemedText>
-                        </View>
-
-                        <Pressable
-                          onPress={() => onVerGrupos(materia)}
+                      return (
+                        <View
+                          key={materia.idMateria}
                           style={[
-                            styles.button,
+                            styles.card,
                             {
-                              backgroundColor: theme.colors.primary,
+                              backgroundColor: inscrita
+                                ? `${theme.colors.primary}18`
+                                : theme.colors.background,
+                              borderColor: inscrita
+                                ? theme.colors.primary
+                                : theme.colors.border,
                             },
                           ]}
                         >
-                          <ThemedText style={styles.buttonText}>
-                            Ver grupos
-                          </ThemedText>
-                        </Pressable>
-                      </View>
-                    ))}
+                          <View
+                            style={[
+                              styles.iconCircle,
+                              {
+                                backgroundColor: inscrita
+                                  ? `${theme.colors.primary}22`
+                                  : `${theme.colors.muted}16`,
+                                borderColor: inscrita
+                                  ? theme.colors.primary
+                                  : theme.colors.border,
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name={
+                                inscrita
+                                  ? "checkmark-done-outline"
+                                  : "book-outline"
+                              }
+                              size={24}
+                              color={
+                                inscrita
+                                  ? theme.colors.primary
+                                  : theme.colors.muted
+                              }
+                            />
+                          </View>
+
+                          <View style={styles.infoBox}>
+                            <View style={styles.titleRow}>
+                              <ThemedText
+                                style={[
+                                  styles.materiaTitle,
+                                  {
+                                    color: theme.colors.text,
+                                  },
+                                ]}
+                              >
+                                {materia.nombreMateria}
+                              </ThemedText>
+
+                              {inscrita && (
+                                <View
+                                  style={[
+                                    styles.badgeInscrita,
+                                    {
+                                      backgroundColor: `${theme.colors.primary}22`,
+                                      borderColor: theme.colors.primary,
+                                    },
+                                  ]}
+                                >
+                                  <Ionicons
+                                    name="checkmark-circle"
+                                    size={15}
+                                    color={theme.colors.primary}
+                                  />
+
+                                  <ThemedText
+                                    style={[
+                                      styles.badgeText,
+                                      {
+                                        color: theme.colors.primary,
+                                      },
+                                    ]}
+                                  >
+                                    Ya inscrita
+                                  </ThemedText>
+                                </View>
+                              )}
+                            </View>
+
+                            <ThemedText
+                              style={[
+                                styles.materiaInfo,
+                                {
+                                  color: theme.colors.muted,
+                                },
+                              ]}
+                            >
+                              Código: {materia.codigo}
+                            </ThemedText>
+
+                            <ThemedText
+                              style={[
+                                styles.materiaInfo,
+                                {
+                                  color: theme.colors.muted,
+                                },
+                              ]}
+                            >
+                              {obtenerEtiquetaPeriodo()}: {materia.semestre}
+                            </ThemedText>
+                          </View>
+
+                          <Pressable
+                            onPress={() => onVerGrupos(materia)}
+                            style={[
+                              styles.button,
+                              {
+                                backgroundColor: inscrita
+                                  ? `${theme.colors.primary}33`
+                                  : theme.colors.primary,
+                                borderColor: inscrita
+                                  ? theme.colors.primary
+                                  : theme.colors.primary,
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name={
+                                inscrita
+                                  ? "checkmark-circle-outline"
+                                  : "people-outline"
+                              }
+                              size={18}
+                              color="#FFFFFF"
+                            />
+
+                            <ThemedText style={styles.buttonText}>
+                              {inscrita ? "Ver grupo" : "Ver grupos"}
+                            </ThemedText>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               ))}
@@ -312,7 +375,7 @@ const styles = StyleSheet.create({
 
   subtitle: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "800",
     marginTop: 4,
   },
 
@@ -323,8 +386,8 @@ const styles = StyleSheet.create({
   },
 
   closeButton: {
-    width: 42,
-    height: 42,
+    width: 46,
+    height: 46,
     borderRadius: 999,
     borderWidth: 1,
     justifyContent: "center",
@@ -383,12 +446,32 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderWidth: 1,
-    borderRadius: 18,
+    borderWidth: 1.5,
+    borderRadius: 20,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
+  },
+
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  infoBox: {
+    flex: 1,
+  },
+
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
   },
 
   materiaTitle: {
@@ -402,12 +485,30 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  badgeInscrita: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
   button: {
-    height: 48,
+    minHeight: 48,
     borderRadius: 14,
+    borderWidth: 1,
     paddingHorizontal: 18,
     justifyContent: "center",
     alignItems: "center",
+    flexDirection: "row",
+    gap: 7,
   },
 
   buttonText: {

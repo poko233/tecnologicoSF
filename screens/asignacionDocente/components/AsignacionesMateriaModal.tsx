@@ -24,6 +24,15 @@ type Props = {
   onEliminar: (idMateria: number, idDocente: number) => Promise<void>;
 };
 
+function formatearHora(value?: string) {
+  if (!value) return "";
+  return value.substring(0, 5);
+}
+
+function getGrupoNombre(grupo: any) {
+  return grupo?.nombreGrupo ?? grupo?.nombre ?? `Grupo ${grupo?.idGrupo}`;
+}
+
 export default function AsignacionesMateriaModal({
   visible,
   materia,
@@ -55,14 +64,12 @@ export default function AsignacionesMateriaModal({
 
   const pedirConfirmacion = (item: any) => {
     if (deleting) return;
-
     setDocenteAEliminar(item);
     setConfirmVisible(true);
   };
 
   const cancelarEliminar = () => {
     if (deleting) return;
-
     setConfirmVisible(false);
     setDocenteAEliminar(null);
   };
@@ -72,9 +79,7 @@ export default function AsignacionesMateriaModal({
 
     try {
       setDeleting(true);
-
       await onEliminar(materia.idMateria, docenteAEliminar.idDocente);
-
       setConfirmVisible(false);
       setDocenteAEliminar(null);
     } finally {
@@ -222,29 +227,100 @@ export default function AsignacionesMateriaModal({
                       </View>
 
                       <View style={styles.grupos}>
-                        {item.grupos.map((grupo: any) => (
-                          <View
-                            key={grupo?.idGrupo}
-                            style={[
-                              styles.grupoChip,
-                              {
-                                backgroundColor: theme.colors.background,
-                                borderColor: theme.colors.border,
-                              },
-                            ]}
-                          >
-                            <ThemedText
+                        {item.grupos.map((grupo: any) => {
+                          const horarios = grupo?.horarios ?? [];
+
+                          return (
+                            <View
+                              key={grupo?.idGrupo}
                               style={[
-                                styles.grupoText,
-                                { color: theme.colors.text },
+                                styles.grupoBox,
+                                {
+                                  backgroundColor: theme.colors.background,
+                                  borderColor: theme.colors.border,
+                                },
                               ]}
                             >
-                              {grupo?.nombreGrupo ??
-                                grupo?.nombre ??
-                                `Grupo ${grupo?.idGrupo}`}
-                            </ThemedText>
-                          </View>
-                        ))}
+                              <View style={styles.grupoTitleRow}>
+                                <Ionicons
+                                  name="albums-outline"
+                                  size={15}
+                                  color={theme.colors.primary}
+                                />
+
+                                <ThemedText
+                                  style={[
+                                    styles.grupoText,
+                                    { color: theme.colors.text },
+                                  ]}
+                                >
+                                  {getGrupoNombre(grupo)}
+                                </ThemedText>
+                              </View>
+
+                              {horarios.length > 0 ? (
+                                <View style={styles.horariosBox}>
+                                  {horarios.map((horario: any) => (
+                                    <View
+                                      key={horario.idHorario}
+                                      style={[
+                                        styles.horarioChip,
+                                        {
+                                          backgroundColor: theme.colors.card,
+                                          borderColor: theme.colors.border,
+                                        },
+                                      ]}
+                                    >
+                                      <Ionicons
+                                        name="time-outline"
+                                        size={13}
+                                        color={theme.colors.primary}
+                                      />
+
+                                      <ThemedText
+                                        style={[
+                                          styles.horarioText,
+                                          {
+                                            color: theme.colors.textSecondary,
+                                          },
+                                        ]}
+                                      >
+                                        {horario.dia}{" "}
+                                        {formatearHora(horario.horaInicio)} -{" "}
+                                        {formatearHora(horario.horaFin)}
+                                      </ThemedText>
+                                    </View>
+                                  ))}
+                                </View>
+                              ) : (
+                                <View
+                                  style={[
+                                    styles.horarioChip,
+                                    {
+                                      backgroundColor: theme.colors.card,
+                                      borderColor: theme.colors.border,
+                                    },
+                                  ]}
+                                >
+                                  <Ionicons
+                                    name="alert-circle-outline"
+                                    size={13}
+                                    color={theme.colors.textTertiary}
+                                  />
+
+                                  <ThemedText
+                                    style={[
+                                      styles.horarioText,
+                                      { color: theme.colors.textTertiary },
+                                    ]}
+                                  >
+                                    Sin horario
+                                  </ThemedText>
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })}
                       </View>
                     </View>
                   );
@@ -346,7 +422,7 @@ const styles = StyleSheet.create({
   },
   modal: {
     width: "100%",
-    maxWidth: 760,
+    maxWidth: 860,
     maxHeight: "88%",
     borderWidth: 1,
     borderRadius: 28,
@@ -420,17 +496,42 @@ const styles = StyleSheet.create({
   grupos: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
   },
-  grupoChip: {
+  grupoBox: {
+    minWidth: 210,
+    maxWidth: 280,
     borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderRadius: 18,
+    padding: 12,
+    gap: 9,
+  },
+  grupoTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
   },
   grupoText: {
     fontSize: 12,
     fontWeight: "900",
+  },
+  horariosBox: {
+    gap: 6,
+  },
+  horarioChip: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  horarioText: {
+    fontSize: 11,
+    fontWeight: "800",
   },
   empty: {
     minHeight: 240,

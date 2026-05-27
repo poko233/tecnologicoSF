@@ -25,6 +25,13 @@ export type Materia = {
   idPrerequisito?: number | null;
 };
 
+export type Horario = {
+  idHorario: number;
+  horaInicio: string;
+  horaFin: string;
+  dia: string;
+};
+
 export type Grupo = {
   idGrupo: number;
   nombreGrupo?: string;
@@ -34,6 +41,7 @@ export type Grupo = {
   turno?: string;
   modalidad?: string;
   estado?: string;
+  horarios?: Horario[];
 };
 
 export type UsuarioDocente = {

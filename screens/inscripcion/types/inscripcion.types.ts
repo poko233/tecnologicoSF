@@ -13,10 +13,26 @@ export type DepartamentoBolivia =
   | "Beni"
   | "Pando";
 
+export interface HorarioGrupo {
+  idHorario: number;
+
+  dia: string;
+
+  horaInicio: string;
+
+  horaFin: string;
+}
+
 export interface GrupoSeleccionado {
   idGrupo: number;
 
+  idMateria?: number;
+
+  idDocente?: number;
+
   nombre: string;
+
+  nombreGrupo?: string;
 
   codigo: string;
 
@@ -25,7 +41,11 @@ export interface GrupoSeleccionado {
   turno:
     | "mañana"
     | "tarde"
-    | "noche";
+    | "noche"
+    | "Mañana"
+    | "Tarde"
+    | "Noche"
+    | string;
 
   horario: number | string;
 
@@ -33,9 +53,13 @@ export interface GrupoSeleccionado {
 
   cupos: number | string;
 
+  capacidad?: number | string;
+
   tipo: string;
 
   estado: string;
+
+  horarios?: HorarioGrupo[];
 
   nombreMateria?: string;
 
@@ -156,6 +180,8 @@ export interface Carrera {
 export interface Materia {
   idMateria: number;
 
+  idCarrera?: number;
+
   nombreMateria: string;
 
   codigo: string;
@@ -172,7 +198,13 @@ export interface Materia {
 export interface Grupo {
   idGrupo: number;
 
+  idMateria?: number;
+
+  idDocente?: number;
+
   nombre: string;
+
+  nombreGrupo?: string;
 
   codigo: string;
 
@@ -181,7 +213,11 @@ export interface Grupo {
   turno:
     | "mañana"
     | "tarde"
-    | "noche";
+    | "noche"
+    | "Mañana"
+    | "Tarde"
+    | "Noche"
+    | string;
 
   horario: number | string;
 
@@ -189,9 +225,15 @@ export interface Grupo {
 
   cupos: number | string;
 
+  capacidad?: number | string;
+
   tipo: string;
 
   estado: string;
+
+  horarios?: HorarioGrupo[];
+
+  nombreMateria?: string;
 }
 
 export interface CarrerasResponse {
