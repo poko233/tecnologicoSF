@@ -1,58 +1,47 @@
 // screens/landing/components/FooterSection.tsx
 import { router } from "expo-router";
+import { MotiPressable } from "moti/interactions";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useTheme } from "../../../theme/useTheme";
 
-export const FooterSection = () => {
+export const FooterSection: React.FC = () => {
   const { theme } = useTheme();
 
   return (
     <View
+      className="w-full items-center py-5 border-t"
       style={{
-        width: "100%",
-        paddingVertical: 20,
-        alignItems: "center",
         backgroundColor: theme.colors.backgroundSecondary,
-        borderTopWidth: 1,
         borderTopColor: theme.colors.border,
       }}
     >
-      {/* Ambos textos en una sola fila */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          flexWrap: "wrap",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ fontSize: 12, color: theme.colors.textMuted }}>
+      <View className="flex-row items-center flex-wrap justify-center">
+        <Text className="text-xs" style={{ color: theme.colors.textMuted }}>
           © {new Date().getFullYear()} Tecnológico del Sur — Cochabamba, Bolivia
         </Text>
         <Text
-          style={{
-            fontSize: 12,
-            color: theme.colors.textMuted,
-            marginHorizontal: 4,
-          }}
+          className="text-xs mx-1"
+          style={{ color: theme.colors.textMuted }}
         >
           ·
         </Text>
-        <Pressable
+        <MotiPressable
           onPress={() => router.push("/login")}
+          animate={({ hovered }) => {
+            "worklet";
+            return { opacity: hovered ? 1 : 0.7, scale: hovered ? 1.05 : 1 };
+          }}
+          transition={{ type: "timing", duration: 200 }}
           accessibilityRole="link"
         >
           <Text
-            style={{
-              fontSize: 12,
-              color: theme.colors.textMuted,
-              textDecorationLine: "underline",
-            }}
+            className="text-xs underline"
+            style={{ color: theme.colors.textMuted }}
           >
             Ingresar al sistema
           </Text>
-        </Pressable>
+        </MotiPressable>
       </View>
     </View>
   );

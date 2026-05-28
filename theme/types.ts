@@ -81,7 +81,7 @@ export interface Colors {
 
   shadow: string;
   overlay: string;
-  gradient: string[];
+  gradient: readonly [string, string, ...string[]];
 }
 
 export interface AppTheme {

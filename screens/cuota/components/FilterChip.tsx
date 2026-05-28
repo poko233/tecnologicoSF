@@ -23,14 +23,14 @@ export const FilterChip: React.FC<FilterChipProps> = ({
         paddingHorizontal: 16,
         paddingVertical: 6,
         borderRadius: 4,
-        backgroundColor: active ? theme.colors.card : "transparent",
+        backgroundColor: active ? theme.colors.primary : "transparent",
       }}
     >
       <Text
         style={{
-          color: active ? theme.colors.primary : theme.colors.textSecondary,
+          color: active ? theme.colors.primaryForeground : theme.colors.textSecondary,
           fontSize: 14,
-          fontWeight: active ? "500" : "400",
+          fontWeight: active ? "600" : "400",
         }}
       >
         {label}
