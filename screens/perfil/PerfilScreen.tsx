@@ -4,6 +4,7 @@ import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../theme/useTheme";
 import { InformacionPersonal } from "./components/InformacionPersonal";
 import { PerfilHeader } from "./components/PerfilHeader";
+import { QrProfileCard } from "./components/QrProfileCard";
 import { ThemeSelectorCard } from "./components/ThemeSelectorCard";
 
 export default function PerfilScreen() {
@@ -22,12 +23,12 @@ export default function PerfilScreen() {
         <View style={styles.headerSection}>
           <PerfilHeader />
         </View>
-
         {/* 2. Las tarjetas se alinean debajo, en fila (escritorio) o columna (móvil) */}
         <View style={styles.cardsContainer}>
           <View style={styles.column}>
             <InformacionPersonal />
           </View>
+          <QrProfileCard />
 
           <View style={styles.column}>
             <ThemeSelectorCard />

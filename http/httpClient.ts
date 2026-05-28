@@ -2,7 +2,7 @@ import Toast from "react-native-toast-message";
 import { getToken } from "../storage/secureStorage";
 
 export const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://192.168.100.115:8000";
+  process.env.EXPO_PUBLIC_API_URL || "http://10.42.100.94:8000";
 
 async function parseErrorMessage(
   res: Response,
@@ -117,35 +117,35 @@ export const httpClient = {
     request<T>(path, { method: "DELETE" }, true, fallback),
 
   async postFormData<T>(url: string, formData: FormData): Promise<T> {
-  const token = await getToken();
+    const token = await getToken();
 
-  const response = await fetch(`${BASE_URL}${url}`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: token ? `Bearer ${token}` : "",
-    },
-    body: formData,
-  });
+    const response = await fetch(`${BASE_URL}${url}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+      body: formData,
+    });
 
-  const text = await response.text();
+    const text = await response.text();
 
-  let data: any = null;
+    let data: any = null;
 
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
 
-  if (!response.ok) {
-    throw {
-      status: response.status,
-      message: data?.message || "Error al subir archivo",
-      errors: data?.errors,
-    };
-  }
+    if (!response.ok) {
+      throw {
+        status: response.status,
+        message: data?.message || "Error al subir archivo",
+        errors: data?.errors,
+      };
+    }
 
-  return data;
-}
+    return data;
+  },
 };

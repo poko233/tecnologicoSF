@@ -10,5 +10,6 @@ export function usePerfilData() {
     direccion: user?.direccion || "",
     roles: user?.roles || [],
     foto: user?.foto || null,
+    codigoQr: user?.codigoQr || null,
   };
 }

@@ -46,7 +46,8 @@ export type Usuario = {
   roles: string[];
   telefono: string;
   foto: string | null;
-  direccion?: string; // añadido para el perfil
+  direccion?: string;
+  codigoQr?: string | null;
 };
 
 interface AuthContextType {
@@ -74,6 +75,7 @@ function mapBackendUserToUsuario(data: any): Usuario {
     roles: data.roles || [],
     foto: data.foto || null,
     direccion: data.direccion || "",
+    codigoQr: data.codigo_qr || null,
   };
 }
 
