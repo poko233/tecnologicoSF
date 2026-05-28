@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -62,6 +62,22 @@ export default function PasoAcademico({
   const [showMaterias, setShowMaterias] = useState(false);
   const [showGrupos, setShowGrupos] = useState(false);
   const [showHorario, setShowHorario] = useState(false);
+
+  const idCarreraSeleccionada = useMemo(() => {
+    if (carreraSeleccionada?.idCarrera) {
+      return carreraSeleccionada.idCarrera;
+    }
+
+    const grupoConCarrera = gruposSeleccionados.find(
+      (grupo) => grupo.idCarrera
+    );
+
+    if (grupoConCarrera?.idCarrera) {
+      return grupoConCarrera.idCarrera;
+    }
+
+    return null;
+  }, [carreraSeleccionada, gruposSeleccionados]);
 
   const normalizarTipo = (value?: string | null) =>
     String(value ?? "").trim().toLowerCase();
@@ -161,40 +177,53 @@ export default function PasoAcademico({
   };
 
   const grupoYaSeleccionado = (idGrupo: number) => {
-    return gruposSeleccionados.some((grupo) => grupo.idGrupo === idGrupo);
+    return gruposSeleccionados.some(
+      (grupo) => Number(grupo.idGrupo) === Number(idGrupo)
+    );
   };
 
   const toggleGrupo = (grupo: Grupo) => {
-  if (!materiaSeleccionada) return;
+    if (!materiaSeleccionada || !carreraSeleccionada) {
+      Toast.show({
+        type: "error",
+        text1: "Falta carrera",
+        text2: "Selecciona una carrera y materia primero.",
+      });
 
-  const existe = grupoYaSeleccionado(grupo.idGrupo);
+      return;
+    }
 
-  if (existe) {
-    setGruposSeleccionados(
-      gruposSeleccionados.filter(
-        (item) => Number(item.idGrupo) !== Number(grupo.idGrupo)
-      )
-    );
+    const existe = grupoYaSeleccionado(grupo.idGrupo);
 
-    return;
-  }
+    if (existe) {
+      setGruposSeleccionados(
+        gruposSeleccionados.filter(
+          (item) => Number(item.idGrupo) !== Number(grupo.idGrupo)
+        )
+      );
 
-  const nuevoGrupo: GrupoSeleccionado = {
-    ...grupo,
-    idMateria: materiaSeleccionada.idMateria,
-    nombreMateria: materiaSeleccionada.nombreMateria,
-    nombreCarrera: carreraSeleccionada?.nombreCarrera,
+      return;
+    }
+
+    const nuevoGrupo: GrupoSeleccionado = {
+      ...grupo,
+      idMateria: materiaSeleccionada.idMateria,
+      nombreMateria: materiaSeleccionada.nombreMateria,
+      idCarrera: carreraSeleccionada.idCarrera,
+      nombreCarrera: carreraSeleccionada.nombreCarrera,
+    };
+
+    setGruposSeleccionados([...gruposSeleccionados, nuevoGrupo]);
+
+    setShowGrupos(false);
+    setShowMaterias(true);
   };
-
-  setGruposSeleccionados([...gruposSeleccionados, nuevoGrupo]);
-
-  setShowGrupos(false);
-  setShowMaterias(true);
-};
 
   const quitarGrupo = (idGrupo: number) => {
     setGruposSeleccionados(
-      gruposSeleccionados.filter((grupo) => grupo.idGrupo !== idGrupo)
+      gruposSeleccionados.filter(
+        (grupo) => Number(grupo.idGrupo) !== Number(idGrupo)
+      )
     );
   };
 
@@ -209,11 +238,11 @@ export default function PasoAcademico({
       return;
     }
 
-    if (!carreraSeleccionada) {
+    if (!idCarreraSeleccionada) {
       Toast.show({
         type: "error",
         text1: "Falta carrera",
-        text2: "Selecciona una carrera.",
+        text2: "Vuelve a seleccionar una carrera.",
       });
 
       return;
@@ -236,7 +265,7 @@ export default function PasoAcademico({
         gruposSeleccionados.map((grupo) =>
           httpClient.postAuth("/api/inscripciones-academicas", {
             idUsuario: idEstudiante,
-            idCarrera: carreraSeleccionada.idCarrera,
+            idCarrera: grupo.idCarrera ?? idCarreraSeleccionada,
             idGrupo: grupo.idGrupo,
           })
         )
@@ -424,7 +453,10 @@ export default function PasoAcademico({
                       ? grupo.horarios
                           .map(
                             (h) =>
-                              `${h.dia} ${h.horaInicio.slice(0, 5)}-${h.horaFin.slice(0, 5)}`
+                              `${h.dia} ${h.horaInicio.slice(
+                                0,
+                                5
+                              )}-${h.horaFin.slice(0, 5)}`
                           )
                           .join(" / ")
                       : "Sin horario"}
@@ -507,14 +539,14 @@ export default function PasoAcademico({
       </View>
 
       <MateriasModal
-  visible={showMaterias}
-  carrera={carreraSeleccionada}
-  materias={materias}
-  loading={loadingMaterias}
-  gruposSeleccionados={gruposSeleccionados}
-  onClose={() => setShowMaterias(false)}
-  onVerGrupos={cargarGrupos}
-/>
+        visible={showMaterias}
+        carrera={carreraSeleccionada}
+        materias={materias}
+        loading={loadingMaterias}
+        gruposSeleccionados={gruposSeleccionados}
+        onClose={() => setShowMaterias(false)}
+        onVerGrupos={cargarGrupos}
+      />
 
       <GruposModal
         visible={showGrupos}

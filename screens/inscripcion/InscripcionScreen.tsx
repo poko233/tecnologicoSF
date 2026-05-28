@@ -205,8 +205,7 @@ export default function InscripcionScreen() {
         Toast.show({
           type: "error",
           text1: "Formulario inválido",
-          text2:
-            "Corrige los campos marcados.",
+          text2: "Corrige los campos marcados.",
         });
 
         return;
@@ -221,8 +220,7 @@ export default function InscripcionScreen() {
         Toast.show({
           type: "error",
           text1: "Validaciones pendientes",
-          text2:
-            "Verifica los datos antes de continuar.",
+          text2: "Verifica los datos antes de continuar.",
         });
 
         return;
@@ -230,13 +228,9 @@ export default function InscripcionScreen() {
 
       setGuardando(true);
 
-      const [day, month, year] =
-        form.fechaNacimiento.split("/");
+      const [day, month, year] = form.fechaNacimiento.split("/");
 
-      const expedidoMap: Record<
-        DepartamentoBolivia,
-        string
-      > = {
+      const expedidoMap: Record<DepartamentoBolivia, string> = {
         "La Paz": "LPZ",
         Cochabamba: "CBBA",
         Oruro: "OR",
@@ -248,80 +242,51 @@ export default function InscripcionScreen() {
         Chuquisaca: "CH",
       };
 
-      const generoMap: Record<
-        Genero,
-        string
-      > = {
+      const generoMap: Record<Genero, string> = {
         Masculino: "MASCULINO",
         Femenino: "FEMENINO",
       };
 
       const payload = {
-        ...form,
-
-        apellidoPaterno:
-          form.apellidoPaterno.trim(),
-
-        apellidoMaterno:
-          form.apellidoMaterno.trim(),
-
+        apellidoPaterno: form.apellidoPaterno.trim(),
+        apellidoMaterno: form.apellidoMaterno.trim(),
         nombres: form.nombres.trim(),
-
-        carnet: form.carnet.replace(
-          /\D/g,
-          ""
-        ),
-
-        email: form.email
-          .trim()
-          .toLowerCase(),
-
-        celular: form.celular
-          .replace(/\D/g, "")
-          .replace(/^591/, ""),
-
+        carnet: form.carnet.replace(/\D/g, ""),
+        email: form.email.trim().toLowerCase(),
+        celular: form.celular.replace(/\D/g, "").replace(/^591/, ""),
         direccion: form.direccion.trim(),
-
-        referenciaNombre:
-          form.referenciaNombre.trim(),
-
-        referenciaParentesco:
-          form.referenciaParentesco.trim(),
-
-        referenciaNumero:
-          form.referenciaNumero.replace(
-            /\D/g,
-            ""
-          ),
-
+        referenciaNombre: form.referenciaNombre.trim(),
+        referenciaParentesco: form.referenciaParentesco.trim(),
+        referenciaNumero: form.referenciaNumero.replace(/\D/g, ""),
         fechaNacimiento: `${year}-${month}-${day}`,
-
-        expedidoEn:
-          expedidoMap[form.expedidoEn],
-
+        expedidoEn: expedidoMap[form.expedidoEn],
         genero: generoMap[form.genero],
-
-        gruposSeleccionados: undefined,
       };
 
-      const response =
-        await httpClient.postAuth<{
-          estudiante: {
-            id?: number;
-            idUsuario?: number;
-          };
-        }>("/api/estudiantes", payload);
+      const response = idEstudiante
+        ? await httpClient.putAuth<{
+            estudiante: {
+              id?: number;
+              idUsuario?: number;
+            };
+          }>(`/api/estudiantes/${idEstudiante}`, payload)
+        : await httpClient.postAuth<{
+            estudiante: {
+              id?: number;
+              idUsuario?: number;
+            };
+          }>("/api/estudiantes", payload);
 
       const estudianteId =
         response.estudiante.id ??
-        response.estudiante.idUsuario;
+        response.estudiante.idUsuario ??
+        idEstudiante;
 
       if (!estudianteId) {
         Toast.show({
           type: "error",
           text1: "Error",
-          text2:
-            "El backend no devolvió el ID.",
+          text2: "El backend no devolvió el ID.",
         });
 
         return;
@@ -329,24 +294,31 @@ export default function InscripcionScreen() {
 
       setIdEstudiante(estudianteId);
 
-      setMaxStepReached(2);
+      setMaxStepReached((prev) =>
+        Math.max(prev, 2)
+      );
 
       setStep(2);
 
       Toast.show({
         type: "success",
-        text1: "Estudiante registrado",
-        text2:
-          "Ahora selecciona carrera y grupos.",
+        text1: idEstudiante
+          ? "Estudiante actualizado"
+          : "Estudiante registrado",
+        text2: idEstudiante
+          ? "Los datos fueron actualizados correctamente."
+          : "Ahora selecciona carrera y grupos.",
       });
-    } catch (error) {
+
+    } catch (error: any) {
       console.error(error);
 
       Toast.show({
         type: "error",
         text1: "Error",
         text2:
-          "No se pudo registrar al estudiante.",
+          error?.message ??
+          "No se pudo guardar al estudiante.",
       });
     } finally {
       setGuardando(false);
@@ -377,6 +349,7 @@ export default function InscripcionScreen() {
               "/api/estudiantes/verificar-datos",
               {
                 carnet: form.carnet,
+                idUsuario: idEstudiante,
               }
             );
 
@@ -402,7 +375,7 @@ export default function InscripcionScreen() {
         clearTimeout(timeoutCarnet.current);
       }
     };
-  }, [form.carnet]);
+  }, [form.carnet, idEstudiante]);
 
   useEffect(() => {
     if (
@@ -430,6 +403,7 @@ export default function InscripcionScreen() {
               "/api/estudiantes/verificar-datos",
               {
                 email: form.email,
+                idUsuario: idEstudiante,
               }
             );
 
@@ -455,7 +429,7 @@ export default function InscripcionScreen() {
         clearTimeout(timeoutCorreo.current);
       }
     };
-  }, [form.email]);
+  }, [form.email, idEstudiante]);
 
   return (
     <ScrollView
@@ -827,8 +801,8 @@ export default function InscripcionScreen() {
               setGruposSeleccionados
             }
             onFinish={() => {
-              setMaxStepReached(
-                3
+              setMaxStepReached((prev) =>
+                Math.max(prev, 3)
               );
 
               setStep(3);
@@ -852,8 +826,8 @@ export default function InscripcionScreen() {
               setStep(2)
             }
             onFinish={() => {
-              setMaxStepReached(
-                4
+              setMaxStepReached((prev) =>
+                Math.max(prev, 4)
               );
 
               setStep(4);

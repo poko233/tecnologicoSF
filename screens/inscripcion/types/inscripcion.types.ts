@@ -26,6 +26,8 @@ export interface HorarioGrupo {
 export interface GrupoSeleccionado {
   idGrupo: number;
 
+  idCarrera?: number;
+
   idMateria?: number;
 
   idDocente?: number;
@@ -62,6 +64,10 @@ export interface GrupoSeleccionado {
   horarios?: HorarioGrupo[];
 
   nombreMateria?: string;
+
+  codigoMateria?: string;
+
+  semestre?: number | string;
 
   nombreCarrera?: string;
 }
@@ -234,6 +240,10 @@ export interface Grupo {
   horarios?: HorarioGrupo[];
 
   nombreMateria?: string;
+
+  codigoMateria?: string;
+
+  semestre?: number | string;
 }
 
 export interface CarrerasResponse {

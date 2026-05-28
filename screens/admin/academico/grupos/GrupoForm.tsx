@@ -10,6 +10,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import HoraPickerModal from "../components/HoraPickerModal";
 import { Grupo, Horario } from "./grupo.types";
 
 interface Props {
@@ -21,26 +23,27 @@ interface Props {
 const TURNOS = ["Mañana", "Tarde", "Noche"];
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
+type TimeTarget = {
+  index: number;
+  key: "horaInicio" | "horaFin";
+} | null;
+
 function normalizarHora(value?: string | null) {
   if (!value) return "";
 
   const texto = String(value).trim();
-
-  const matchHora = texto.match(/(\d{2}):(\d{2})/);
+  const matchHora = texto.match(/(\d{1,2}):(\d{1,2})/);
 
   if (matchHora) {
-    return `${matchHora[1]}:${matchHora[2]}`;
+    const h = Number(matchHora[1]);
+    const m = Number(matchHora[2]);
+
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
   }
 
   return "";
-}
-
-function formatearHoraInput(value: string) {
-  const limpio = value.replace(/\D/g, "").slice(0, 4);
-
-  if (limpio.length <= 2) return limpio;
-
-  return `${limpio.slice(0, 2)}:${limpio.slice(2)}`;
 }
 
 function horaValida(value: string) {
@@ -74,6 +77,10 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [cuposError, setCuposError] = useState("");
   const [horariosError, setHorariosError] = useState("");
+
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [timeTarget, setTimeTarget] = useState<TimeTarget>(null);
+  const [horaActual, setHoraActual] = useState("08:00");
 
   useEffect(() => {
     if (initialData) {
@@ -141,23 +148,42 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     setHorarios((h) => h.filter((_, idx) => idx !== i));
 
   const setHorario = (i: number, key: keyof Horario, val: string) => {
-    const value =
-      key === "horaInicio" || key === "horaFin"
-        ? formatearHoraInput(val)
-        : val;
-
     setHorarios((h) =>
       h.map((item, idx) =>
         idx === i
           ? {
               ...item,
-              [key]: value,
+              [key]: val,
             }
           : item
       )
     );
 
     setHorariosError("");
+  };
+
+  const abrirTimePicker = (index: number, key: "horaInicio" | "horaFin") => {
+    setTimeTarget({ index, key });
+
+    const value = horarios[index]?.[key];
+    const fallback = key === "horaInicio" ? "08:00" : "10:00";
+
+    setHoraActual(normalizarHora(value) || fallback);
+    setTimePickerVisible(true);
+  };
+
+  const cerrarTimePicker = () => {
+    setTimePickerVisible(false);
+    setTimeTarget(null);
+  };
+
+  const confirmarHoraPicker = (hora: string) => {
+    if (!timeTarget) return;
+
+    setHorario(timeTarget.index, timeTarget.key, normalizarHora(hora));
+
+    setTimePickerVisible(false);
+    setTimeTarget(null);
   };
 
   const validarHorarios = () => {
@@ -306,7 +332,10 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Cupos *</Text>
           <TextInput
-            style={[inp, cuposError ? { borderColor: theme.colors.destructive } : {}]}
+            style={[
+              inp,
+              cuposError ? { borderColor: theme.colors.destructive } : {},
+            ]}
             value={form.cupos}
             onChangeText={(v) => {
               set("cupos")(v);
@@ -318,7 +347,13 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
           />
 
           {cuposError ? (
-            <Text style={{ color: theme.colors.destructive, fontSize: 11, marginTop: 3 }}>
+            <Text
+              style={{
+                color: theme.colors.destructive,
+                fontSize: 11,
+                marginTop: 3,
+              }}
+            >
               {cuposError}
             </Text>
           ) : null}
@@ -345,7 +380,13 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         </View>
 
         {horariosError ? (
-          <Text style={{ color: theme.colors.destructive, fontSize: 12, marginBottom: 8 }}>
+          <Text
+            style={{
+              color: theme.colors.destructive,
+              fontSize: 12,
+              marginBottom: 8,
+            }}
+          >
             {horariosError}
           </Text>
         ) : null}
@@ -375,7 +416,9 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
             ]}
           >
             <View style={{ flex: 2 }}>
-              <Text style={[styles.horarioLabel, { color: theme.colors.textMuted }]}>
+              <Text
+                style={[styles.horarioLabel, { color: theme.colors.textMuted }]}
+              >
                 Día
               </Text>
 
@@ -414,60 +457,64 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
             </View>
 
             <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={[styles.horarioLabel, { color: theme.colors.textMuted }]}>
+              <Text
+                style={[styles.horarioLabel, { color: theme.colors.textMuted }]}
+              >
                 Inicio
               </Text>
 
-              <TextInput
+              <Pressable
+                onPress={() => abrirTimePicker(i, "horaInicio")}
                 style={[
-                  styles.timeInput,
+                  styles.timeButton,
                   {
                     borderColor: theme.colors.inputBorder,
-                    color: theme.colors.text,
                     backgroundColor: theme.colors.background,
                   },
                 ]}
-                value={normalizarHora(h.horaInicio)}
-                onChangeText={(v) => setHorario(i, "horaInicio", v)}
-                placeholder="08:00"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-                maxLength={5}
-              />
+              >
+                <Text style={[styles.timeButtonText, { color: theme.colors.text }]}>
+                  {normalizarHora(h.horaInicio) || "08:00"}
+                </Text>
+              </Pressable>
             </View>
 
             <View style={{ flex: 1, marginLeft: 6 }}>
-              <Text style={[styles.horarioLabel, { color: theme.colors.textMuted }]}>
+              <Text
+                style={[styles.horarioLabel, { color: theme.colors.textMuted }]}
+              >
                 Fin
               </Text>
 
-              <TextInput
+              <Pressable
+                onPress={() => abrirTimePicker(i, "horaFin")}
                 style={[
-                  styles.timeInput,
+                  styles.timeButton,
                   {
                     borderColor: theme.colors.inputBorder,
-                    color: theme.colors.text,
                     backgroundColor: theme.colors.background,
                   },
                 ]}
-                value={normalizarHora(h.horaFin)}
-                onChangeText={(v) => setHorario(i, "horaFin", v)}
-                placeholder="10:00"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-                maxLength={5}
-              />
+              >
+                <Text style={[styles.timeButtonText, { color: theme.colors.text }]}>
+                  {normalizarHora(h.horaFin) || "10:00"}
+                </Text>
+              </Pressable>
             </View>
 
             <Pressable onPress={() => removeHorario(i)} style={styles.removeBtn}>
-              <Text style={{ color: theme.colors.destructive, fontSize: 18 }}>✕</Text>
+              <Text style={{ color: theme.colors.destructive, fontSize: 18 }}>
+                ✕
+              </Text>
             </Pressable>
           </View>
         ))}
       </View>
 
       <View style={styles.switchRow}>
-        <Text style={[lbl, { marginBottom: 0, marginTop: 0 }]}>Estado activo</Text>
+        <Text style={[lbl, { marginBottom: 0, marginTop: 0 }]}>
+          Estado activo
+        </Text>
 
         <Switch
           value={form.activo}
@@ -483,7 +530,11 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
       <View style={styles.btns}>
         <Pressable
           onPress={onCancel}
-          style={[styles.btn, styles.btnOutline, { borderColor: theme.colors.border }]}
+          style={[
+            styles.btn,
+            styles.btnOutline,
+            { borderColor: theme.colors.border },
+          ]}
         >
           <Text style={[styles.btnText, { color: theme.colors.text }]}>
             Cancelar
@@ -502,14 +553,29 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
           ]}
         >
           {saving ? (
-            <ActivityIndicator size="small" color={theme.colors.primaryForeground} />
+            <ActivityIndicator
+              size="small"
+              color={theme.colors.primaryForeground}
+            />
           ) : (
-            <Text style={[styles.btnText, { color: theme.colors.primaryForeground }]}>
+            <Text
+              style={[
+                styles.btnText,
+                { color: theme.colors.primaryForeground },
+              ]}
+            >
               Guardar
             </Text>
           )}
         </Pressable>
       </View>
+
+      <HoraPickerModal
+        visible={timePickerVisible}
+        value={horaActual}
+        onClose={cerrarTimePicker}
+        onConfirm={confirmarHoraPicker}
+      />
     </View>
   );
 }
@@ -624,12 +690,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  timeInput: {
+  timeButton: {
     borderWidth: 1,
     borderRadius: 7,
     padding: 8,
-    fontSize: 13,
-    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 39,
+  },
+
+  timeButtonText: {
+    fontSize: 12,
+    fontWeight: "800",
   },
 
   removeBtn: {
