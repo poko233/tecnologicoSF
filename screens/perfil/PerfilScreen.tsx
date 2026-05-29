@@ -9,31 +9,34 @@ import { ThemeSelectorCard } from "./components/ThemeSelectorCard";
 
 export default function PerfilScreen() {
   const { theme } = useTheme();
-  const { isMobile, isDesktop } = useResponsive();
+  const { isDesktop } = useResponsive();
   const styles = getStyles(theme, isDesktop);
 
   return (
     <ScrollView
-      style={styles.scrollMain}
+      style={styles.scroll}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.mainWrapper}>
-        {/* 1. El encabezado ahora ocupa la parte superior central */}
-        <View style={styles.headerSection}>
-          <PerfilHeader />
-        </View>
-        {/* 2. Las tarjetas se alinean debajo, en fila (escritorio) o columna (móvil) */}
-        <View style={styles.cardsContainer}>
-          <View style={styles.column}>
+      <View style={styles.container}>
+        {/* Header con portada, avatar y chips */}
+        <PerfilHeader />
+
+        {/* Bento grid: en escritorio 2 columnas (info + QR), en móvil columna */}
+        <View style={styles.bentoGrid}>
+          {/* Información personal */}
+          <View style={styles.infoColumn}>
             <InformacionPersonal />
           </View>
-          <QrProfileCard />
 
-          <View style={styles.column}>
-            <ThemeSelectorCard />
+          {/* QR (Identidad Digital) */}
+          <View style={styles.qrColumn}>
+            <QrProfileCard />
           </View>
         </View>
+
+        {/* Selector de temas (siempre full width abajo) */}
+        <ThemeSelectorCard />
       </View>
     </ScrollView>
   );
@@ -41,35 +44,30 @@ export default function PerfilScreen() {
 
 const getStyles = (theme: any, isDesktop: boolean) =>
   StyleSheet.create({
-    scrollMain: {
+    scroll: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
     scrollContent: {
-      paddingHorizontal: isDesktop ? 40 : 20,
-      paddingTop: 40, // Un poco más de espacio arriba
+      paddingHorizontal: isDesktop ? 40 : 16,
+      paddingTop: 24,
       paddingBottom: 40,
-      alignItems: "center",
     },
-    mainWrapper: {
+    container: {
+      maxWidth: isDesktop ? 1000 : "100%",
+      alignSelf: "center",
       width: "100%",
-      maxWidth: isDesktop ? 900 : 500, // Un poco más ancho para dar respiro a las tarjetas
-      alignItems: "center",
     },
-    headerSection: {
-      width: "100%",
-      alignItems: "center",
-      marginBottom: 32, // Espacio generoso entre el perfil y las tarjetas
-    },
-    cardsContainer: {
-      width: "100%",
+    bentoGrid: {
       flexDirection: isDesktop ? "row" : "column",
-      justifyContent: "space-between",
-      alignItems: "flex-start", // Alinea las tarjetas por arriba
-      gap: 24, // Espacio entre las columnas
+      gap: 24,
+      marginBottom: 24,
     },
-    column: {
+    infoColumn: {
+      flex: isDesktop ? 2 : undefined,
+    },
+    qrColumn: {
       flex: isDesktop ? 1 : undefined,
-      width: "100%",
+      minWidth: isDesktop ? 280 : undefined,
     },
   });

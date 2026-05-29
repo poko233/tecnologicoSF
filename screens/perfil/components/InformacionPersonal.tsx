@@ -1,102 +1,92 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Mail, MapPin, Phone } from "lucide-react-native";
+import { MotiView } from "moti";
 import React from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { useResponsive } from "../../../hooks/useResponsive";
 import { useTheme } from "../../../theme/useTheme";
 import { usePerfilData } from "../hooks/usePerfilData";
 
-type IconName = keyof typeof Ionicons.glyphMap;
-
 export const InformacionPersonal = () => {
   const { theme } = useTheme();
+  const { isDesktop } = useResponsive();
   const { correo, telefono, direccion } = usePerfilData();
   const styles = getStyles(theme);
 
-  const rows: {
-    icon: IconName;
-    label: string;
-    value: string;
-    onPress?: () => void;
-  }[] = [
-    {
-      icon: "mail-outline",
-      label: "Correo electrónico",
-      value: correo || "No registrado",
-      onPress: () => correo && Linking.openURL(`mailto:${correo}`),
-    },
-    {
-      icon: "call-outline",
-      label: "Teléfono",
-      value: telefono || "No registrado",
-      onPress: () => telefono && Linking.openURL(`tel:${telefono}`),
-    },
-    {
-      icon: "location-outline",
-      label: "Dirección",
-      value: direccion || "No registrada",
-      onPress: undefined,
-    },
-  ];
-
   return (
-    <View style={styles.card}>
-      {rows.map((row, index) => (
-        <View
-          key={row.label}
-          style={[
-            styles.rowContainer,
-            index < rows.length - 1 && styles.borderBottom,
-          ]}
-        >
-          <View style={styles.iconContainer}>
-            <Ionicons name={row.icon} size={20} color={theme.colors.primary} />
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.label}>{row.label}</Text>
-            <Text style={styles.value} onPress={row.onPress}>
-              {row.value}
-            </Text>
+    <MotiView
+      from={{ opacity: 0, translateY: 10 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: "spring", damping: 20, stiffness: 180, delay: 100 }}
+      style={styles.card}
+    >
+      <Text style={styles.title}>Información Personal</Text>
+
+      <View style={[styles.fields, isDesktop && styles.fieldsDesktop]}>
+        {/* Email */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Correo Electrónico</Text>
+          <View style={styles.fieldBox}>
+            <Mail size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.fieldText}>{correo}</Text>
           </View>
         </View>
-      ))}
-    </View>
+
+        {/* Teléfono */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Teléfono</Text>
+          <View style={styles.fieldBox}>
+            <Phone size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.fieldText}>{telefono}</Text>
+          </View>
+        </View>
+
+        {/* Dirección */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Dirección</Text>
+          <View style={[styles.fieldBox, styles.fieldBoxLarge]}>
+            <MapPin
+              size={16}
+              color={theme.colors.textSecondary}
+              style={{ marginTop: 2 }}
+            />
+            <Text style={styles.fieldText}>{direccion}</Text>
+          </View>
+        </View>
+      </View>
+    </MotiView>
   );
 };
 
 const getStyles = (theme: any) =>
   StyleSheet.create({
     card: {
-      backgroundColor: theme.colors.card + "CC",
-      borderRadius: 24,
-      padding: 16,
-      marginBottom: 24,
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: theme.colors.border + "40",
-      shadowColor: theme.colors.shadow,
+      padding: 20,
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
+      shadowOpacity: 0.06,
       shadowRadius: 12,
-      elevation: 4,
+      elevation: 3,
     },
-    rowContainer: {
+    title: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.colors.text,
+      marginBottom: 16,
+    },
+    fields: {
+      gap: 12,
+    },
+    fieldsDesktop: {
       flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: 12,
+      flexWrap: "wrap",
     },
-    borderBottom: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border + "20",
-    },
-    iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.primary + "10",
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 12,
-    },
-    textContainer: {
+    field: {
       flex: 1,
+      minWidth: 200,
     },
     label: {
       fontSize: 11,
@@ -104,10 +94,26 @@ const getStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       letterSpacing: 1,
       textTransform: "uppercase",
+      marginBottom: 4,
     },
-    value: {
-      fontSize: 15,
+    fieldBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.border + "30",
+    },
+    fieldBoxLarge: {
+      minHeight: 60,
+      alignItems: "flex-start",
+    },
+    fieldText: {
+      fontSize: 14,
       color: theme.colors.text,
-      marginTop: 2,
+      flex: 1,
     },
   });

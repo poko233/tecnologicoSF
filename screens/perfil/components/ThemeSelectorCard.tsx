@@ -1,6 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Check, Palette, Star } from "lucide-react-native";
+import { MotiView } from "moti";
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { themes } from "../../../theme/themes";
 import type { ThemeName } from "../../../theme/types";
 import { useTheme } from "../../../theme/useTheme";
@@ -11,14 +12,23 @@ export const ThemeSelectorCard = () => {
   const styles = getStyles(theme);
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Apariencia</Text>
+    <MotiView
+      from={{ opacity: 0, translateY: 10 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: "spring", damping: 20, stiffness: 180, delay: 200 }}
+      style={styles.card}
+    >
+      <View style={styles.header}>
+        <Palette size={20} color={theme.colors.primary} />
+        <View>
+          <Text style={styles.title}>Apariencia</Text>
+          <Text style={styles.subtitle}>
+            Personaliza la interfaz de tu portal académico.
+          </Text>
+        </View>
+      </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent} // <-- Aquí ocurre la magia
-      >
+      <View style={styles.themesRow}>
         {themeNames.map((name) => {
           const isActive = theme.name === name;
           const previewColors = themes[name].colors;
@@ -28,184 +38,182 @@ export const ThemeSelectorCard = () => {
               key={name}
               onPress={() => setTheme(name)}
               style={({ pressed }) => [
-                styles.themeButton,
-                { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                styles.themeBtn,
+                {
+                  borderColor: isActive
+                    ? theme.colors.primary
+                    : theme.colors.border + "60",
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                },
               ]}
             >
-              {/* Vista previa */}
+              {/* Preview */}
               <View
                 style={[
-                  styles.previewContainer,
-                  {
-                    backgroundColor: previewColors.background,
-                    borderColor: isActive
-                      ? theme.colors.primary
-                      : previewColors.border + "60",
-                    shadowColor: isActive
-                      ? theme.colors.primary
-                      : "transparent",
-                    shadowOpacity: isActive ? 0.4 : 0,
-                    elevation: isActive ? 6 : 1,
-                  },
+                  styles.preview,
+                  { backgroundColor: previewColors.background },
                 ]}
               >
-                {/* Card simulada */}
-                <View
-                  style={[
-                    styles.mockCard,
-                    {
-                      backgroundColor: previewColors.card,
-                      borderColor: previewColors.border + "80",
-                    },
-                  ]}
-                >
+                <View style={styles.previewHeader}>
                   <View
                     style={[
-                      styles.mockLinePrimary,
-                      { backgroundColor: previewColors.primary + "40" },
+                      styles.previewDot,
+                      { backgroundColor: previewColors.primary },
                     ]}
                   />
                   <View
                     style={[
-                      styles.mockLineSecondary,
-                      { backgroundColor: previewColors.textSecondary + "20" },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.mockLineShort,
-                      { backgroundColor: previewColors.textSecondary + "20" },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.mockBlock,
-                      {
-                        backgroundColor: previewColors.card,
-                        borderColor: previewColors.border + "40",
-                      },
+                      styles.previewLine,
+                      { backgroundColor: previewColors.backgroundSecondary },
                     ]}
                   />
                 </View>
+                <View
+                  style={[
+                    styles.previewCard,
+                    {
+                      backgroundColor: previewColors.card,
+                      borderColor: previewColors.border + "40",
+                    },
+                  ]}
+                />
               </View>
 
-              {/* Etiqueta */}
-              <Text
-                style={[
-                  styles.themeLabel,
-                  {
-                    fontWeight: isActive ? "700" : "500",
-                    color: isActive
-                      ? theme.colors.primary
-                      : theme.colors.textSecondary,
-                  },
-                ]}
-              >
-                {name === "light"
-                  ? "Claro"
-                  : name === "dark"
-                    ? "Oscuro"
-                    : "Premium"}
-              </Text>
+              {/* Label */}
+              <View style={styles.labelRow}>
+                {name === "premium" && (
+                  <Star size={12} color="#D4AF37" style={{ marginRight: 4 }} />
+                )}
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      fontWeight: isActive ? "700" : "500",
+                      color: isActive
+                        ? theme.colors.primary
+                        : theme.colors.text,
+                    },
+                  ]}
+                >
+                  {name === "light"
+                    ? "Claro"
+                    : name === "dark"
+                      ? "Oscuro"
+                      : "Premium"}
+                </Text>
+              </View>
 
-              {/* Check de activo */}
+              {/* Check */}
               {isActive && (
-                <View style={styles.activeCheckmark}>
-                  <Ionicons name="checkmark" size={14} color="#fff" />
+                <View
+                  style={[
+                    styles.check,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                >
+                  <Check size={12} color="#FFF" />
                 </View>
               )}
             </Pressable>
           );
         })}
-      </ScrollView>
-    </View>
+      </View>
+    </MotiView>
   );
 };
 
 const getStyles = (theme: any) =>
   StyleSheet.create({
     card: {
-      backgroundColor: theme.colors.card + "CC",
-      borderRadius: 24,
-      padding: 16,
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: theme.colors.border + "40",
-      shadowColor: theme.colors.shadow,
+      padding: 20,
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
+      shadowOpacity: 0.06,
       shadowRadius: 12,
-      elevation: 4,
+      elevation: 3,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      marginBottom: 20,
     },
     title: {
-      fontSize: 20,
-      fontWeight: "600",
+      fontSize: 18,
+      fontWeight: "700",
       color: theme.colors.text,
-      marginBottom: 16, // Un toque más de separación con los temas
     },
-    scrollContent: {
-      flexGrow: 1, // Obliga al contenido del scroll a expandirse al 100% del ancho disponible
+    subtitle: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    themesRow: {
       flexDirection: "row",
-      justifyContent: "space-between", // Distribuye los temas equitativamente llenando el espacio vacío
-      gap: 12, // Controla la separación entre ellos limpiamente sin usar marginRight
+      gap: 16,
+      width: "100%",
     },
-    themeButton: {
-      flex: 1, // Hace que cada opción crezca proporcionalmente para llenar el espacio
-      minWidth: 95, // Evita que se colapsen o se vean ultra delgados en pantallas muy pequeñas
-      maxWidth: 150, // Evita que se estiren de forma exagerada en pantallas gigantes
-      alignItems: "center",
-      position: "relative",
-    },
-    previewContainer: {
-      width: "100%", // Ahora se adapta al ancho dinámico del themeButton
-      height: 130,
+    themeBtn: {
+      flex: 1,
       borderRadius: 16,
       borderWidth: 2,
       overflow: "hidden",
-      padding: 8,
-      justifyContent: "space-between",
-      shadowOffset: { width: 0, height: 2 },
-      shadowRadius: 8,
+      position: "relative",
+      minWidth: 0, // permite que se encojan correctamente
     },
-    mockCard: {
-      borderRadius: 10,
-      padding: 6,
-      flex: 1,
+    preview: {
+      height: 90,
+      padding: 10,
+      justifyContent: "space-between",
+    },
+    previewHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    previewDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+    },
+    previewLine: {
+      height: 4,
+      width: "50%",
+      borderRadius: 2,
+    },
+    previewCard: {
+      height: 34,
+      borderRadius: 6,
       borderWidth: 1,
     },
-    mockLinePrimary: {
-      height: 6,
-      width: "50%",
-      borderRadius: 3,
-      marginBottom: 6,
-    },
-    mockLineSecondary: {
-      height: 4,
-      width: "80%",
-      borderRadius: 2,
-      marginBottom: 4,
-    },
-    mockLineShort: {
-      height: 4,
-      width: "60%",
-      borderRadius: 2,
-      marginBottom: 4,
-    },
-    mockBlock: { flex: 1, borderRadius: 6, borderWidth: 1, marginTop: 4 },
-    themeLabel: {
-      fontSize: 13,
-      marginTop: 6,
-      textAlign: "center",
-    },
-    activeCheckmark: {
-      position: "absolute",
-      top: 6,
-      right: 6,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 12,
-      width: 22,
-      height: 22,
+    labelRow: {
+      flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
-      zIndex: 10,
+      paddingVertical: 8,
+      backgroundColor: theme.colors.backgroundSecondary,
+    },
+    label: {
+      fontSize: 13,
+      textAlign: "center",
+    },
+    check: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+      elevation: 3,
     },
   });

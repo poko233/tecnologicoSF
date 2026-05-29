@@ -1,99 +1,141 @@
-// screens/perfil/components/QrProfileCard.tsx
-import { QrCode } from "lucide-react-native";
+import * as FileSystemNS from "expo-file-system";
+import { Image } from "expo-image";
+import * as Sharing from "expo-sharing";
+import { Download } from "lucide-react-native";
 import { MotiView } from "moti";
 import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
-import { useResponsive } from "../../../hooks/useResponsive";
+import {
+  Alert,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+} from "react-native";
 import { useTheme } from "../../../theme/useTheme";
 import { usePerfilData } from "../hooks/usePerfilData";
 
 export const QrProfileCard = () => {
   const { theme } = useTheme();
-  const { isDesktop } = useResponsive();
   const { codigoQr } = usePerfilData();
-  const styles = getStyles(theme, isDesktop);
+  const styles = getStyles(theme);
+
+  const handleDownload = async () => {
+    if (!codigoQr) return;
+
+    try {
+      const base64Data = codigoQr.includes(",")
+        ? codigoQr.split(",")[1]
+        : codigoQr;
+
+      if (Platform.OS === "web") {
+        const link = document.createElement("a");
+        link.href = codigoQr;
+        link.download = "qr_identidad.png";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // Hack temporal por tipos desactualizados de expo-file-system
+        const FileSystem = FileSystemNS as any;
+        const fileUri = FileSystem.cacheDirectory + "qr_identidad.png";
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: "image/png",
+            dialogTitle: "Guardar ID Digital",
+            UTI: "public.png",
+          });
+        } else {
+          Alert.alert("Descarga", "Archivo guardado en: " + fileUri);
+        }
+      }
+    } catch (error) {
+      Alert.alert("Error", "No se pudo descargar la imagen.");
+      console.error(error);
+    }
+  };
 
   if (!codigoQr) return null;
 
   return (
     <MotiView
-      from={{ opacity: 0, scale: 0.9, translateY: 20 }}
-      animate={{ opacity: 1, scale: 1, translateY: 0 }}
-      transition={{ type: "spring", damping: 20, stiffness: 180 }}
+      from={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", damping: 20, stiffness: 180, delay: 150 }}
       style={styles.card}
     >
-      <View style={styles.header}>
-        <QrCode size={20} color={theme.colors.primary} />
-        <Text style={styles.title}>Mi código QR</Text>
-      </View>
-
-      <View style={styles.qrContainer}>
-        <Image
-          source={{ uri: codigoQr }}
-          style={styles.qrImage}
-          resizeMode="contain"
-        />
-      </View>
-      <Text style={styles.hint}>
-        Presenta este código en los puntos de acceso o al docente para registrar
-        tu asistencia.
-      </Text>
+      <Text style={styles.title}>Identidad Digital</Text>
+      <Text style={styles.subtitle}>Acceso rápido a campus y bibliotecas.</Text>
+      <Image
+        source={{ uri: codigoQr }}
+        style={styles.qrImage}
+        contentFit="contain"
+        transition={300}
+      />
+      <TouchableOpacity
+        style={styles.downloadBtn}
+        activeOpacity={0.7}
+        onPress={handleDownload}
+      >
+        <Download size={16} color={theme.colors.text} />
+        <Text style={styles.downloadText}>Descargar ID Digital</Text>
+      </TouchableOpacity>
     </MotiView>
   );
 };
 
-const getStyles = (theme: any, isDesktop: boolean) =>
+const getStyles = (theme: any) =>
   StyleSheet.create({
     card: {
-      backgroundColor: theme.colors.card + "CC",
-      borderRadius: 24,
-      padding: 20,
-      marginBottom: 24,
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: theme.colors.border + "40",
-      shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      elevation: 6,
+      padding: 20,
       alignItems: "center",
-      width: "100%",
-      maxWidth: isDesktop ? 400 : undefined,
-      alignSelf: "center",
-    },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginBottom: 16,
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 3,
     },
     title: {
       fontSize: 18,
       fontWeight: "700",
       color: theme.colors.text,
+      marginBottom: 4,
     },
-    qrContainer: {
-      padding: 12,
-      borderRadius: 20,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.border + "30",
-      marginBottom: 12,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    qrImage: {
-      width: 200,
-      height: 200,
-    },
-    hint: {
+    subtitle: {
       fontSize: 13,
       color: theme.colors.textSecondary,
+      marginBottom: 20,
       textAlign: "center",
-      paddingHorizontal: 12,
-      lineHeight: 18,
+    },
+    qrImage: {
+      width: 220,
+      height: 220,
+      marginBottom: 20,
+    },
+    downloadBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: theme.colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: theme.colors.border + "30",
+      width: "100%",
+    },
+    downloadText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: theme.colors.text,
     },
   });
