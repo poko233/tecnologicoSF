@@ -7,7 +7,7 @@ import {
   Shield,
   User,
 } from "lucide-react-native";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { Image, Platform, Pressable, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useAuth } from "../../contexts/AuthContext";
@@ -37,15 +37,10 @@ const BADGES_PER_ROW = 4;
 const BADGES_CONTAINER_WIDTH =
   BADGE_SIZE * BADGES_PER_ROW + BADGE_GAP * (BADGES_PER_ROW - 1);
 
-// Posición Y de cada badge relativa al wrapper
-type BadgeLayout = { y: number };
-
 export const SidebarHeader = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [hoveredRole, setHoveredRole] = useState<string | null>(null);
-  const badgeLayouts = useRef<Record<string, BadgeLayout>>({});
-  const [tooltipBottom, setTooltipBottom] = useState(BADGE_SIZE + 6);
 
   if (!user) return null;
 
@@ -57,24 +52,13 @@ export const SidebarHeader = () => {
     return (n + a).toUpperCase() || "U";
   };
 
-  const handleHoverIn = (role: string) => {
-    setHoveredRole(role);
-    const layout = badgeLayouts.current[role];
-    if (layout) {
-      const totalRows = Math.ceil(roles.length / BADGES_PER_ROW);
-      const wrapperHeight =
-        totalRows * BADGE_SIZE + (totalRows - 1) * BADGE_GAP;
-      setTooltipBottom(wrapperHeight - layout.y + 6);
-    }
-  };
-
   return (
     <View
       style={{
         paddingHorizontal: 16,
         paddingTop: 12,
         paddingBottom: 12,
-        borderBottomWidth: 1, // Restablecido permanentemente
+        borderBottomWidth: 1,
         borderBottomColor: theme.colors.border,
         marginBottom: 4,
       }}
@@ -150,99 +134,96 @@ export const SidebarHeader = () => {
           {nombres} {apellido}
         </Text>
 
-        {/* Wrapper con posición relativa — tooltip absolutamente posicionado */}
-        <View style={{ position: "relative", alignItems: "center" }}>
-          {hoveredRole && (
-            <Animated.View
-              entering={FadeIn.duration(150)}
-              exiting={FadeOut.duration(100)}
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                bottom: tooltipBottom,
-                alignSelf: "center",
-                backgroundColor:
-                  roleColorMap[hoveredRole] || theme.colors.primary,
-                borderRadius: 999,
-                paddingHorizontal: 10,
-                paddingVertical: 3,
-                zIndex: 999,
-                elevation: 6,
-                shadowColor: roleColorMap[hoveredRole] || theme.colors.primary,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.25,
-                shadowRadius: 4,
-              }}
-            >
-              <Text
-                style={{
-                  color: "#FFFFFF", // ✅ texto blanco legible
-                  fontSize: 10,
-                  fontWeight: "600",
-                }}
-                numberOfLines={1}
-              >
-                {hoveredRole}
-              </Text>
-            </Animated.View>
-          )}
+        {/* Roles con tooltip individual */}
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: BADGE_GAP,
+            width: BADGES_CONTAINER_WIDTH,
+            justifyContent: "center",
+          }}
+        >
+          {roles.map((role) => {
+            const Icon = roleIconMap[role];
+            const color = roleColorMap[role] || theme.colors.primary;
+            const isHovered = hoveredRole === role;
 
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: BADGE_GAP,
-              width: BADGES_CONTAINER_WIDTH,
-              justifyContent: "center",
-            }}
-          >
-            {roles.map((role) => {
-              const Icon = roleIconMap[role];
-              const color = roleColorMap[role] || theme.colors.primary;
-
-              const hoverHandlers =
-                Platform.OS === "web"
-                  ? {
-                      onMouseEnter: () => handleHoverIn(role),
-                      onMouseLeave: () => setHoveredRole(null),
-                    }
-                  : {};
-
-              return (
-                <Pressable
-                  key={role}
-                  {...(hoverHandlers as any)}
-                  onPress={() =>
-                    setHoveredRole(hoveredRole === role ? null : role)
+            const hoverHandlers =
+              Platform.OS === "web"
+                ? {
+                    onMouseEnter: () => setHoveredRole(role),
+                    onMouseLeave: () => setHoveredRole(null),
                   }
-                  onLayout={(e) => {
-                    badgeLayouts.current[role] = { y: e.nativeEvent.layout.y };
-                  }}
-                >
-                  <View
+                : {};
+
+            return (
+              <Pressable
+                key={role}
+                {...(hoverHandlers as any)}
+                onPress={() => setHoveredRole(isHovered ? null : role)}
+                style={{ position: "relative" }}
+              >
+                {/* Tooltip individual */}
+                {isHovered && (
+                  <Animated.View
+                    entering={FadeIn.duration(150)}
+                    exiting={FadeOut.duration(100)}
+                    pointerEvents="none"
                     style={{
-                      width: BADGE_SIZE,
-                      height: BADGE_SIZE,
-                      borderRadius: BADGE_SIZE / 2,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: color + "20",
-                      borderWidth: 1.5,
-                      borderColor: color,
+                      position: "absolute",
+                      bottom: "100%",
+                      alignSelf: "center",
+                      marginBottom: 8,
+                      backgroundColor: color,
+                      borderRadius: 999,
+                      paddingHorizontal: 10,
+                      paddingVertical: 3,
+                      zIndex: 999,
+                      elevation: 6,
+                      shadowColor: color,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 4,
                     }}
                   >
-                    {Icon ? (
-                      <Icon size={14} color={color} />
-                    ) : (
-                      <Text style={{ color, fontSize: 11, fontWeight: "800" }}>
-                        {role.charAt(0)}
-                      </Text>
-                    )}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <Text
+                      style={{
+                        color: "#FFFFFF",
+                        fontSize: 10,
+                        fontWeight: "600",
+                      }}
+                      numberOfLines={1}
+                    >
+                      {role}
+                    </Text>
+                  </Animated.View>
+                )}
+
+                {/* Círculo del rol */}
+                <View
+                  style={{
+                    width: BADGE_SIZE,
+                    height: BADGE_SIZE,
+                    borderRadius: BADGE_SIZE / 2,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: color + "20",
+                    borderWidth: 1.5,
+                    borderColor: color,
+                  }}
+                >
+                  {Icon ? (
+                    <Icon size={14} color={color} />
+                  ) : (
+                    <Text style={{ color, fontSize: 11, fontWeight: "800" }}>
+                      {role.charAt(0)}
+                    </Text>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
     </View>
