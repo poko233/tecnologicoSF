@@ -161,21 +161,22 @@ export const SidebarHeader = () => {
                 position: "absolute",
                 bottom: tooltipBottom,
                 alignSelf: "center",
-                backgroundColor: theme.colors.text,
+                backgroundColor:
+                  roleColorMap[hoveredRole] || theme.colors.primary,
                 borderRadius: 999,
                 paddingHorizontal: 10,
                 paddingVertical: 3,
                 zIndex: 999,
                 elevation: 6,
-                shadowColor: "#000",
+                shadowColor: roleColorMap[hoveredRole] || theme.colors.primary,
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.15,
+                shadowOpacity: 0.25,
                 shadowRadius: 4,
               }}
             >
               <Text
                 style={{
-                  color: theme.colors.primaryForeground,
+                  color: "#FFFFFF", // ✅ texto blanco legible
                   fontSize: 10,
                   fontWeight: "600",
                 }}
