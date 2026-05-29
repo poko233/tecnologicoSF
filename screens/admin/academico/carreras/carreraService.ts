@@ -20,6 +20,6 @@ export const carreraService = {
   },
 
   delete: async (id: number): Promise<void> => {
-    await httpClient.deleteAuth(`/carreras/${id}`)
+    await httpClient.deleteAuth(`/api/carreras/${id}`)
   },
 }

@@ -18,6 +18,6 @@ export const materiaService = {
   },
 
   delete: async (id: number): Promise<void> => {
-    await httpClient.deleteAuth(`/materias/${id}`)
+    await httpClient.deleteAuth(`/api/materias/${id}`)
   },
 }
