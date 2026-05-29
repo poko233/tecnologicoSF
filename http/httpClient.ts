@@ -2,7 +2,7 @@ import Toast from "react-native-toast-message";
 import { getToken } from "../storage/secureStorage";
 
 export const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "https://tecnologico.ecoguz.com";
+  process.env.EXPO_PUBLIC_API_URL || "https://tecnologico.metasoft-bolivia.com";
 
 async function parseErrorMessage(
   res: Response,
