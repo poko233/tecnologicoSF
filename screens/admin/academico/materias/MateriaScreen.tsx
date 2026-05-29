@@ -1,11 +1,11 @@
 import React from 'react'
-import { StatusBadge } from '../components/StatusBadge'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
+import { StatusBadge } from '../components/StatusBadge'
 import { useAdminCrud } from '../hooks/useAdminCrud'
 import { ColumnDef } from '../types/admin.types'
+import { Materia } from './materia.types'
 import { MateriaForm } from './MateriaForm'
 import { materiaService } from './materiaService'
-import { Materia } from './materia.types'
 
 const columns: ColumnDef[] = [
   { key: 'codigo', header: 'Código', width: 90 },
@@ -45,6 +45,9 @@ export function MateriaScreen() {
           onCancel={crud.closeModal}
         />
       )}
+      itemToDelete={crud.itemToDelete}      
+      onConfirmDelete={crud.confirmDelete}   
+      onCancelDelete={crud.cancelDelete}  
     />
   )
 }

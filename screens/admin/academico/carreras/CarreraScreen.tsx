@@ -1,11 +1,11 @@
 import React from 'react'
-import { StatusBadge } from '../components/StatusBadge'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
+import { StatusBadge } from '../components/StatusBadge'
 import { useAdminCrud } from '../hooks/useAdminCrud'
 import { ColumnDef } from '../types/admin.types'
+import { Carrera } from './carrera.types'
 import { CarreraForm } from './CarreraForm'
 import { carreraService } from './carreraService'
-import { Carrera } from './carrera.types'
 
 const columns: ColumnDef[] = [
   { key: 'codigo', header: 'Código', width: 90 },
@@ -50,6 +50,9 @@ export function CarreraScreen() {
           onCancel={crud.closeModal}
         />
       )}
+      itemToDelete={crud.itemToDelete}       
+      onConfirmDelete={crud.confirmDelete}   
+      onCancelDelete={crud.cancelDelete}  
     />
   )
 }

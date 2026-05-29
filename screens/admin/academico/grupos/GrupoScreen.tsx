@@ -61,6 +61,9 @@ export function GrupoScreen() {
           onCancel={crud.closeModal}
         />
       )}
+      itemToDelete={crud.itemToDelete}       
+      onConfirmDelete={crud.confirmDelete}   
+      onCancelDelete={crud.cancelDelete}  
     />
   )
 }

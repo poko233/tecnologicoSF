@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Platform } from 'react-native'
 import Toast from 'react-native-toast-message'
 import { CrudConfig } from '../types/admin.types'
 
@@ -13,6 +12,7 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const [saving, setSaving] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<T | null>(null) // 👈 nuevo
 
   const filteredData = useMemo(() => {
     if (!searchText.trim()) return data
@@ -57,46 +57,29 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
     setSelectedItem(null)
   }
 
+  // Solo guarda qué item se quiere borrar — el modal lo muestra la UI
   const handleDelete = (item: T) => {
-    const id = item[idField] as number
-
-    // Web no soporta Alert.alert con múltiples botones
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('¿Estás seguro de que deseas eliminar este registro?')
-      if (!confirmed) return
-      deleteFn(id)
-        .then(() => {
-          Toast.show({ type: 'success', text1: 'Eliminado correctamente' })
-          refresh()
-        })
-        .catch((e: any) => {
-          Toast.show({ type: 'error', text1: 'Error', text2: e?.message || 'No se pudo eliminar' })
-        })
-      return
-    }
-
-    // Mobile — funciona normal
-    Alert.alert(
-      'Confirmar eliminación',
-      '¿Estás seguro de que deseas eliminar este registro?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteFn(id)
-              Toast.show({ type: 'success', text1: 'Eliminado correctamente' })
-              refresh()
-            } catch (e: any) {
-              Toast.show({ type: 'error', text1: 'Error', text2: e?.message || 'No se pudo eliminar' })
-            }
-          },
-        },
-      ]
-    )
+    setItemToDelete(item)
   }
+
+  // Lo llama el botón "Confirmar" del modal de confirmación
+  const confirmDelete = async () => {
+    if (!itemToDelete) return
+    const id = itemToDelete[idField] as number
+    try {
+      await deleteFn(id)
+      Toast.show({ type: 'success', text1: 'Eliminado correctamente' })
+      refresh()
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: e?.message || 'No se pudo eliminar' })
+    } finally {
+      setItemToDelete(null)
+    }
+  }
+
+  // Lo llama el botón "Cancelar" del modal de confirmación
+  const cancelDelete = () => setItemToDelete(null)
+
   const handleSave = async (formData: Partial<T>) => {
     setSaving(true)
     try {
@@ -130,6 +113,9 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
     openEdit,
     closeModal,
     handleDelete,
+    confirmDelete,   
+    cancelDelete,    
+    itemToDelete,   
     handleSave,
     refresh,
   }

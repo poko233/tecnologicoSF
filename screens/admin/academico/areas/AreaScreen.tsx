@@ -1,11 +1,11 @@
 import React from 'react'
-import { StatusBadge } from '../components/StatusBadge'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
+import { StatusBadge } from '../components/StatusBadge'
 import { useAdminCrud } from '../hooks/useAdminCrud'
 import { ColumnDef } from '../types/admin.types'
+import { Area } from './area.types'
 import { AreaForm } from './AreaForm'
 import { areaService } from './areaService'
-import { Area } from './area.types'
 
 const columns: ColumnDef[] = [
   { key: 'idArea', header: 'ID', width: 60 },
@@ -45,6 +45,9 @@ export function AreaScreen() {
           onCancel={crud.closeModal}
         />
       )}
+      itemToDelete={crud.itemToDelete}       
+      onConfirmDelete={crud.confirmDelete}  
+      onCancelDelete={crud.cancelDelete}  
     />
   )
 }

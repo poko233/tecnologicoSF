@@ -3,10 +3,12 @@ import React from 'react'
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native'
@@ -30,6 +32,9 @@ export function GenericAdminScreen({
   onCloseModal,
   selectedItem,
   searchPlaceholder = 'Buscar...',
+  itemToDelete,        
+  onConfirmDelete,     
+  onCancelDelete, 
 }: GenericAdminScreenProps) {
   const { theme } = useTheme()
   const { width } = useWindowDimensions()
@@ -121,6 +126,37 @@ export function GenericAdminScreen({
       >
         {renderForm()}
       </AdminModal>
+      <Modal
+        visible={!!itemToDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={onCancelDelete}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.deleteModal, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.deleteTitle, { color: theme.colors.text }]}>
+              Eliminar registro
+            </Text>
+            <Text style={[styles.deleteMessage, { color: theme.colors.text }]}>
+              ¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.
+            </Text>
+            <View style={styles.deleteActions}>
+              <TouchableOpacity
+                onPress={onCancelDelete}
+                style={[styles.deleteBtn, { backgroundColor: theme.colors.border }]}
+              >
+                <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onConfirmDelete}
+                style={[styles.deleteBtn, { backgroundColor: '#ef4444' }]}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -153,4 +189,23 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   loadingText: { marginTop: 12, fontSize: 14 },
   emptyText: { fontSize: 15 },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  deleteModal: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 14,
+    padding: 24,
+    gap: 16,
+  },
+  deleteTitle: { fontSize: 18, fontWeight: '700' },
+  deleteMessage: { fontSize: 14, lineHeight: 20, opacity: 0.75 },
+  deleteActions: { flexDirection: 'row', gap: 12, justifyContent: 'flex-end' },
+  deleteBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
 })

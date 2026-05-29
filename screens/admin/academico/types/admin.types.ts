@@ -31,4 +31,7 @@ export interface GenericAdminScreenProps {
   onCloseModal: () => void
   selectedItem: any | null
   searchPlaceholder?: string
+  itemToDelete?: any | null       
+  onConfirmDelete?: () => void 
+  onCancelDelete?: () => void 
 }
