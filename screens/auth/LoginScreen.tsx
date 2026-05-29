@@ -116,6 +116,7 @@ export default function LoginScreen() {
               marginTop: 24,
             }}
           >
+            {/*
             <Text style={{ color: theme.colors.muted }}>
               ¿No tienes cuenta?{"   "}
             </Text>
@@ -126,23 +127,23 @@ export default function LoginScreen() {
               onPress={() => router.push("/register")}
             >
               Regístrate
-            </Text>
+            </Text>*/}
           </Animated.View>
           <Animated.View
-  entering={FadeInUp.delay(500).duration(400).springify()}
-  style={{
-    alignItems: "center",
-    marginTop: 18,
-  }}
->
-  <Text
-    style={{ color: theme.colors.primary }}
-    className="font-bold"
-    onPress={() => router.push("/forgot-password")}
-  >
-    ¿Olvidaste tu contraseña?
-  </Text>
-</Animated.View>
+            entering={FadeInUp.delay(500).duration(400).springify()}
+            style={{
+              alignItems: "center",
+              marginTop: 18,
+            }}
+          >
+            <Text
+              style={{ color: theme.colors.primary }}
+              className="font-bold"
+              onPress={() => router.push("/forgot-password")}
+            >
+              ¿Olvidaste tu contraseña?
+            </Text>
+          </Animated.View>
         </View>
       </View>
     </KeyboardAwareScrollView>

@@ -163,7 +163,7 @@ const getStyles = (theme: any) =>
       borderWidth: 2,
       overflow: "hidden",
       position: "relative",
-      minWidth: 0, // permite que se encojan correctamente
+      minWidth: 0,
     },
     preview: {
       height: 90,

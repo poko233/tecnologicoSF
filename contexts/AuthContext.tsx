@@ -12,7 +12,6 @@ import { clearSession, saveToken } from "../storage/secureStorage";
 import { useModulesStore } from "../store/modulesStore";
 import { getTabsForRoles } from "../utils/roleBasedTabs";
 
-// Tipo que refleja el backend real (sin usar, solo para referencia)
 interface BackendUser {
   id: number;
   usuario: string;
@@ -37,7 +36,6 @@ interface BackendUser {
   roles: string[];
 }
 
-// Tipo usado en toda la app (mantiene compatibilidad)
 export type Usuario = {
   nombreUsuario: string;
   nombres: string;
