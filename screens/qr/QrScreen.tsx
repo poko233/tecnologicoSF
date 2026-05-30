@@ -1,165 +1,132 @@
+import { useResponsive } from "@/hooks/useResponsive";
 import { useTheme } from "@/theme/useTheme";
-import React, { useCallback, useState } from "react";
+import { AnimatePresence } from "moti";
+import React from "react";
 import {
-  ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AccessResultCard } from "./components/AccessResultCard";
-import { ModeTabs } from "./components/ModeTabs";
-import { QrCameraView } from "./components/QrCameraView";
-import { ScanResultAlert } from "./components/ScanResultAlert";
-import { useQrScanner } from "./hooks/useQrScanner";
-import { AsistenciaResponse, ScanMode, VerifyAccessResponse } from "./types/qr.types";
-
-import { Camera } from "lucide-react-native";
+import { AccessResultPanel } from "./components/AccessResultPanel";
+import { CredentialInput } from "./components/CredentialInput";
+import { useManualVerification } from "./hooks/useManualVerification";
+import { InputMode } from "./types/qr.types";
 
 export const QrScreen: React.FC = () => {
-  const [mode, setMode] = useState<ScanMode>("asistencia");
   const { theme } = useTheme();
-  const {
-    permission,
-    requestPermission,
-    isCameraActive,
-    isProcessing,
-    scanResult,
-    error,
-    handleBarCodeScanned,
-    resetScan,
-  } = useQrScanner(mode);
+  const { isDesktop } = useResponsive();
+  const { result, error, loading, verify, reset } = useManualVerification();
 
-  const onBarcodeScanned = useCallback(
-    (result: any) => {
-      handleBarCodeScanned(result);
-    },
-    [handleBarCodeScanned],
-  );
-
-  if (!permission) {
-    return (
-      <View
-        style={[styles.center, { backgroundColor: theme.colors.background }]}
-      >
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View
-        style={[styles.center, { backgroundColor: theme.colors.background }]}
-      >
-        <Camera size={64} color={theme.colors.textSecondary} />
-        <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
-          Necesitamos acceso a la cámara para escanear códigos QR
-        </Text>
-        <TouchableOpacity
-          onPress={requestPermission}
-          style={[styles.button, { backgroundColor: theme.colors.primary }]}
-        >
-          <Text
-            style={[
-              styles.buttonText,
-              { color: theme.colors.primaryForeground },
-            ]}
-          >
-            Conceder permiso
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const handleVerify = (mode: InputMode, value: string) => {
+    verify(mode, value);
+  };
 
   return (
-    <View style={[styles.flex, { backgroundColor: "#000" }]}>
-      <QrCameraView
-        key={isCameraActive ? "camera-active" : "camera-inactive"}
-        onBarcodeScanned={onBarcodeScanned}
-        isActive={isCameraActive && !scanResult && !error}
-      />
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={["top"]}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            maxWidth: 700,
+            alignSelf: "center",
+            width: "100%",
+            paddingHorizontal: isDesktop ? 40 : 20,
+          },
+        ]}
+      >
+        {/* Título */}
+        <View style={styles.header}>
+          <Text style={[styles.heading, { color: theme.colors.text }]}>
+            Validación de Credenciales
+          </Text>
+          <Text
+            style={[styles.subheading, { color: theme.colors.textSecondary }]}
+          >
+            Seleccione el método de ingreso para verificar el estatus
+            institucional.
+          </Text>
+        </View>
 
-      <SafeAreaView style={styles.overlay} edges={["top"]}>
-        <ModeTabs mode={mode} onModeChange={setMode} />
+        {/* Input */}
+        <CredentialInput onVerify={handleVerify} loading={loading} />
 
-        {isProcessing && (
-          <View style={styles.processing}>
-            <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.processingText}>Verificando...</Text>
+        {/* Error */}
+        {error && (
+          <View style={styles.errorBox}>
+            <Text
+              style={[styles.errorText, { color: theme.colors.destructive }]}
+            >
+              {error}
+            </Text>
+            <Text
+              onPress={reset}
+              style={[styles.retryText, { color: theme.colors.primary }]}
+            >
+              Intentar de nuevo
+            </Text>
           </View>
         )}
-      </SafeAreaView>
+      </ScrollView>
 
-      {scanResult && mode === "asistencia" && !error && (
-        <ScanResultAlert
-          visible
-          type="success"
-          title="Asistencia registrada"
-          subtitle={`${(scanResult as AsistenciaResponse).asistencia.estudiante} · ${(scanResult as AsistenciaResponse).asistencia.materia}`}
-          onDismiss={resetScan}
-        />
-      )}
-
-      {scanResult && mode === "acceso" && !error && (
-        <AccessResultCard
-          data={scanResult as VerifyAccessResponse}
-          onDismiss={resetScan}
-        />
-      )}
-
-      {error && (
-        <ScanResultAlert
-          visible
-          type="error"
-          title="Error"
-          subtitle={error}
-          onDismiss={resetScan}
-        />
-      )}
-    </View>
+      {/* Panel de resultado con animación de entrada y salida */}
+      <AnimatePresence>
+        {result && (
+          <AccessResultPanel
+            key={result.registro_id}
+            data={result}
+            onDismiss={reset}
+          />
+        )}
+      </AnimatePresence>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  center: {
+  container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
   },
-  message: {
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  header: {
+    textAlign: "center",
+    marginBottom: 32,
+  },
+  heading: {
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    textAlign: "center",
+  },
+  subheading: {
     fontSize: 16,
     textAlign: "center",
-    marginVertical: 16,
-  },
-  button: {
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
     marginTop: 8,
+    lineHeight: 24,
   },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "700",
+  errorBox: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: "rgba(239,68,68,0.08)",
+    borderLeftWidth: 4,
+    borderLeftColor: "#EF4444",
   },
-  overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  processing: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  processingText: {
-    color: "#fff",
-    marginTop: 8,
-    fontSize: 16,
+  errorText: {
+    fontSize: 14,
     fontWeight: "600",
+    marginBottom: 8,
+  },
+  retryText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

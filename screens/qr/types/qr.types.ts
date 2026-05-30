@@ -1,28 +1,3 @@
-// Tipos basados en las respuestas esperadas del backend
-
-export interface DecryptResponse {
-  user: {
-    id: number;
-    nombre_completo: string;
-    foto: string | null;
-    tipo: "Estudiante" | "Docente" | "Administrativo";
-    carrera: string | null;
-    turno: string | null;
-  };
-}
-
-export interface AsistenciaResponse {
-  message: string;
-  asistencia: {
-    estudiante: string;
-    materia: string;
-    grupo: string;
-    fecha: string;
-    hora: string;
-    tipo: string;
-  };
-}
-
 export interface VerifyAccessResponse {
   alerta: {
     color: "verde" | "amarillo" | "naranja" | "rojo";
@@ -32,14 +7,21 @@ export interface VerifyAccessResponse {
   usuario: {
     id: number;
     nombre_completo: string;
+    nombres: string;
+    apellido_paterno: string | null;
+    apellido_materno: string | null;
+    genero: string | null;
+    ci: string;
+    email: string | null;
+    celular: string | null;
+    direccion: string | null;
     foto: string | null;
     tipo: "Estudiante" | "Docente" | "Administrativo";
-    carrera: string | null;
-    turno: string | null;
-    cuotas_pendientes: number | null;
-    observaciones_activas: string[] | null;
+    carrera?: string | null;
+    profesion?: string | null;
+    cuotas_pendientes: number;
   };
   registro_id: number;
 }
 
-export type ScanMode = "asistencia" | "acceso";
+export type InputMode = "qr" | "ci";

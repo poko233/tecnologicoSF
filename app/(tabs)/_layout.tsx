@@ -14,7 +14,7 @@ const ALL_POSSIBLE_TABS: TabDefinition[] = [
   { name: "notas", title: "Notas", icon: "document-text-outline" },
   { name: "horario", title: "Horario", icon: "calendar-outline" },
   { name: "perfil", title: "Perfil", icon: "person-outline" },
-  { name: "registro", title: "Registro", icon: "create-outline" },
+  { name: "marcado", title: "Marcado", icon: "create-outline" },
 ];
 
 export default function TabsLayout() {

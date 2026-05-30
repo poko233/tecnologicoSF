@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import Toast from "react-native-toast-message";
 import { httpClient } from "../http/httpClient";
 import { clearSession, saveToken } from "../storage/secureStorage";
 import { useModulesStore } from "../store/modulesStore";
@@ -130,6 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userData = mapBackendUserToUsuario(rawData);
     setUser(userData);
 
+    Toast.show({
+      type: "success",
+      text1: "Inicio de sesión exitoso",
+      text2: "Bienvenido de nuevo.",
+    });
     await fetchModulos();
     const moduleRoutes = useModulesStore.getState().allowedRoutes;
 

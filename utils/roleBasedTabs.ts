@@ -12,31 +12,31 @@ const roleTabMap: Record<string, TabDefinition[]> = {
   ],
   Docente: [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
-    { name: "registro", title: "Registro", icon: "create-outline" },
+    { name: "marcado", title: "Marcado", icon: "create-outline" },
   ],
   Personal: [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
-    { name: "registro", title: "Registro", icon: "create-outline" },
+    { name: "marcado", title: "Marcado", icon: "create-outline" },
   ],
   Administrador: [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
-    { name: "registro", title: "Registro", icon: "create-outline" },
+    { name: "marcado", title: "Marcado", icon: "create-outline" },
   ],
   Rector: [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
-    { name: "registro", title: "Registro", icon: "create-outline" },
+    { name: "marcado", title: "Marcado", icon: "create-outline" },
   ],
   "Director Administrativo": [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
-    { name: "registro", title: "Registro", icon: "create-outline" },
+    { name: "marcado", title: "Marcado", icon: "create-outline" },
   ],
   "Director Academico": [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
-    { name: "registro", title: "Registro", icon: "create-outline" },
+    { name: "marcado", title: "Marcado", icon: "create-outline" },
   ],
   Fundador: [
     { name: "perfil", title: "Perfil", icon: "person-outline" },
-    { name: "registro", title: "Registro", icon: "create-outline" },
+    { name: "marcado", title: "Marcado", icon: "create-outline" },
   ],
 };
 

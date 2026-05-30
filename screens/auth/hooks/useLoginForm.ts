@@ -2,7 +2,6 @@
 import { getTabsForRoles } from "@/utils/roleBasedTabs";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Toast from "react-native-toast-message";
 import { useAuth } from "../../../contexts/AuthContext";
 import { loginUser } from "../services/auth.service";
 import type { LoginRequest, ValidationErrors } from "../types/auth.types";
@@ -84,12 +83,6 @@ export function useLoginForm() {
     try {
       const response = await loginUser(form);
       const userData = await login(response.token);
-
-      Toast.show({
-        type: "success",
-        text1: "Inicio de sesión exitoso",
-        text2: "Bienvenido de nuevo.",
-      });
       // Calcular la ruta de inicio según los roles
       const tabs = getTabsForRoles(userData.roles);
       const homeRoute = tabs.length > 0 ? `/${tabs[0].name}` : "/perfil";

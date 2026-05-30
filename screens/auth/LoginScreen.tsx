@@ -1,11 +1,15 @@
 // screens/auth/LoginScreen.tsx
 import { router } from "expo-router";
-import React from "react";
-import { Platform, Text, View } from "react-native";
+import React, { useEffect, useMemo, useRef } from "react";
+import { PanResponder, Platform, StyleSheet, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { useSharedValue } from "react-native-reanimated";
+import { ThemedText } from "../../components/ThemedText";
 import { useTheme } from "../../theme/useTheme";
 import { AuthInput } from "./components/AuthInput";
+import { GlassCard } from "./components/GlassCard";
+import { Mascot } from "./components/Mascot";
 import { SubmitButton } from "./components/SubmitButton";
 import { useLoginForm } from "./hooks/useLoginForm";
 
@@ -23,129 +27,226 @@ export default function LoginScreen() {
     canSubmit,
   } = useLoginForm();
 
+  const usernameFocused = useSharedValue(false);
+  const passwordFocused = useSharedValue(false);
+  const [isPasswordVisible, setIsPasswordVisible] = React.useState(false);
+
+  const eyeOffsetX = useSharedValue(0);
+  const eyeOffsetY = useSharedValue(0);
+
+  const mascotRef = useRef<View>(null);
+
+  const updateEyeOffset = (pageX: number, pageY: number) => {
+    if (mascotRef.current) {
+      mascotRef.current.measureInWindow((x, y, width, height) => {
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+        const moveX = (pageX - centerX) / 20;
+        const moveY = (pageY - centerY) / 20;
+        eyeOffsetX.value = Math.min(Math.max(moveX, -8), 8);
+        eyeOffsetY.value = Math.min(Math.max(moveY, -5), 5);
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      const handleMouseMove = (e: MouseEvent) => {
+        updateEyeOffset(e.clientX, e.clientY);
+      };
+      window.addEventListener("mousemove", handleMouseMove);
+      return () => window.removeEventListener("mousemove", handleMouseMove);
+    }
+  }, []);
+
+  const panResponder = useMemo(
+    () =>
+      Platform.OS !== "web"
+        ? PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderMove: (evt) => {
+              updateEyeOffset(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
+            },
+            onPanResponderRelease: () => {
+              eyeOffsetX.value = 0;
+              eyeOffsetY.value = 0;
+            },
+          })
+        : { panHandlers: {} },
+    [eyeOffsetX, eyeOffsetY],
+  );
+
   return (
-    <KeyboardAwareScrollView
-      contentContainerStyle={{ flexGrow: 1 }}
-      keyboardShouldPersistTaps="handled"
-      enableOnAndroid={true}
-      extraScrollHeight={Platform.OS === "ios" ? 40 : 60}
-    >
-      <View
-        style={{ backgroundColor: theme.colors.background }}
-        className="flex-1 justify-center items-center px-6 py-10"
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        extraScrollHeight={Platform.OS === "ios" ? 40 : 60}
       >
+        {/*
+         * ✅ FIX: px-4 (era px-8) — iguala HTML px-margin-mobile
+         */}
         <View
-          className="w-full max-w-md rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700"
-          style={{
-            backgroundColor: theme.dark
-              ? "rgba(31,41,55,0.9)"
-              : "rgba(255,255,255,0.9)",
-          }}
+          className="flex-1 justify-center items-center px-4"
+          style={{ backgroundColor: theme.colors.background }}
+          {...panResponder.panHandlers}
         >
-          <Animated.View entering={FadeInDown.duration(400).springify()}>
-            <Text
-              style={{ color: theme.colors.text }}
-              className="text-3xl font-extrabold mb-2"
-            >
-              Iniciar sesión
-            </Text>
-
-            <Text
-              style={{ color: theme.colors.muted }}
-              className="text-sm mb-8"
-            >
-              Bienvenido de nuevo. Ingresa tus credenciales.
-            </Text>
-          </Animated.View>
-
-          <Animated.View
-            entering={FadeInUp.delay(100).duration(400).springify()}
-          >
-            <AuthInput
-              label="Usuario, CI o Email"
-              value={form.usuario}
-              onChangeText={handleChange("usuario")}
-              onBlur={handleBlur("usuario")}
-              error={errors.usuario}
-              autoCapitalize="none"
-              maxLength={40}
+          {/* Mascota */}
+          <View ref={mascotRef} style={styles.mascotWrapper}>
+            <Mascot
+              isPasswordVisible={isPasswordVisible}
+              usernameFocused={usernameFocused}
+              passwordFocused={passwordFocused}
+              eyeOffsetX={eyeOffsetX}
+              eyeOffsetY={eyeOffsetY}
             />
-          </Animated.View>
+          </View>
 
-          <Animated.View
-            entering={FadeInUp.delay(200).duration(400).springify()}
-          >
-            <AuthInput
-              label="Contraseña"
-              value={form.password}
-              onChangeText={handleChange("password")}
-              onBlur={handleBlur("password")}
-              error={errors.password}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </Animated.View>
-
-          {serverError && (
-            <Animated.View entering={FadeInUp.duration(200)}>
-              <Text
-                style={{ color: theme.colors.destructive }}
-                className="text-sm mb-4"
-              >
-                {serverError}
-              </Text>
-            </Animated.View>
-          )}
-
-          <Animated.View
-            entering={FadeInUp.delay(300).duration(400).springify()}
-          >
-            <SubmitButton
-              title="Ingresar"
-              onPress={handleSubmit}
-              loading={submitting}
-              disabled={!canSubmit}
-            />
-          </Animated.View>
-
-          <Animated.View
-            entering={FadeInUp.delay(400).duration(400).springify()}
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              marginTop: 24,
-            }}
-          >
+          <GlassCard>
             {/*
-            <Text style={{ color: theme.colors.muted }}>
-              ¿No tienes cuenta?{"   "}
-            </Text>
+             * ✅ ESTRUCTURA ESPEJO DEL HTML:
+             *
+             * HTML:  <div class="flex flex-col gap-8">   ← secciones separadas por 32px
+             *          <div>título</div>
+             *          <form class="flex flex-col gap-6"> ← campos separados por 24px
+             *            inputs + button
+             *          </form>
+             *        </div>
+             *
+             * RN:    <View gap-8>                         ← mismo gap-8 entre secciones
+             *          <View>título</View>
+             *          <View gap-6>                       ← mismo gap-6 entre campos
+             *            inputs + button
+             *          </View>
+             *        </View>
+             *
+             * ✅ FIX: max-w-md (448px) ≈ HTML max-w-[440px] (era max-w-xl = 576px)
+             * ✅ FIX: gap-8 externo (era todo gap-6 mezclado)
+             */}
+            <View className="w-full max-w-md flex flex-col gap-8">
+              {/* ── Sección título (sin mb extra; gap-8 del padre lo separa) ── */}
+              <View style={{ alignItems: "center" }}>
+                <ThemedText
+                  style={[styles.title, { color: theme.colors.text }]}
+                >
+                  Bienvenido de nuevo
+                </ThemedText>
+                <ThemedText
+                  style={[styles.subtitle, { color: theme.colors.muted }]}
+                >
+                  Ingresa tus credenciales para acceder
+                </ThemedText>
+              </View>
 
-            <Text
-              style={{ color: theme.colors.primary }}
-              className="font-bold"
-              onPress={() => router.push("/register")}
-            >
-              Regístrate
-            </Text>*/}
-          </Animated.View>
-          <Animated.View
-            entering={FadeInUp.delay(500).duration(400).springify()}
-            style={{
-              alignItems: "center",
-              marginTop: 18,
-            }}
-          >
-            <Text
-              style={{ color: theme.colors.primary }}
-              className="font-bold"
-              onPress={() => router.push("/forgot-password")}
-            >
-              ¿Olvidaste tu contraseña?
-            </Text>
-          </Animated.View>
+              {/*
+               * ── Sección form ──
+               * gap-6 = 24px entre campos, igual que HTML <form class="gap-6">
+               * AuthInput.marginBottom = 0, así que SOLO gap-6 controla el espacio
+               */}
+              <View className="flex flex-col gap-6">
+                <AuthInput
+                  label="USUARIO"
+                  value={form.usuario}
+                  onChangeText={handleChange("usuario")}
+                  onBlur={(e) => {
+                    handleBlur("usuario")();
+                    usernameFocused.value = false;
+                  }}
+                  onFocus={() => {
+                    usernameFocused.value = true;
+                  }}
+                  error={errors.usuario}
+                  autoCapitalize="none"
+                  maxLength={40}
+                  placeholder="Usuario, CI o correo"
+                  onSubmitEditing={handleSubmit} // ← ENTER → SUBMIT
+                />
+
+                <AuthInput
+                  label="CONTRASEÑA"
+                  value={form.password}
+                  onChangeText={handleChange("password")}
+                  onBlur={(e) => {
+                    handleBlur("password")();
+                    passwordFocused.value = false;
+                  }}
+                  onFocus={() => {
+                    passwordFocused.value = true;
+                  }}
+                  error={errors.password}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholder="••••••••"
+                  passwordVisible={isPasswordVisible}
+                  onTogglePasswordVisibility={() =>
+                    setIsPasswordVisible(!isPasswordVisible)
+                  }
+                  rightLabel={
+                    <ThemedText
+                      style={{
+                        color: theme.colors.primary,
+                        fontWeight: "600",
+                        fontSize: 11,
+                      }}
+                      onPress={() => router.push("/forgot-password")}
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </ThemedText>
+                  }
+                  onSubmitEditing={handleSubmit}
+                />
+
+                {serverError && (
+                  <ThemedText
+                    style={{
+                      color: theme.colors.destructive,
+                      fontSize: 13,
+                      textAlign: "center",
+                    }}
+                  >
+                    {serverError}
+                  </ThemedText>
+                )}
+
+                <SubmitButton
+                  title="Iniciar Sesión"
+                  onPress={handleSubmit}
+                  loading={submitting}
+                  disabled={!canSubmit}
+                />
+              </View>
+            </View>
+          </GlassCard>
         </View>
-      </View>
-    </KeyboardAwareScrollView>
+      </KeyboardAwareScrollView>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  mascotWrapper: {
+    width: 256,
+    height: 256,
+    alignSelf: "center",
+    marginBottom: -20,
+    zIndex: 10,
+    overflow: "visible",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  title: {
+    // HTML: text-headline-lg = 32px, weight 600, letterSpacing -0.02em
+    fontSize: 32,
+    fontWeight: "600",
+    letterSpacing: -0.5,
+    textAlign: "center",
+    marginBottom: 8, // HTML: mb-2 entre h1 y p
+  },
+  subtitle: {
+    // HTML: text-body-md = 16px
+    fontSize: 16,
+    textAlign: "center",
+  },
+});
