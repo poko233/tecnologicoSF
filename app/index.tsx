@@ -1,2 +1,2 @@
-import LandingScreen from "../screens/landing/LandingScreen";
-export default LandingScreen;
+import { QrScreen } from "../screens/qr/QrScreen";
+export default QrScreen;

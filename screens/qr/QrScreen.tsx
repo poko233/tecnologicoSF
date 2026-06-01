@@ -1,12 +1,15 @@
+// screens/qr/QrScreen.tsx
 import { useResponsive } from "@/hooks/useResponsive";
 import { useTheme } from "@/theme/useTheme";
+import { useRouter } from "expo-router";
 import { AnimatePresence } from "moti";
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AccessResultPanel } from "./components/AccessResultPanel";
@@ -18,10 +21,19 @@ export const QrScreen: React.FC = () => {
   const { theme } = useTheme();
   const { isDesktop } = useResponsive();
   const { result, error, loading, verify, reset } = useManualVerification();
+  const router = useRouter();
+
+  // Contador para forzar remontaje del input y limpiar sus campos
+  const [resetKey, setResetKey] = useState(0);
 
   const handleVerify = (mode: InputMode, value: string) => {
     verify(mode, value);
   };
+
+  const handleReset = useCallback(() => {
+    reset(); // limpia resultado y error
+    setResetKey((prev) => prev + 1); // provoca que CredentialInput se monte de nuevo
+  }, [reset]);
 
   return (
     <SafeAreaView
@@ -52,8 +64,12 @@ export const QrScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Input */}
-        <CredentialInput onVerify={handleVerify} loading={loading} />
+        {/* Input que se reinicia al cerrar el resultado */}
+        <CredentialInput
+          key={resetKey}
+          onVerify={handleVerify}
+          loading={loading}
+        />
 
         {/* Error */}
         {error && (
@@ -64,7 +80,7 @@ export const QrScreen: React.FC = () => {
               {error}
             </Text>
             <Text
-              onPress={reset}
+              onPress={handleReset}
               style={[styles.retryText, { color: theme.colors.primary }]}
             >
               Intentar de nuevo
@@ -79,10 +95,27 @@ export const QrScreen: React.FC = () => {
           <AccessResultPanel
             key={result.registro_id}
             data={result}
-            onDismiss={reset}
+            onDismiss={handleReset}
           />
         )}
       </AnimatePresence>
+
+      {/* Botón "Iniciar Sesión" en la esquina superior derecha */}
+      <TouchableOpacity
+        style={[styles.loginButton, { backgroundColor: theme.colors.primary }]}
+        onPress={() => router.push("/login")}
+        activeOpacity={0.8}
+      >
+        <Text
+          style={{
+            color: theme.colors.primaryForeground,
+            fontWeight: "700",
+            fontSize: 13,
+          }}
+        >
+          Iniciar Sesión
+        </Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -128,5 +161,19 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  loginButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

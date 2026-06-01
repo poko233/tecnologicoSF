@@ -1,14 +1,15 @@
 // screens/auth/components/Mascot.tsx
-import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import * as Haptics from "expo-haptics";
+import React, { useCallback, useEffect } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
+  Easing,
   SharedValue,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useTheme } from "../../../theme/useTheme";
@@ -92,7 +93,17 @@ export const Mascot: React.FC<MascotProps> = ({
   const armLeftRotate = useSharedValue(0);
   const armRightRotate = useSharedValue(0);
   const bodyTranslateY = useSharedValue(0);
-
+  // Saludo bajo demanda (clic en la mascota)
+  const triggerGreeting = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    armLeftRotate.value = withSequence(
+      withTiming(140, { duration: 300, easing: Easing.out(Easing.ease) }),
+      withTiming(100, { duration: 150, easing: Easing.inOut(Easing.ease) }),
+      withTiming(140, { duration: 150, easing: Easing.inOut(Easing.ease) }),
+      withTiming(100, { duration: 150, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) }),
+    );
+  }, [armLeftRotate]);
   // Respiración
   useEffect(() => {
     bodyTranslateY.value = withRepeat(
@@ -111,27 +122,33 @@ export const Mascot: React.FC<MascotProps> = ({
   // Saludo inicial
   useEffect(() => {
     const timer = setTimeout(() => {
-      armLeftRotate.value = withSequence(
-        withTiming(140, { duration: 300 }),
-        withTiming(100, { duration: 150 }),
-        withTiming(140, { duration: 150 }),
-        withTiming(100, { duration: 150 }),
-        withSpring(0, { damping: 18, stiffness: 200 }),
-      );
+      triggerGreeting();
     }, 500);
     return () => clearTimeout(timer);
-  }, [armLeftRotate]);
+  }, [triggerGreeting]);
 
   // Animación cubrirse los ojos (Modo privacidad)
   useEffect(() => {
     if (isPasswordVisible) {
-      armLeftRotate.value = withSpring(-145, { damping: 15, stiffness: 200 });
-      armRightRotate.value = withSpring(145, { damping: 15, stiffness: 200 });
+      armLeftRotate.value = withTiming(-145, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
+      armRightRotate.value = withTiming(145, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
       headTranslateY.value = withTiming(10, { duration: 300 });
       headScale.value = withTiming(0.95, { duration: 300 });
     } else {
-      armLeftRotate.value = withSpring(0, { damping: 15, stiffness: 200 });
-      armRightRotate.value = withSpring(0, { damping: 15, stiffness: 200 });
+      armLeftRotate.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
+      armRightRotate.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
       headTranslateY.value = withTiming(0, { duration: 300 });
       headScale.value = withTiming(1, { duration: 300 });
     }
@@ -183,7 +200,7 @@ export const Mascot: React.FC<MascotProps> = ({
   const dynamicArmZIndex = isPasswordVisible ? 40 : 20;
 
   return (
-    <View style={styles.container}>
+    <Pressable onPress={triggerGreeting} style={styles.container}>
       <Animated.View style={[styles.wrapper, wrapperStyle]}>
         {/* Brazo Izquierdo */}
         <Animated.View
@@ -270,7 +287,7 @@ export const Mascot: React.FC<MascotProps> = ({
           </View>
         </Animated.View>
       </Animated.View>
-    </View>
+    </Pressable>
   );
 };
 

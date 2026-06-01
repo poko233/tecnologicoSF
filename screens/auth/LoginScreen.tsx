@@ -41,10 +41,10 @@ export default function LoginScreen() {
       mascotRef.current.measureInWindow((x, y, width, height) => {
         const centerX = x + width / 2;
         const centerY = y + height / 2;
-        const moveX = (pageX - centerX) / 20;
-        const moveY = (pageY - centerY) / 20;
-        eyeOffsetX.value = Math.min(Math.max(moveX, -8), 8);
-        eyeOffsetY.value = Math.min(Math.max(moveY, -5), 5);
+        const moveX = (pageX - centerX) / 12;
+        const moveY = (pageY - centerY) / 12;
+        eyeOffsetX.value = Math.min(Math.max(moveX, -21), 21);
+        eyeOffsetY.value = Math.min(Math.max(moveY, -19), 19);
       });
     }
   };
