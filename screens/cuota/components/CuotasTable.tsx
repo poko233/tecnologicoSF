@@ -432,12 +432,27 @@ export const CuotasTable: React.FC<Props> = ({
                           </Text>
                         </Pressable>
                       ) : (
-                        <Pressable className="p-1">
+                        <Pressable
+                          onPress={() => {
+                            console.log("Ver recibo de cuota:", cuota.idCuota);
+                          }}
+                          className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                          }}
+                        >
                           <Ionicons
-                            name="eye-outline"
-                            size={18}
-                            color={theme.colors.primary}
+                            name="receipt-outline"
+                            size={14}
+                            color={theme.colors.textSecondary}
                           />
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{ color: theme.colors.textSecondary }}
+                          >
+                            Ver recibo
+                          </Text>
                         </Pressable>
                       )}
                     </View>
