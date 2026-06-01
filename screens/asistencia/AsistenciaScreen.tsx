@@ -373,6 +373,7 @@ export function AsistenciaScreen() {
                       selectedHorarioId={selectedHorarioId}
                       localState={localAttendanceState}
                       onUpdateLocal={updateLocalChange}
+                      onFinish={() => setViewMode("list")}
                     />
                   </MotiView>
                 )}

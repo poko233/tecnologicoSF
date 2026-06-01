@@ -36,11 +36,9 @@ export function ListModeView({
   const c = theme.colors;
   const listRef = useRef<FlatList>(null);
 
-  // Función para obtener el apellido (última palabra) para ordenar
   const getApellido = (nombreCompleto: string) => {
     const partes = nombreCompleto.trim().split(/\s+/);
     if (partes.length === 0) return "";
-    // La última palabra se considera apellido principal
     return partes[partes.length - 1].toLowerCase();
   };
 
@@ -62,6 +60,57 @@ export function ListModeView({
     return sorted;
   }, [estudiantesData.estudiantes, searchQuery, sortOrder]);
 
+  // LA CABECERA AHORA VIVE AQUÍ ADENTRO
+  const renderHeader = useCallback(
+    () => (
+      <View
+        style={[
+          styles.headerRow,
+          {
+            borderBottomColor: c.border,
+            backgroundColor: c.backgroundSecondary,
+            borderTopLeftRadius: 12,
+            borderTopRightRadius: 12,
+          },
+        ]}
+      >
+        <Pressable
+          onPress={onSortToggle}
+          style={[
+            styles.headerCell,
+            {
+              flex: 2,
+              paddingLeft: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            },
+          ]}
+        >
+          <Text style={[styles.headerText, { color: c.textSecondary }]}>
+            Estudiante
+          </Text>
+          {sortOrder === "asc" ? (
+            <ArrowUp size={12} color={c.textSecondary} />
+          ) : (
+            <ArrowDown size={12} color={c.textSecondary} />
+          )}
+        </Pressable>
+        <View style={[styles.headerCell, { flex: 2, alignItems: "center" }]}>
+          <Text style={[styles.headerText, { color: c.textSecondary }]}>
+            Estado
+          </Text>
+        </View>
+        <View style={[styles.headerCell, { flex: 3, paddingRight: 16 }]}>
+          <Text style={[styles.headerText, { color: c.textSecondary }]}>
+            Observación
+          </Text>
+        </View>
+      </View>
+    ),
+    [c, sortOrder, onSortToggle],
+  );
+
   const renderItem = useCallback(
     ({
       item,
@@ -82,17 +131,21 @@ export function ListModeView({
         local?.observacion ?? asistenciaHoy?.asistencia?.observacion ?? "";
 
       return (
-        <StudentRow
-          estudiante={item}
-          selectedHorarioId={selectedHorarioId}
-          currentStatus={currentStatus}
-          currentObservacion={currentObs}
-          onStatusChange={(tipo) => onUpdateLocal(item.id_inscripcion, tipo)}
-          onObservacionChange={(text) =>
-            onUpdateLocal(item.id_inscripcion, null, text)
-          }
-          index={index}
-        />
+        /* AQUÍ ESTÁ LA MAGIA: Solo al primer elemento (index === 0) le damos 
+           un margen superior para que el tooltip tenga espacio de respirar */
+        <View style={{ marginTop: index === 0 ? 7 : 0 }}>
+          <StudentRow
+            estudiante={item}
+            selectedHorarioId={selectedHorarioId}
+            currentStatus={currentStatus}
+            currentObservacion={currentObs}
+            onStatusChange={(tipo) => onUpdateLocal(item.id_inscripcion, tipo)}
+            onObservacionChange={(text) =>
+              onUpdateLocal(item.id_inscripcion, null, text)
+            }
+            index={index}
+          />
+        </View>
       );
     },
     [selectedHorarioId, localState, onUpdateLocal],
@@ -121,70 +174,23 @@ export function ListModeView({
             shadowOpacity: 0.06,
             shadowRadius: 6,
             elevation: 3,
+            // Quitamos el overflow: visible de aquí para que reviva el scroll
           },
         ]}
       >
-        {/* Cabeceras fijas (ahora con acción de ordenamiento) */}
-        <View
-          style={[
-            styles.headerRow,
-            {
-              borderBottomColor: c.border,
-              backgroundColor: c.backgroundSecondary,
-              borderTopLeftRadius: 12,
-              borderTopRightRadius: 12,
-            },
-          ]}
-        >
-          <Pressable
-            onPress={onSortToggle}
-            style={[
-              styles.headerCell,
-              {
-                flex: 2,
-                paddingLeft: 16,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-              },
-            ]}
-          >
-            <Text style={[styles.headerText, { color: c.textSecondary }]}>
-              Estudiante
-            </Text>
-            {sortOrder === "asc" ? (
-              <ArrowUp size={12} color={c.textSecondary} />
-            ) : (
-              <ArrowDown size={12} color={c.textSecondary} />
-            )}
-          </Pressable>
-          <View style={[styles.headerCell, { flex: 2, alignItems: "center" }]}>
-            <Text style={[styles.headerText, { color: c.textSecondary }]}>
-              Estado
-            </Text>
-          </View>
-          <View style={[styles.headerCell, { flex: 3, paddingRight: 16 }]}>
-            <Text style={[styles.headerText, { color: c.textSecondary }]}>
-              Observación
-            </Text>
-          </View>
-        </View>
-
         <FlatList
           ref={listRef}
           data={sortedAndFiltered}
           keyExtractor={(item) => item.id_inscripcion.toString()}
+          /* EL TRUCO MAESTRO: La cabecera adentro de la lista y pegajosa */
+          ListHeaderComponent={renderHeader}
+          stickyHeaderIndices={[0]}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={true}
           initialNumToRender={20}
           windowSize={10}
-          removeClippedSubviews={true}
-          getItemLayout={(_, index) => ({
-            length: 65,
-            offset: 65 * index,
-            index,
-          })}
+          removeClippedSubviews={false} // Mantener en false para que los tooltips no desaparezcan raramente
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
         />

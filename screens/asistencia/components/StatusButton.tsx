@@ -57,7 +57,11 @@ export function StatusButton({
       : {};
 
   return (
-    <View style={styles.wrapper} {...hoverHandlers} {...longPressHandlers}>
+    <View
+      style={[styles.wrapper, { zIndex: hovered ? 99999 : 1 }]}
+      {...hoverHandlers}
+      {...longPressHandlers}
+    >
       {hovered && (
         <Animated.View
           entering={FadeIn.duration(150)}
@@ -85,7 +89,7 @@ export function StatusButton({
 const styles = StyleSheet.create({
   wrapper: {
     position: "relative",
-    zIndex: 50,
+    overflow: "visible", // CLAVE 2: No cortar nada
   },
   button: {
     width: 32,
@@ -97,13 +101,13 @@ const styles = StyleSheet.create({
   tooltip: {
     position: "absolute",
     bottom: "100%",
-    marginBottom: 8,
+    marginBottom: 6,
     alignSelf: "center",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    zIndex: 9999,
-    elevation: 10,
+    zIndex: 999999, // CLAVE 3: Z-Index extremo
+    elevation: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

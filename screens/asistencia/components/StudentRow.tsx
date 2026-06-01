@@ -20,7 +20,6 @@ interface Props {
   index: number;
 }
 
-// Formatea "Nombres Apellidos" → "Apellido Nombres" (última palabra como apellido)
 const formatNombreApellido = (nombreCompleto: string): string => {
   const partes = nombreCompleto.trim().split(/\s+/);
   if (partes.length <= 1) return nombreCompleto;
@@ -83,7 +82,7 @@ export function StudentRow({
         </View>
       </View>
 
-      {/* Columna Estado (botones centrados) */}
+      {/* Columna Estado */}
       <View style={styles.statusColumn}>
         <StatusButtonGroup
           selectedTipo={currentStatus}
@@ -109,6 +108,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
+    overflow: "visible", // CLAVE 4: La fila debe ser visible
+    zIndex: 1,
   },
   studentColumn: {
     flex: 2,
@@ -138,6 +139,8 @@ const styles = StyleSheet.create({
     flex: 2,
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 999, // CLAVE 5: Permitir que sobresalga
+    overflow: "visible",
   },
   obsColumn: {
     flex: 3,

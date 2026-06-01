@@ -1,9 +1,10 @@
 import { useTheme } from "@/theme/useTheme";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -21,12 +22,14 @@ interface Props {
     tipo: AsistenciaTipo | null,
     observacion?: string,
   ) => void;
+  onFinish?: () => void;
 }
 
 export function QuickModeView({
   estudiantesData,
   localState,
   onUpdateLocal,
+  onFinish,
 }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -34,9 +37,20 @@ export function QuickModeView({
   const [animatingIds, setAnimatingIds] = useState<Set<number>>(new Set());
   const [triggerMap, setTriggerMap] = useState<Record<number, string>>({});
 
+  // Corregido: TypeScript ahora entiende correctamente el tipo de temporizador y su valor inicial nulo
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const currentSwipeDirection = useSharedValue<
     "right" | "left" | "up" | "down" | null
   >(null);
+
+  const manualSwipeDirection = useSharedValue<
+    "right" | "left" | "up" | "down" | null
+  >(null);
+
+  const activeDirection = useDerivedValue(() => {
+    return manualSwipeDirection.value || currentSwipeDirection.value;
+  });
 
   const handleAction = useCallback(
     (direction: "right" | "left" | "up" | "down", isManual: boolean) => {
@@ -73,6 +87,14 @@ export function QuickModeView({
           ...prev,
           [estudiante.id_inscripcion]: direction,
         }));
+
+        manualSwipeDirection.value = direction;
+
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+        timeoutRef.current = setTimeout(() => {
+          manualSwipeDirection.value = null;
+        }, 700);
       }
 
       setActiveIndex((prev) => prev + 1);
@@ -92,50 +114,47 @@ export function QuickModeView({
     activeIndex >= estudiantesData.estudiantes.length &&
     animatingIds.size === 0;
 
-  // 👇 Configuración de los semicírculos (deslizan desde fuera de la pantalla 140px hacia adentro)
+  // Ajustamos las distancias de traducción a 200 para esconder los arcos más grandes
   const config = { duration: 250 };
   const gradRightStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(
-      currentSwipeDirection.value === "right" ? 1 : 0,
-      config,
-    ),
+    opacity: withTiming(activeDirection.value === "right" ? 1 : 0, config),
     transform: [
       {
         translateX: withTiming(
-          currentSwipeDirection.value === "right" ? 0 : 140,
+          activeDirection.value === "right" ? 0 : 200,
           config,
         ),
       },
     ],
   }));
   const gradLeftStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(currentSwipeDirection.value === "left" ? 1 : 0, config),
+    opacity: withTiming(activeDirection.value === "left" ? 1 : 0, config),
     transform: [
       {
         translateX: withTiming(
-          currentSwipeDirection.value === "left" ? 0 : -140,
+          activeDirection.value === "left" ? 0 : -200,
           config,
         ),
       },
     ],
   }));
   const gradUpStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(currentSwipeDirection.value === "up" ? 1 : 0, config),
+    opacity: withTiming(activeDirection.value === "up" ? 1 : 0, config),
     transform: [
       {
         translateY: withTiming(
-          currentSwipeDirection.value === "up" ? 0 : -140,
+          activeDirection.value === "up" ? 0 : -200,
           config,
         ),
       },
     ],
   }));
   const gradDownStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(currentSwipeDirection.value === "down" ? 1 : 0, config),
+    opacity: withTiming(activeDirection.value === "down" ? 1 : 0, config),
     transform: [
       {
         translateY: withTiming(
-          currentSwipeDirection.value === "down" ? 0 : 140,
+          activeDirection.value === "down" ? 0 : 200,
           config,
         ),
       },
@@ -143,13 +162,8 @@ export function QuickModeView({
   }));
 
   if (isFinished) {
-    return (
-      <View style={styles.empty}>
-        <Text style={{ color: c.textSecondary, fontSize: 16 }}>
-          No hay estudiantes para mostrar.
-        </Text>
-      </View>
-    );
+    onFinish?.();
+    return null; // o podrías mostrar un loader, pero mejor retornar null inmediatamente
   }
 
   const cardsToRender = [...estudiantesData.estudiantes]
@@ -218,8 +232,6 @@ export function QuickModeView({
       </View>
 
       <QuickControls onAction={(dir) => handleAction(dir, true)} />
-
-      {/* 👇 GRANDES SEMICÍRCULOS INDICADORES EN LOS BORDES DEL CONTENEDOR 👇 */}
 
       {/* DERECHA (PRESENTE) */}
       <Animated.View
@@ -308,7 +320,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 20,
-    overflow: "hidden", // Para que no sobresalgan los indicadores al ocultarse
+    overflow: "hidden",
   },
   cardArea: {
     width: "100%",
@@ -337,32 +349,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 30,
   },
-
-  // 👇 ESTILOS PARA LA FORMA DE LOS SEMICÍRCULOS
+  /* --- ESTILOS DE ARCOS ALARGADOS --- */
   indicatorRight: {
     position: "absolute",
     right: 0,
     top: "50%",
-    marginTop: -140, // la mitad del height
-    width: 140,
-    height: 280,
-    borderTopLeftRadius: 280,
-    borderBottomLeftRadius: 280,
+    marginTop: -300, // Mitad del height
+    width: 180, // Más ancho
+    height: 600, // Mucho más alto para crear un arco suave
+    borderTopLeftRadius: 300,
+    borderBottomLeftRadius: 300,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
-    paddingLeft: 20, // Empuja el texto hacia el borde
+    paddingLeft: 20,
   },
   indicatorLeft: {
     position: "absolute",
     left: 0,
     top: "50%",
-    marginTop: -140,
-    width: 140,
-    height: 280,
-    borderTopRightRadius: 280,
-    borderBottomRightRadius: 280,
+    marginTop: -300,
+    width: 180,
+    height: 600,
+    borderTopRightRadius: 300,
+    borderBottomRightRadius: 300,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
@@ -373,11 +384,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: "50%",
-    marginLeft: -140, // la mitad del width
-    width: 280,
-    height: 140,
-    borderBottomLeftRadius: 280,
-    borderBottomRightRadius: 280,
+    marginLeft: -300,
+    width: 600,
+    height: 180,
+    borderBottomLeftRadius: 300,
+    borderBottomRightRadius: 300,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
@@ -388,11 +399,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     left: "50%",
-    marginLeft: -140,
-    width: 280,
-    height: 140,
-    borderTopLeftRadius: 280,
-    borderTopRightRadius: 280,
+    marginLeft: -300,
+    width: 600,
+    height: 180,
+    borderTopLeftRadius: 300,
+    borderTopRightRadius: 300,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
