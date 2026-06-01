@@ -67,8 +67,10 @@ export const QrProfileCard = () => {
       transition={{ type: "spring", damping: 20, stiffness: 180, delay: 150 }}
       style={styles.card}
     >
-      <Text style={styles.title}>Identidad Digital</Text>
-      <Text style={styles.subtitle}>Acceso rápido a campus y bibliotecas.</Text>
+      <Text style={styles.title}>Credencial Digital</Text>
+      <Text style={styles.subtitle}>
+        Acceso al instituto y sus instalaciones.
+      </Text>
       <Image
         source={{ uri: codigoQr }}
         style={styles.qrImage}
@@ -81,7 +83,7 @@ export const QrProfileCard = () => {
         onPress={handleDownload}
       >
         <Download size={16} color={theme.colors.text} />
-        <Text style={styles.downloadText}>Descargar ID Digital</Text>
+        <Text style={styles.downloadText}>Descargar credencial</Text>
       </TouchableOpacity>
     </MotiView>
   );
