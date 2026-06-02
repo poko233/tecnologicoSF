@@ -1,24 +1,22 @@
-// utils/qrCrypto.ts
 import CryptoJS from "crypto-js";
+import Constants from "expo-constants";
 
-const QR_KEY = process.env.EXPO_PUBLIC_QR_SECRET_KEY;
+// Primero intenta leer la variable de entorno (útil en desarrollo),
+// si no existe, toma la clave desde app.json -> expo.extra.QR_SECRET_KEY
+const QR_KEY =
+  process.env.EXPO_PUBLIC_QR_SECRET_KEY ||
+  Constants.expoConfig?.extra?.QR_SECRET_KEY;
 
 if (!QR_KEY) {
-  console.warn("EXPO_PUBLIC_QR_SECRET_KEY no definida");
+  console.warn(
+    "EXPO_PUBLIC_QR_SECRET_KEY no definida ni en .env ni en app.json extra",
+  );
 }
 
-/**
- * Convierte string hexadecimal a WordArray (formato de crypto-js)
- */
 function hexToWordArray(hex: string): CryptoJS.lib.WordArray {
   return CryptoJS.enc.Hex.parse(hex);
 }
 
-/**
- * Desencripta el dato QR recibido del escaneo.
- * Formato esperado: base64(iv) + ":" + base64(ciphertext)
- * @returns El user_id como número, o null si falla.
- */
 export function decryptQrData(qrData: string): number | null {
   try {
     const parts = qrData.split(":");
@@ -33,10 +31,12 @@ export function decryptQrData(qrData: string): number | null {
     const iv = CryptoJS.enc.Base64.parse(ivBase64);
     const ciphertext = CryptoJS.enc.Base64.parse(ciphertextBase64);
 
-    const keyWordArray = hexToWordArray(QR_KEY!);
+    if (!QR_KEY) return null;
+
+    const keyWordArray = hexToWordArray(QR_KEY);
 
     const decrypted = CryptoJS.AES.decrypt(
-      { ciphertext: ciphertext } as any, // crypto-js espera un objeto CipherParams
+      { ciphertext: ciphertext } as any,
       keyWordArray,
       {
         iv: iv,
@@ -46,9 +46,7 @@ export function decryptQrData(qrData: string): number | null {
     );
 
     const jsonString = decrypted.toString(CryptoJS.enc.Utf8);
-    if (!jsonString) {
-      return null;
-    }
+    if (!jsonString) return null;
 
     const payload = JSON.parse(jsonString);
     if (payload.user_id && typeof payload.user_id === "number") {
