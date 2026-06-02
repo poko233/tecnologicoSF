@@ -57,6 +57,7 @@ export default function PasoDocumentacion({
   const totalDocumentos = DOCUMENTOS_REQUERIDOS.length;
 
   const todosCargados = documentosCargados === totalDocumentos;
+  const algunoCargado = documentosCargados > 0;
 
   return (
     <View style={{ gap: 24 }}>
@@ -78,7 +79,8 @@ export default function PasoDocumentacion({
             fontWeight: "600",
           }}
         >
-          Sube los documentos requeridos para completar la inscripción.
+          Sube los documentos disponibles. Puedes finalizar la inscripción aunque
+          falten documentos.
         </ThemedText>
       </View>
 
@@ -101,9 +103,19 @@ export default function PasoDocumentacion({
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Ionicons
-            name={todosCargados ? "checkmark-circle" : "document-text-outline"}
+            name={
+              todosCargados
+                ? "checkmark-circle"
+                : algunoCargado
+                ? "cloud-done-outline"
+                : "document-text-outline"
+            }
             size={24}
-            color={todosCargados ? theme.colors.primary : theme.colors.muted}
+            color={
+              todosCargados || algunoCargado
+                ? theme.colors.primary
+                : theme.colors.muted
+            }
           />
 
           <View>
@@ -125,8 +137,8 @@ export default function PasoDocumentacion({
               }}
             >
               {todosCargados
-                ? "Todo listo para continuar."
-                : "Faltan documentos por cargar."}
+                ? "Todos los documentos fueron cargados."
+                : "La inscripción puede finalizarse y los documentos faltantes pueden completarse después."}
             </ThemedText>
           </View>
         </View>
@@ -181,8 +193,8 @@ export default function PasoDocumentacion({
             lineHeight: 20,
           }}
         >
-          Una vez finalizada la carga, el departamento de control escolar
-          revisará los documentos.
+          El departamento de control escolar podrá revisar los documentos
+          cargados y solicitar los faltantes posteriormente.
         </ThemedText>
       </View>
 
@@ -222,7 +234,6 @@ export default function PasoDocumentacion({
 
         <Pressable
           onPress={onFinish}
-          disabled={!todosCargados}
           style={{
             height: 52,
             paddingHorizontal: 24,
@@ -232,7 +243,7 @@ export default function PasoDocumentacion({
             alignItems: "center",
             flexDirection: "row",
             gap: 8,
-            opacity: todosCargados ? 1 : 0.5,
+            opacity: 1,
           }}
         >
           <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />

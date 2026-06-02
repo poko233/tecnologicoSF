@@ -56,6 +56,19 @@ export default function DocumentoCard({
     setMimeType(documentoLocal?.mimeType ?? null);
   }, [documentoLocal]);
 
+  const limpiarDocumentoLocal = () => {
+    setArchivoNombre(null);
+    setPreviewUri(null);
+    setMimeType(null);
+
+    onDocumentoChange({
+      nombreDocumento: titulo,
+      archivoNombre: null,
+      previewUri: null,
+      mimeType: null,
+    });
+  };
+
   const abrirArchivoCompleto = () => {
     if (!previewUri) return;
 
@@ -77,6 +90,8 @@ export default function DocumentoCard({
 
       if (result.canceled) return;
 
+      limpiarDocumentoLocal();
+
       const archivo = result.assets[0];
 
       const documentoGuardado: DocumentoLocal = {
@@ -85,12 +100,6 @@ export default function DocumentoCard({
         previewUri: archivo.uri,
         mimeType: archivo.mimeType ?? null,
       };
-
-      setArchivoNombre(documentoGuardado.archivoNombre);
-      setPreviewUri(documentoGuardado.previewUri);
-      setMimeType(documentoGuardado.mimeType);
-
-      onDocumentoChange(documentoGuardado);
 
       const formData = new FormData();
 
@@ -123,6 +132,12 @@ export default function DocumentoCard({
 
       await httpClient.postFormData("/api/documentos-estudiante", formData);
 
+      setArchivoNombre(documentoGuardado.archivoNombre);
+      setPreviewUri(documentoGuardado.previewUri);
+      setMimeType(documentoGuardado.mimeType);
+
+      onDocumentoChange(documentoGuardado);
+
       Toast.show({
         type: "success",
         text1: "Documento subido",
@@ -130,6 +145,8 @@ export default function DocumentoCard({
       });
     } catch (error) {
       console.error(error);
+
+      limpiarDocumentoLocal();
 
       Toast.show({
         type: "error",
@@ -382,7 +399,9 @@ export default function DocumentoCard({
         ) : (
           <>
             <Ionicons
-              name={existeArchivo ? "refresh-circle-outline" : "add-circle-outline"}
+              name={
+                existeArchivo ? "refresh-circle-outline" : "add-circle-outline"
+              }
               size={20}
               color="#fff"
             />

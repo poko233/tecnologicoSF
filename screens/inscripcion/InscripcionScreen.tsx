@@ -16,7 +16,7 @@ import FormDateInput from "./components/FormDateInput";
 import FormInput from "./components/FormInput";
 import FormSelect from "./components/FormSelect";
 import NavigationButtons from "./components/NavigationButtons";
-import PasoAcademico from "./components/PasoAcademico";
+import PasoCuotas from "./components/PasoCuotas";
 import PasoDocumentacion from "./components/PasoDocumentacion";
 import PasoFinalizar from "./components/PasoFinalizar";
 import ReferenceSection from "./components/ReferenceSection";
@@ -307,7 +307,7 @@ export default function InscripcionScreen() {
           : "Estudiante registrado",
         text2: idEstudiante
           ? "Los datos fueron actualizados correctamente."
-          : "Ahora selecciona carrera y grupos.",
+          : "Ahora gestiona las cuotas.",
       });
 
     } catch (error: any) {
@@ -477,7 +477,7 @@ export default function InscripcionScreen() {
             "Datos del Estudiante"}
 
           {step === 2 &&
-            "Inscripción Académica"}
+            "Gestion de Cuotas"}
 
           {step === 3 &&
             "Carga de Documentos"}
@@ -788,27 +788,15 @@ export default function InscripcionScreen() {
         </View>
       )}
 
-      {step === 2 &&
-        idEstudiante && (
-          <PasoAcademico
-            idEstudiante={
-              idEstudiante
-            }
-            gruposSeleccionados={
-              form.gruposSeleccionados
-            }
-            setGruposSeleccionados={
-              setGruposSeleccionados
-            }
-            onFinish={() => {
-              setMaxStepReached((prev) =>
-                Math.max(prev, 3)
-              );
-
-              setStep(3);
-            }}
-          />
-        )}
+     {step === 2 && idEstudiante && (
+  <PasoCuotas
+    idEstudiante={idEstudiante}
+    onFinish={() => {
+      setMaxStepReached((prev) => Math.max(prev, 3));
+      setStep(3);
+    }}
+  />
+)}
 
       {step === 3 &&
         idEstudiante && (

@@ -11,7 +11,7 @@ type Props = {
 
 const steps = [
   { id: 1, label: "Datos" },
-  { id: 2, label: "Académico" },
+  { id: 2, label: "Cuotas" },
   { id: 3, label: "Documentos" },
   { id: 4, label: "Finalizar" },
 ];
