@@ -1,5 +1,4 @@
 // screens/cuota/GestionCuotaScreen.tsx
-import { ThemeSelector } from "@/components/ThemeSelector";
 import React, { useCallback, useRef, useState } from "react";
 import {
   LayoutChangeEvent,
@@ -153,7 +152,6 @@ export default function GestionCuotaScreen() {
         <View
           className={`${isMobile ? "flex-col gap-4" : "flex-row justify-between items-center"}`}
         >
-          <ThemeSelector />
           <View>
             <Text
               className="text-2xl md:text-3xl font-bold"

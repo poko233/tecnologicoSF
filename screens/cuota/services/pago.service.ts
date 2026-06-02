@@ -1,5 +1,6 @@
 // screens/cuota/services/pago.service.ts
-import { httpClient } from "../../../http/httpClient";
+import { Linking } from "react-native";
+import { BASE_URL, httpClient } from "../../../http/httpClient";
 import { Pago } from "../types/pago.types";
 
 const API_PAGOS = "/api/pagos";
@@ -41,5 +42,13 @@ export const pagoService = {
       message: string;
       data: Pago;
     }>(API_PAGOS, payload);
+  },
+  verRecibo: async (idPago: number): Promise<void> => {
+    const url = `${BASE_URL}/api/pagos/${idPago}/recibo`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      throw { message: "No se puede abrir el recibo en este dispositivo." };
+    }
+    await Linking.openURL(url);
   },
 };
