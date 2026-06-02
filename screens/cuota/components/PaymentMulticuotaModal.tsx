@@ -6,6 +6,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -14,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useResponsive } from "../../../hooks/useResponsive";
+import { BASE_URL } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 import { pagoService } from "../services/pago.service";
 import { Cuota } from "../types/cuota.types";
@@ -59,7 +61,7 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
     if (cuotas.length === 0) return;
     setLoading(true);
     try {
-      await pagoService.registrarPago({
+      const response = await pagoService.registrarPago({
         idUsuario,
         cuotas: cuotas.map((c) => c.idCuota),
         metodo,
@@ -67,9 +69,19 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
         comprobante: comprobante || undefined,
         observacion: observacion || undefined,
       });
+
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+
+      const idPago = (response?.data as any)?.id || (response?.data as any)?.idPago;
+      if (idPago) {
+        const reciboUrl = `${BASE_URL}/api/pagos/${idPago}/recibo`;
+        Linking.openURL(reciboUrl).catch(() => {
+          console.warn("No se pudo abrir el recibo");
+        });
+      }
+
       onPaymentSuccess();
       onClose();
     } catch (_) {

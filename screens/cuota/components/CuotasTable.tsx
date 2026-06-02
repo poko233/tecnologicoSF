@@ -15,6 +15,7 @@ import {
   filterCuotasBySequentialSemester,
   getSequentialSemestersFromCuotas,
 } from "../../../utils/semesterHelpers";
+import { pagoService } from "../services/pago.service";
 import { CarreraInscrita, Cuota } from "../types/cuota.types";
 import { FilterDropdown } from "./FilterDropdown";
 import { FilterGroup } from "./FilterGroup";
@@ -40,6 +41,7 @@ export const CuotasTable: React.FC<Props> = ({
   const { theme } = useTheme();
   const [selectedCuotas, setSelectedCuotas] = useState<Set<number>>(new Set());
   const [modalVisible, setModalVisible] = useState(false);
+  const [cuotasDirectas, setCuotasDirectas] = useState<Cuota[] | null>(null);
 
   // Filtros
   const [filterYear, setFilterYear] = useState<string>("todos");
@@ -124,10 +126,10 @@ export const CuotasTable: React.FC<Props> = ({
     onRefresh();
   };
 
-  const cuotasParaPagar = useMemo(
-    () => filteredCuotas.filter((c) => selectedCuotas.has(c.idCuota)),
-    [filteredCuotas, selectedCuotas],
-  );
+  const cuotasParaPagar = useMemo(() => {
+    if (cuotasDirectas !== null) return cuotasDirectas;
+    return filteredCuotas.filter((c) => selectedCuotas.has(c.idCuota));
+  }, [filteredCuotas, selectedCuotas, cuotasDirectas]);
 
   if (!carrera) return null;
 
@@ -433,8 +435,37 @@ export const CuotasTable: React.FC<Props> = ({
                         </Pressable>
                       ) : (
                         <Pressable
-                          onPress={() => {
-                            console.log("Ver recibo de cuota:", cuota.idCuota);
+                          onPress={async () => {
+                            try {
+                              let idPago = (cuota as any).idPago || (cuota as any).id_pago || (cuota as any).pago_id;
+                              if (!idPago) {
+                                const response = await pagoService.getPagos({
+                                  idUsuario: selectedStudentId,
+                                  per_page: 50,
+                                });
+
+                                if (response.success && response.data?.data) {
+                                  const pagoMatch = response.data.data.find((p: any) => {
+                                    if (Array.isArray(p.cuotas)) {
+                                      return p.cuotas.some((c: any) => c.idCuota === cuota.idCuota || c === cuota.idCuota);
+                                    }
+                                    return p.idPago === cuota.idCuota || p.id === cuota.idCuota;
+                                  });
+
+                                  if (pagoMatch) {
+                                    idPago = pagoMatch.id || pagoMatch.idPago;
+                                  }
+                                }
+                              }
+
+                              if (idPago) {
+                                pagoService.verRecibo(idPago);
+                              } else {
+                                alert("Transacción en proceso: El ID del recibo aún no está sincronizado.");
+                              }
+                            } catch (error) {
+                              console.error("Error al buscar el recibo del pago:", error);
+                            }
                           }}
                           className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg"
                           style={{
@@ -475,7 +506,10 @@ export const CuotasTable: React.FC<Props> = ({
         visible={modalVisible}
         cuotas={cuotasParaPagar}
         idUsuario={selectedStudentId}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          setCuotasDirectas(null); 
+        }}
         onPaymentSuccess={handlePaymentSuccess}
       />
     </>
