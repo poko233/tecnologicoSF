@@ -1,4 +1,4 @@
-// screens/cuota/components/CuotasTable.tsx (modificado con selección múltiple)
+// screens/cuota/components/CuotasTable.tsx
 import { useResponsive } from "@/hooks/useResponsive";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
@@ -27,7 +27,6 @@ interface Props {
   loading: boolean;
   carrera: CarreraInscrita | null;
   onRefresh: () => void;
-  // Propiedades adicionales para la integración con la pantalla principal
   selectedStudentId: number;
 }
 
@@ -39,16 +38,13 @@ export const CuotasTable: React.FC<Props> = ({
   selectedStudentId,
 }) => {
   const { theme } = useTheme();
-  const [selectedCuotas, setSelectedCuotas] = useState<Set<number>>(new Set());
   const [modalVisible, setModalVisible] = useState(false);
-  const [cuotasDirectas, setCuotasDirectas] = useState<Cuota[] | null>(null);
+  const [cuotaSeleccionada, setCuotaSeleccionada] = useState<Cuota | null>(null);
 
   // Filtros
   const [filterYear, setFilterYear] = useState<string>("todos");
   const [filterType, setFilterType] = useState<string>("todos");
-  const [sequentialSemester, setSequentialSemester] = useState<
-    number | "todos"
-  >("todos");
+  const [sequentialSemester, setSequentialSemester] = useState<number | "todos">("todos");
   const { isMobile } = useResponsive();
 
   // Años disponibles
@@ -60,7 +56,7 @@ export const CuotasTable: React.FC<Props> = ({
     return Array.from(yearsSet).sort();
   }, [cuotas]);
 
-  // Opciones de semestre para régimen semestral
+  // Opciones de semestre
   const semesterOptions = useMemo(() => {
     if (!carrera || carrera.regimen !== "Semestral") return [];
     return getSequentialSemestersFromCuotas(cuotas, carrera.cuotas_por_anio);
@@ -72,7 +68,6 @@ export const CuotasTable: React.FC<Props> = ({
     filtered.sort((a, b) =>
       (a.fecha_vencimiento || "").localeCompare(b.fecha_vencimiento || ""),
     );
-
     if (filterYear !== "todos") {
       filtered = filtered.filter((c) =>
         c.fecha_vencimiento?.startsWith(filterYear),
@@ -108,28 +103,10 @@ export const CuotasTable: React.FC<Props> = ({
     return cuota.fecha_vencimiento < today;
   };
 
-  const toggleCuotaSelection = (idCuota: number) => {
-    setSelectedCuotas((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(idCuota)) newSet.delete(idCuota);
-      else newSet.add(idCuota);
-      return newSet;
-    });
-  };
-
-  const handleOpenPaymentModal = () => {
-    setModalVisible(true);
-  };
-
   const handlePaymentSuccess = () => {
-    setSelectedCuotas(new Set());
+    setCuotaSeleccionada(null);
     onRefresh();
   };
-
-  const cuotasParaPagar = useMemo(() => {
-    if (cuotasDirectas !== null) return cuotasDirectas;
-    return filteredCuotas.filter((c) => selectedCuotas.has(c.idCuota));
-  }, [filteredCuotas, selectedCuotas, cuotasDirectas]);
 
   if (!carrera) return null;
 
@@ -186,20 +163,6 @@ export const CuotasTable: React.FC<Props> = ({
               onChange={setFilterType}
             />
           </View>
-          {/* Botón para abrir pago múltiple */}
-          {selectedCuotas.size > 0 && (
-            <Pressable
-              onPress={handleOpenPaymentModal}
-              className="flex-row items-center gap-2 px-4 py-2 rounded-full"
-              style={{ backgroundColor: theme.colors.primary }}
-            >
-              <Ionicons name="wallet-outline" size={16} color="white" />
-              <Text className="text-white font-bold text-sm">
-                Pagar {selectedCuotas.size} cuota
-                {selectedCuotas.size > 1 ? "s" : ""}
-              </Text>
-            </Pressable>
-          )}
         </View>
 
         {loading ? (
@@ -222,7 +185,6 @@ export const CuotasTable: React.FC<Props> = ({
                   borderColor: theme.colors.border,
                 }}
               >
-                <View className="w-10" />
                 <View className="flex-[2.5]">
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider"
@@ -264,57 +226,26 @@ export const CuotasTable: React.FC<Props> = ({
                   </Text>
                 </View>
               </View>
+
               {filteredCuotas.map((cuota) => {
                 const overdue = isOverdue(cuota);
-                const isSelected = selectedCuotas.has(cuota.idCuota);
                 const isPending = cuota.estadoCuota === "Debe";
 
                 return (
-                  <Pressable
+                  <View
                     key={cuota.idCuota}
-                    disabled={!isPending}
-                    onPress={() => toggleCuotaSelection(cuota.idCuota)}
-                    className={`flex-row py-3.5 px-4 border-b`}
+                    className="flex-row py-3.5 px-4 border-b"
                     style={{
                       borderColor: theme.colors.border,
-                      backgroundColor: isSelected
-                        ? theme.colors.primary + "12"
-                        : overdue
-                          ? theme.colors.destructive + "15"
-                          : theme.colors.card,
+                      backgroundColor: overdue
+                        ? theme.colors.destructive + "15"
+                        : theme.colors.card,
                       borderLeftWidth: 4,
-                      borderLeftColor: isSelected
-                        ? theme.colors.primary
-                        : overdue
-                          ? theme.colors.destructive
-                          : "transparent",
+                      borderLeftColor: overdue
+                        ? theme.colors.destructive
+                        : "transparent",
                     }}
                   >
-                    {/* Checkbox de selección (solo cuotas pendientes) */}
-                    <View className="w-10 justify-center items-center">
-                      {isPending && (
-                        <View
-                          className="w-5 h-5 rounded border items-center justify-center"
-                          style={{
-                            borderColor: isSelected
-                              ? theme.colors.primary
-                              : theme.colors.border,
-                            backgroundColor: isSelected
-                              ? theme.colors.primary
-                              : "transparent",
-                          }}
-                        >
-                          {isSelected && (
-                            <Ionicons
-                              name="checkmark"
-                              size={14}
-                              color="white"
-                            />
-                          )}
-                        </View>
-                      )}
-                    </View>
-
                     <View className="flex-[2.5] flex-row items-center gap-2">
                       <Ionicons
                         name={
@@ -326,11 +257,9 @@ export const CuotasTable: React.FC<Props> = ({
                         }
                         size={16}
                         color={
-                          isSelected
-                            ? theme.colors.primary
-                            : overdue
-                              ? theme.colors.destructive
-                              : theme.colors.textTertiary
+                          overdue
+                            ? theme.colors.destructive
+                            : theme.colors.textTertiary
                         }
                       />
                       <Text
@@ -342,6 +271,7 @@ export const CuotasTable: React.FC<Props> = ({
                           : `Mensualidad ${cuota.numeroCuota}`}
                       </Text>
                     </View>
+
                     <View className="flex-[1.5] justify-center">
                       <Text
                         className="text-sm"
@@ -354,6 +284,7 @@ export const CuotasTable: React.FC<Props> = ({
                         {formatDisplayDate(cuota.fecha_vencimiento)}
                       </Text>
                     </View>
+
                     <View className="flex-[1.5] items-end justify-center">
                       <Text
                         className="text-sm font-bold"
@@ -362,6 +293,7 @@ export const CuotasTable: React.FC<Props> = ({
                         {cuota.monto.toFixed(2)}
                       </Text>
                     </View>
+
                     <View className="flex-[1.5] items-center justify-center">
                       <View
                         className="px-2 py-1 rounded-full flex-row items-center gap-1"
@@ -404,13 +336,12 @@ export const CuotasTable: React.FC<Props> = ({
                         </Text>
                       </View>
                     </View>
+
                     <View className="flex-[1.5] items-end justify-center">
                       {isPending ? (
                         <Pressable
-                          onPress={(e) => {
-                            // Detener propagación para que no dispare el toggle al hacer click en el botón de pago
-                            e.stopPropagation();
-                            setSelectedCuotas(new Set([cuota.idCuota]));
+                          onPress={() => {
+                            setCuotaSeleccionada(cuota);
                             setModalVisible(true);
                           }}
                           className="px-3 py-1.5 rounded-lg"
@@ -437,34 +368,48 @@ export const CuotasTable: React.FC<Props> = ({
                         <Pressable
                           onPress={async () => {
                             try {
-                              let idPago = (cuota as any).idPago || (cuota as any).id_pago || (cuota as any).pago_id;
+                              let idPago =
+                                (cuota as any).idPago ||
+                                (cuota as any).id_pago ||
+                                (cuota as any).pago_id;
                               if (!idPago) {
                                 const response = await pagoService.getPagos({
                                   idUsuario: selectedStudentId,
                                   per_page: 50,
                                 });
-
                                 if (response.success && response.data?.data) {
-                                  const pagoMatch = response.data.data.find((p: any) => {
-                                    if (Array.isArray(p.cuotas)) {
-                                      return p.cuotas.some((c: any) => c.idCuota === cuota.idCuota || c === cuota.idCuota);
-                                    }
-                                    return p.idPago === cuota.idCuota || p.id === cuota.idCuota;
-                                  });
-
+                                  const pagoMatch = response.data.data.find(
+                                    (p: any) => {
+                                      if (Array.isArray(p.cuotas)) {
+                                        return p.cuotas.some(
+                                          (c: any) =>
+                                            c.idCuota === cuota.idCuota ||
+                                            c === cuota.idCuota,
+                                        );
+                                      }
+                                      return (
+                                        p.idPago === cuota.idCuota ||
+                                        p.id === cuota.idCuota
+                                      );
+                                    },
+                                  );
                                   if (pagoMatch) {
                                     idPago = pagoMatch.id || pagoMatch.idPago;
                                   }
                                 }
                               }
-
                               if (idPago) {
                                 pagoService.verRecibo(idPago);
                               } else {
-                                alert("Transacción en proceso: El ID del recibo aún no está sincronizado.");
+                                alert(
+                                  "Transacción en proceso: El ID del recibo aún no está sincronizado.",
+                                );
                               }
                             } catch (error) {
-                              console.error("Error al buscar el recibo del pago:", error);
+                              console.error(
+                                "Error al buscar el recibo del pago:",
+                                error,
+                              );
                             }
                           }}
                           className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg"
@@ -487,7 +432,7 @@ export const CuotasTable: React.FC<Props> = ({
                         </Pressable>
                       )}
                     </View>
-                  </Pressable>
+                  </View>
                 );
               })}
             </View>
@@ -501,14 +446,13 @@ export const CuotasTable: React.FC<Props> = ({
         proximaVencimiento={proximaVencimiento}
       />
 
-      {/* Modal de pago multicuota */}
       <PaymentMulticuotaModal
         visible={modalVisible}
-        cuotas={cuotasParaPagar}
+        cuotas={cuotaSeleccionada ? [cuotaSeleccionada] : []}
         idUsuario={selectedStudentId}
         onClose={() => {
           setModalVisible(false);
-          setCuotasDirectas(null); 
+          setCuotaSeleccionada(null);
         }}
         onPaymentSuccess={handlePaymentSuccess}
       />

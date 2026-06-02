@@ -1,23 +1,15 @@
 // screens/cuota/GestionCuotaScreen.tsx
-import React, { useCallback, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
-  LayoutChangeEvent,
-  Pressable,
   RefreshControl,
   ScrollView,
   Text,
-  View,
+  View
 } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../theme/useTheme";
 import { CarrerasList } from "./components/CarrerasList";
 import { CuotasTable } from "./components/CuotasTable";
-import { PaymentHistory } from "./components/PaymentHistory";
 import { PaymentReceiptModal } from "./components/PaymentReceiptModal";
 import { StudentListView } from "./components/StudentListView";
 import { StudentSearchBar } from "./components/StudentSearchBar";
@@ -28,8 +20,6 @@ import { useStudentCarreras } from "./hooks/useStudentCarreras";
 import { useStudentSearch } from "./hooks/useStudentSearch";
 import { Estudiante } from "./types/cuota.types";
 import { Pago } from "./types/pago.types";
-
-type ActiveTab = "cuotas" | "pagos";
 
 export default function GestionCuotaScreen() {
   const { isMobile } = useResponsive();
@@ -50,7 +40,6 @@ export default function GestionCuotaScreen() {
   } = useStudentSearch();
 
   const [showDropdown, setShowDropdown] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("cuotas");
   const [receiptPago, setReceiptPago] = useState<Pago | null>(null);
 
   const {
@@ -79,7 +68,6 @@ export default function GestionCuotaScreen() {
     selectStudent(student);
     setShowDropdown(false);
     resetSearch();
-    setActiveTab("cuotas");
   };
 
   const handleRefresh = () => {
@@ -94,47 +82,6 @@ export default function GestionCuotaScreen() {
   const handleViewReceipt = (pago: Pago) => {
     setReceiptPago(pago);
   };
-
-  // ──── Animación del indicador de pestañas ────
-  const tabLayouts = useRef<{
-    cuotas?: { x: number; width: number };
-    pagos?: { x: number; width: number };
-  }>({});
-  const indicatorLeft = useSharedValue(0);
-  const indicatorWidth = useSharedValue(0);
-
-  const onTabLayout = (tab: ActiveTab) => (e: LayoutChangeEvent) => {
-    const { x, width } = e.nativeEvent.layout;
-    tabLayouts.current[tab] = { x, width };
-    // Solo actualiza si es la pestaña activa actual
-    if (tab === activeTab) {
-      indicatorLeft.value = x;
-      indicatorWidth.value = width;
-    }
-  };
-
-  const switchTab = useCallback(
-    (tab: ActiveTab) => {
-      setActiveTab(tab);
-      const layout = tabLayouts.current[tab];
-      if (layout) {
-        indicatorLeft.value = withSpring(layout.x, {
-          damping: 20,
-          stiffness: 180,
-        });
-        indicatorWidth.value = withSpring(layout.width, {
-          damping: 20,
-          stiffness: 180,
-        });
-      }
-    },
-    [indicatorLeft, indicatorWidth],
-  );
-
-  const indicatorStyle = useAnimatedStyle(() => ({
-    left: indicatorLeft.value,
-    width: indicatorWidth.value,
-  }));
 
   return (
     <View
@@ -261,87 +208,14 @@ export default function GestionCuotaScreen() {
               />
             </View>
 
-            {/* ──── Pestañas con indicador deslizante ──── */}
-            <View className="flex-row justify-center">
-              <View
-                className="flex-row rounded-full p-1 relative"
-                style={{ backgroundColor: theme.colors.backgroundSecondary }}
-              >
-                {/* Indicador animado */}
-                <Animated.View
-                  style={[
-                    {
-                      position: "absolute",
-                      top: 4,
-                      bottom: 4,
-                      borderRadius: 9999,
-                      backgroundColor: theme.colors.primary,
-                    },
-                    indicatorStyle,
-                  ]}
-                />
-
-                {/* Botón Cuotas */}
-                <Pressable
-                  onLayout={onTabLayout("cuotas")}
-                  onPress={() => switchTab("cuotas")}
-                  className="py-2 px-6 rounded-full z-10"
-                  style={{ backgroundColor: "transparent" }}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: activeTab === "cuotas" }}
-                >
-                  <Text
-                    className="text-sm font-semibold"
-                    style={{
-                      color:
-                        activeTab === "cuotas"
-                          ? theme.colors.primaryForeground
-                          : theme.colors.textSecondary,
-                    }}
-                  >
-                    Cuotas
-                  </Text>
-                </Pressable>
-
-                {/* Botón Historial de Pagos */}
-                <Pressable
-                  onLayout={onTabLayout("pagos")}
-                  onPress={() => switchTab("pagos")}
-                  className="py-2 px-6 rounded-full z-10"
-                  style={{ backgroundColor: "transparent" }}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: activeTab === "pagos" }}
-                >
-                  <Text
-                    className="text-sm font-semibold"
-                    style={{
-                      color:
-                        activeTab === "pagos"
-                          ? theme.colors.primaryForeground
-                          : theme.colors.textSecondary,
-                    }}
-                  >
-                    Historial de Pagos
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-
-            {activeTab === "cuotas" ? (
-              <CuotasTable
-                cuotas={cuotas}
-                loading={cuotasLoading}
-                carrera={selectedCarrera}
-                onRefresh={loadCuotas}
-                selectedStudentId={selectedStudent.id}
-              />
-            ) : (
-              <PaymentHistory
-                pagos={pagos}
-                loading={pagosLoading}
-                onViewReceipt={handleViewReceipt}
-              />
-            )}
+            {/* Solo CuotasTable, sin tabs */}
+            <CuotasTable
+              cuotas={cuotas}
+              loading={cuotasLoading}
+              carrera={selectedCarrera}
+              onRefresh={loadCuotas}
+              selectedStudentId={selectedStudent.id}
+            />
           </View>
         )}
       </ScrollView>
