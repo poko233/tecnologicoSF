@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import {
     ActivityIndicator,
     Modal,
@@ -11,6 +12,7 @@ import {
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
 import { DetalleEstudianteResponse, Estudiante } from "../types/asignaciones.types";
+import SubirDocumentosPendientesModal from "./SubirDocumentosPendientesModal";
 
 type Props = {
   visible: boolean;
@@ -18,6 +20,7 @@ type Props = {
   detalle: DetalleEstudianteResponse | null;
   loading: boolean;
   onClose: () => void;
+  onDocumentosSubidos?: () => void;
 };
 
 export default function RevisarModal({
@@ -26,8 +29,10 @@ export default function RevisarModal({
   detalle,
   loading,
   onClose,
+  onDocumentosSubidos,
 }: Props) {
   const { theme } = useTheme();
+  const [docsVisible, setDocsVisible] = useState(false);
 
   const isDark =
     theme.colors.background.toLowerCase().includes("0") ||
@@ -46,270 +51,296 @@ export default function RevisarModal({
     ? `${e.nombres} ${e.apellidoPaterno} ${e.apellidoMaterno ?? ""}`.trim()
     : "";
 
+  const documentosPendientes = detalle?.documentosPendientes ?? [];
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View
-          style={[
-            styles.modal,
-            {
-              backgroundColor: modalBg,
-              borderColor: border,
-            },
-          ]}
-        >
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View
-                style={[
-                  styles.headerIcon,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(59,130,246,0.18)"
-                      : "#DBEAFE",
-                  },
-                ]}
-              >
-                <Ionicons name="person-circle-outline" size={27} color={theme.colors.primary} />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <ThemedText style={[styles.title, { color: strongText }]}>
-                  Revisar estudiante
-                </ThemedText>
-                <ThemedText numberOfLines={1} style={[styles.subtitle, { color: mutedText }]}>
-                  {nombre || "Sin estudiante seleccionado"}
-                </ThemedText>
-              </View>
-            </View>
-
-            <Pressable
-              onPress={onClose}
-              style={({ pressed }) => [
-                styles.closeBtn,
-                {
-                  backgroundColor: softStrong,
-                  opacity: pressed ? 0.75 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="close" size={23} color={strongText} />
-            </Pressable>
-          </View>
-
-          {loading ? (
-            <View style={styles.loadingBox}>
-              <View style={[styles.loadingCircle, { backgroundColor: softStrong }]}>
-                <ActivityIndicator color={theme.colors.primary} />
-              </View>
-              <ThemedText style={[styles.loadingTitle, { color: strongText }]}>
-                Cargando datos
-              </ThemedText>
-              <ThemedText style={[styles.loadingSubtitle, { color: mutedText }]}>
-                Espera un momento...
-              </ThemedText>
-            </View>
-          ) : !detalle || !e ? (
-            <View style={styles.loadingBox}>
-              <Ionicons name="alert-circle-outline" size={42} color="#EF4444" />
-              <ThemedText style={[styles.loadingTitle, { color: strongText, marginTop: 10 }]}>
-                No se pudo cargar el estudiante
-              </ThemedText>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.scroll}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <View
-                style={[
-                  styles.documentAlert,
-                  {
-                    backgroundColor: detalle.debeDocumentos
-                      ? isDark
-                        ? "rgba(245,158,11,0.14)"
-                        : "#FEF3C7"
-                      : isDark
-                      ? "rgba(34,197,94,0.14)"
-                      : "#DCFCE7",
-                    borderColor: detalle.debeDocumentos
-                      ? "rgba(245,158,11,0.65)"
-                      : "rgba(34,197,94,0.65)",
-                  },
-                ]}
-              >
+    <>
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <View style={styles.backdrop}>
+          <View
+            style={[
+              styles.modal,
+              {
+                backgroundColor: modalBg,
+                borderColor: border,
+              },
+            ]}
+          >
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
                 <View
                   style={[
-                    styles.alertIcon,
+                    styles.headerIcon,
                     {
-                      backgroundColor: detalle.debeDocumentos
-                        ? "rgba(245,158,11,0.22)"
-                        : "rgba(34,197,94,0.22)",
+                      backgroundColor: isDark
+                        ? "rgba(59,130,246,0.18)"
+                        : "#DBEAFE",
                     },
                   ]}
                 >
-                  <Ionicons
-                    name={
-                      detalle.debeDocumentos
-                        ? "warning-outline"
-                        : "checkmark-circle-outline"
-                    }
-                    size={25}
-                    color={detalle.debeDocumentos ? "#F59E0B" : "#22C55E"}
-                  />
+                  <Ionicons name="person-circle-outline" size={27} color={theme.colors.primary} />
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <ThemedText style={[styles.alertTitle, { color: strongText }]}>
-                    {detalle.debeDocumentos
-                      ? "Debe documentos"
-                      : "Documentación completa"}
+                  <ThemedText style={[styles.title, { color: strongText }]}>
+                    Revisar estudiante
                   </ThemedText>
-
-                  <ThemedText style={[styles.alertText, { color: mutedText }]}>
-                    {detalle.debeDocumentos
-                      ? `Pendientes: ${detalle.documentosPendientes.join(", ")}`
-                      : "El estudiante no tiene documentos pendientes."}
+                  <ThemedText numberOfLines={1} style={[styles.subtitle, { color: mutedText }]}>
+                    {nombre || "Sin estudiante seleccionado"}
                   </ThemedText>
                 </View>
               </View>
 
-              <View style={styles.summaryGrid}>
-                <SummaryCard
-                  icon="briefcase-outline"
-                  label="Carreras"
-                  value={String(detalle.carreras.length)}
-                  color={theme.colors.primary}
-                  bg={softBg}
-                  border={border}
-                  strongText={strongText}
-                  mutedText={mutedText}
-                />
+              <Pressable
+                onPress={onClose}
+                style={({ pressed }) => [
+                  styles.closeBtn,
+                  {
+                    backgroundColor: softStrong,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name="close" size={23} color={strongText} />
+              </Pressable>
+            </View>
 
-                <SummaryCard
-                  icon="book-outline"
-                  label="Materias"
-                  value={String(detalle.inscripciones.length)}
-                  color="#22C55E"
-                  bg={softBg}
-                  border={border}
-                  strongText={strongText}
-                  mutedText={mutedText}
-                />
-
-                <SummaryCard
-                  icon="document-text-outline"
-                  label="Documentos"
-                  value={detalle.debeDocumentos ? "Pendiente" : "Completo"}
-                  color={detalle.debeDocumentos ? "#F59E0B" : "#22C55E"}
-                  bg={softBg}
-                  border={border}
-                  strongText={strongText}
-                  mutedText={mutedText}
-                />
+            {loading ? (
+              <View style={styles.loadingBox}>
+                <View style={[styles.loadingCircle, { backgroundColor: softStrong }]}>
+                  <ActivityIndicator color={theme.colors.primary} />
+                </View>
+                <ThemedText style={[styles.loadingTitle, { color: strongText }]}>
+                  Cargando datos
+                </ThemedText>
+                <ThemedText style={[styles.loadingSubtitle, { color: mutedText }]}>
+                  Espera un momento...
+                </ThemedText>
               </View>
-
-              <SectionTitle title="Datos personales" color={strongText} />
-
-              <View style={styles.grid}>
-                <Info label="CI" value={`${e.ci} ${e.expedido ?? ""}`} />
-                <Info label="Nombre completo" value={nombre} big />
-                <Info label="Género" value={e.genero || "Sin dato"} />
-                <Info label="Fecha nacimiento" value={e.fecha_nac || "Sin dato"} />
-                <Info label="Email" value={e.email || "Sin email"} big />
-                <Info label="Celular" value={e.celular || "Sin celular"} />
-                <Info label="Teléfono" value={e.telefono || "Sin teléfono"} />
-                <Info label="Dirección" value={e.direccion || "Sin dirección"} />
-                <Info label="Matrícula" value={e.matricula || "Sin matrícula"} />
-                <Info label="Estado" value={e.estado || "Sin estado"} />
+            ) : !detalle || !e ? (
+              <View style={styles.loadingBox}>
+                <Ionicons name="alert-circle-outline" size={42} color="#EF4444" />
+                <ThemedText style={[styles.loadingTitle, { color: strongText, marginTop: 10 }]}>
+                  No se pudo cargar el estudiante
+                </ThemedText>
               </View>
-
-              <SectionTitle title="Carreras" color={strongText} />
-
-              {detalle.carreras.length === 0 ? (
-                <EmptyBox
-                  icon="school-outline"
-                  text="No tiene carrera registrada."
-                  bg={softBg}
-                  border={border}
-                  mutedText={mutedText}
-                />
-              ) : (
-                detalle.carreras.map((c) => (
+            ) : (
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <Pressable
+                  disabled={!detalle.debeDocumentos}
+                  onPress={() => detalle.debeDocumentos && setDocsVisible(true)}
+                  style={({ pressed }) => [
+                    styles.documentAlert,
+                    {
+                      backgroundColor: detalle.debeDocumentos
+                        ? isDark
+                          ? "rgba(245,158,11,0.14)"
+                          : "#FEF3C7"
+                        : isDark
+                        ? "rgba(34,197,94,0.14)"
+                        : "#DCFCE7",
+                      borderColor: detalle.debeDocumentos
+                        ? "rgba(245,158,11,0.65)"
+                        : "rgba(34,197,94,0.65)",
+                      opacity: pressed ? 0.82 : 1,
+                    },
+                  ]}
+                >
                   <View
-                    key={c.idCarrera}
                     style={[
-                      styles.itemCard,
+                      styles.alertIcon,
                       {
-                        borderColor: border,
-                        backgroundColor: softBg,
+                        backgroundColor: detalle.debeDocumentos
+                          ? "rgba(245,158,11,0.22)"
+                          : "rgba(34,197,94,0.22)",
                       },
                     ]}
                   >
-                    <View style={[styles.itemIcon, { backgroundColor: "rgba(59,130,246,0.18)" }]}>
-                      <Ionicons name="school-outline" size={20} color={theme.colors.primary} />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={[styles.itemTitle, { color: strongText }]}>
-                        {c.nombreCarrera}
-                      </ThemedText>
-                      <ThemedText style={[styles.itemText, { color: mutedText }]}>
-                        Código: {c.codigo} · Régimen: {c.regimen}
-                      </ThemedText>
-                    </View>
+                    <Ionicons
+                      name={
+                        detalle.debeDocumentos
+                          ? "cloud-upload-outline"
+                          : "checkmark-circle-outline"
+                      }
+                      size={25}
+                      color={detalle.debeDocumentos ? "#F59E0B" : "#22C55E"}
+                    />
                   </View>
-                ))
-              )}
 
-              <SectionTitle title="Materias inscritas" color={strongText} />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={[styles.alertTitle, { color: strongText }]}>
+                      {detalle.debeDocumentos
+                        ? "Debe documentos"
+                        : "Documentación completa"}
+                    </ThemedText>
 
-              {detalle.inscripciones.length === 0 ? (
-                <EmptyBox
-                  icon="library-outline"
-                  text="Todavía no tiene materias inscritas."
-                  bg={softBg}
-                  border={border}
-                  mutedText={mutedText}
-                />
-              ) : (
-                detalle.inscripciones.map((i) => (
-                  <View
-                    key={i.idInscripcion}
-                    style={[
-                      styles.itemCard,
-                      {
-                        borderColor: border,
-                        backgroundColor: softBg,
-                      },
-                    ]}
-                  >
-                    <View style={[styles.itemIcon, { backgroundColor: "rgba(34,197,94,0.16)" }]}>
-                      <Ionicons name="book-outline" size={20} color="#22C55E" />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={[styles.itemTitle, { color: strongText }]}>
-                        {i.nombreMateria ?? "Materia sin dato"}
-                      </ThemedText>
-
-                      <ThemedText style={[styles.itemText, { color: mutedText }]}>
-                        Grupo: {i.nombreGrupo} · Paralelo {i.paralelo} · Turno {i.turno}
-                      </ThemedText>
-
-                      <ThemedText style={[styles.itemText, { color: mutedText }]}>
-                        Semestre {i.semestre} · {i.nombreCarrera ?? "Sin carrera"}
-                      </ThemedText>
-                    </View>
+                    <ThemedText style={[styles.alertText, { color: mutedText }]}>
+                      {detalle.debeDocumentos
+                        ? `Pendientes: ${documentosPendientes.join(", ")}`
+                        : "El estudiante no tiene documentos pendientes."}
+                    </ThemedText>
                   </View>
-                ))
-              )}
-            </ScrollView>
-          )}
+
+                  {detalle.debeDocumentos && (
+                    <View style={styles.uploadPill}>
+                      <Ionicons name="add-circle-outline" size={17} color="#F59E0B" />
+                      <ThemedText style={styles.uploadPillText}>Subir</ThemedText>
+                    </View>
+                  )}
+                </Pressable>
+
+                <View style={styles.summaryGrid}>
+                  <SummaryCard
+                    icon="briefcase-outline"
+                    label="Carreras"
+                    value={String(detalle.carreras.length)}
+                    color={theme.colors.primary}
+                    bg={softBg}
+                    border={border}
+                    strongText={strongText}
+                    mutedText={mutedText}
+                  />
+
+                  <SummaryCard
+                    icon="book-outline"
+                    label="Materias"
+                    value={String(detalle.inscripciones.length)}
+                    color="#22C55E"
+                    bg={softBg}
+                    border={border}
+                    strongText={strongText}
+                    mutedText={mutedText}
+                  />
+
+                  <SummaryCard
+                    icon="document-text-outline"
+                    label="Documentos"
+                    value={detalle.debeDocumentos ? "Pendiente" : "Completo"}
+                    color={detalle.debeDocumentos ? "#F59E0B" : "#22C55E"}
+                    bg={softBg}
+                    border={border}
+                    strongText={strongText}
+                    mutedText={mutedText}
+                  />
+                </View>
+
+                <SectionTitle title="Datos personales" color={strongText} />
+
+                <View style={styles.grid}>
+                  <Info label="CI" value={`${e.ci} ${e.expedido ?? ""}`} />
+                  <Info label="Nombre completo" value={nombre} big />
+                  <Info label="Género" value={e.genero || "Sin dato"} />
+                  <Info label="Fecha nacimiento" value={e.fecha_nac || "Sin dato"} />
+                  <Info label="Email" value={e.email || "Sin email"} big />
+                  <Info label="Celular" value={e.celular || "Sin celular"} />
+                  <Info label="Teléfono" value={e.telefono || "Sin teléfono"} />
+                  <Info label="Dirección" value={e.direccion || "Sin dirección"} />
+                  <Info label="Matrícula" value={e.matricula || "Sin matrícula"} />
+                  <Info label="Estado" value={e.estado || "Sin estado"} />
+                </View>
+
+                <SectionTitle title="Carreras" color={strongText} />
+
+                {detalle.carreras.length === 0 ? (
+                  <EmptyBox
+                    icon="school-outline"
+                    text="No tiene carrera registrada."
+                    bg={softBg}
+                    border={border}
+                    mutedText={mutedText}
+                  />
+                ) : (
+                  detalle.carreras.map((c) => (
+                    <View
+                      key={c.idCarrera}
+                      style={[
+                        styles.itemCard,
+                        {
+                          borderColor: border,
+                          backgroundColor: softBg,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.itemIcon, { backgroundColor: "rgba(59,130,246,0.18)" }]}>
+                        <Ionicons name="school-outline" size={20} color={theme.colors.primary} />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={[styles.itemTitle, { color: strongText }]}>
+                          {c.nombreCarrera}
+                        </ThemedText>
+                        <ThemedText style={[styles.itemText, { color: mutedText }]}>
+                          Código: {c.codigo} · Régimen: {c.regimen}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  ))
+                )}
+
+                <SectionTitle title="Materias inscritas" color={strongText} />
+
+                {detalle.inscripciones.length === 0 ? (
+                  <EmptyBox
+                    icon="library-outline"
+                    text="Todavía no tiene materias inscritas."
+                    bg={softBg}
+                    border={border}
+                    mutedText={mutedText}
+                  />
+                ) : (
+                  detalle.inscripciones.map((i) => (
+                    <View
+                      key={i.idInscripcion}
+                      style={[
+                        styles.itemCard,
+                        {
+                          borderColor: border,
+                          backgroundColor: softBg,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.itemIcon, { backgroundColor: "rgba(34,197,94,0.16)" }]}>
+                        <Ionicons name="book-outline" size={20} color="#22C55E" />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={[styles.itemTitle, { color: strongText }]}>
+                          {i.nombreMateria ?? "Materia sin dato"}
+                        </ThemedText>
+
+                        <ThemedText style={[styles.itemText, { color: mutedText }]}>
+                          Grupo: {i.nombreGrupo} · Paralelo {i.paralelo} · Turno {i.turno}
+                        </ThemedText>
+
+                        <ThemedText style={[styles.itemText, { color: mutedText }]}>
+                          Semestre {i.semestre} · {i.nombreCarrera ?? "Sin carrera"}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            )}
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <SubirDocumentosPendientesModal
+        visible={docsVisible}
+        idUsuario={e?.id ?? null}
+        estudianteNombre={nombre}
+        documentosPendientes={documentosPendientes}
+        onClose={() => setDocsVisible(false)}
+        onSuccess={() => {
+          setDocsVisible(false);
+          onDocumentosSubidos?.();
+        }}
+      />
+    </>
   );
 }
 
@@ -438,11 +469,6 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     borderWidth: 1,
     padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.28,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 12,
   },
   header: {
     flexDirection: "row",
@@ -534,6 +560,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
+  },
+  uploadPill: {
+    borderRadius: 999,
+    backgroundColor: "rgba(245,158,11,0.18)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  uploadPillText: {
+    color: "#F59E0B",
+    fontWeight: "900",
+    fontSize: 12,
   },
   summaryGrid: {
     flexDirection: "row",
