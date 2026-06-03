@@ -43,9 +43,11 @@ export function useLoginForm() {
 
   const handleChange = useCallback(
     (field: keyof LoginRequest) => (value: string) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
+      // Eliminar cualquier espacio en blanco del texto ingresado
+      const sanitized = value.replace(/\s/g, "");
+      setForm((prev) => ({ ...prev, [field]: sanitized }));
       if (touched[field]) {
-        const error = validateField(field, value);
+        const error = validateField(field, sanitized);
         setErrors((prev) => ({ ...prev, [field]: error }));
       }
       if (serverError) setServerError(null);
