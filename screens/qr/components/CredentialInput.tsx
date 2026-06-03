@@ -236,7 +236,7 @@ export const CredentialInput: React.FC<Props> = ({ onVerify, loading }) => {
           <Text
             style={[styles.helpText, { color: theme.colors.textSecondary }]}
           >
-            Acceso Seguro
+            Encriptado
           </Text>
         </View>
         <View style={styles.helpItem}>
@@ -244,7 +244,7 @@ export const CredentialInput: React.FC<Props> = ({ onVerify, loading }) => {
           <Text
             style={[styles.helpText, { color: theme.colors.textSecondary }]}
           >
-            Tiempo Real
+            Registro de acceso
           </Text>
         </View>
         <View style={styles.helpItem}>
@@ -252,7 +252,7 @@ export const CredentialInput: React.FC<Props> = ({ onVerify, loading }) => {
           <Text
             style={[styles.helpText, { color: theme.colors.textSecondary }]}
           >
-            Soporte TI
+            Soporte Contable
           </Text>
         </View>
       </View>
