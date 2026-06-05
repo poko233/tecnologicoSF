@@ -103,24 +103,24 @@ export const QrScreen: React.FC = () => {
             >
               {error}
             </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginTop: 8,
-              }}
-            >
-              <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>
-                Se cerrará en {countdown}s
-              </Text>
+            {error.includes("Permiso de ubicación denegado") && (
               <Text
-                onPress={handleReset}
-                style={[styles.retryText, { color: theme.colors.primary }]}
+                style={{
+                  fontSize: 12,
+                  color: theme.colors.textSecondary,
+                  marginTop: 4,
+                }}
               >
-                Intentar de nuevo
+                Para habilitar la ubicación, haz clic en el candado de la barra
+                de direcciones y permite el acceso a la ubicación.
               </Text>
-            </View>
+            )}
+            <Text
+              onPress={handleReset}
+              style={[styles.retryText, { color: theme.colors.primary }]}
+            >
+              Intentar de nuevo
+            </Text>
           </View>
         )}
       </ScrollView>

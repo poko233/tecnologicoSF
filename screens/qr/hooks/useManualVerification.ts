@@ -1,3 +1,5 @@
+// screens/qr/hooks/useManualVerification.ts
+import { getLocationString } from "@/utils/getLocation";
 import { decryptQrData } from "@/utils/qrCrypto";
 import { useCallback, useState } from "react";
 import { QrService } from "../services/qr.service";
@@ -13,13 +15,17 @@ export function useManualVerification() {
     setError(null);
     setResult(null);
     try {
+      // Obtener ubicación (si falla, usará el fallback)
+      const location = await getLocationString();
+      console.log(`📍 Ubicación final: "${location}"`);
+
       let data: VerifyAccessResponse;
       if (mode === "qr") {
         const userId = decryptQrData(value);
         if (!userId) throw new Error("Código QR inválido o corrupto");
-        data = await QrService.verifyAccess(userId);
+        data = await QrService.verifyAccess(userId, location);
       } else {
-        data = await QrService.verifyAccessByCI(value);
+        data = await QrService.verifyAccessByCI(value, location);
       }
       setResult(data);
     } catch (err: any) {
