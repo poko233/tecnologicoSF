@@ -3,7 +3,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useTheme } from "@/theme/useTheme";
 import { useRouter } from "expo-router";
 import { AnimatePresence } from "moti";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -25,6 +25,7 @@ export const QrScreen: React.FC = () => {
 
   // Contador para forzar remontaje del input y limpiar sus campos
   const [resetKey, setResetKey] = useState(0);
+  const [countdown, setCountdown] = useState(5);
 
   const handleVerify = (mode: InputMode, value: string) => {
     verify(mode, value);
@@ -34,7 +35,30 @@ export const QrScreen: React.FC = () => {
     reset(); // limpia resultado y error
     setResetKey((prev) => prev + 1); // provoca que CredentialInput se monte de nuevo
   }, [reset]);
+  // Auto‑cierre del error con contador visual
+  useEffect(() => {
+    if (!error) {
+      setCountdown(5);
+      return;
+    }
 
+    setCountdown(5);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleReset();
+          return 5;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      setCountdown(5);
+    };
+  }, [error, handleReset]);
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -79,12 +103,24 @@ export const QrScreen: React.FC = () => {
             >
               {error}
             </Text>
-            <Text
-              onPress={handleReset}
-              style={[styles.retryText, { color: theme.colors.primary }]}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: 8,
+              }}
             >
-              Intentar de nuevo
-            </Text>
+              <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>
+                Se cerrará en {countdown}s
+              </Text>
+              <Text
+                onPress={handleReset}
+                style={[styles.retryText, { color: theme.colors.primary }]}
+              >
+                Intentar de nuevo
+              </Text>
+            </View>
           </View>
         )}
       </ScrollView>

@@ -8,7 +8,7 @@ export const QrService = {
   ): Promise<VerifyAccessResponse> {
     return httpClient.postAuth<VerifyAccessResponse>("/api/qr/verify-access", {
       user_id: userId,
-      punto_control: puntoControl ?? "App Móvil",
+      punto_control: puntoControl ?? "Entrada principal a las instalaciones",
     });
   },
   async verifyAccessByCI(
@@ -19,7 +19,7 @@ export const QrService = {
       "/api/qr/verify-access-ci",
       {
         ci: ci,
-        punto_control: puntoControl ?? "App Móvil",
+        punto_control: puntoControl ?? "Entrada principal a las instalaciones",
       },
     );
   },

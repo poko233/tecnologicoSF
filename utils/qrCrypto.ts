@@ -8,56 +8,49 @@ const QR_KEY =
 
 if (!QR_KEY) {
   console.warn("EXPO_PUBLIC_QR_SECRET_KEY no definida");
-} else {
-  console.log("🔑 QR_KEY definida, longitud:", QR_KEY.length);
 }
 
 function hexToWordArray(hex: string): CryptoJS.lib.WordArray {
   return CryptoJS.enc.Hex.parse(hex);
 }
 
-function base64UrlToWordArray(str: string): CryptoJS.lib.WordArray {
-  let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (base64.length % 4 !== 0) {
-    base64 += "=";
+/**
+ * Decodifica una cadena Base62 (0-9, A-Z, a-z) a bytes (WordArray).
+ */
+function base62ToWordArray(str: string): CryptoJS.lib.WordArray {
+  const chars =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  let number = BigInt(0);
+  for (let i = 0; i < str.length; i++) {
+    const digit = chars.indexOf(str[i]);
+    if (digit === -1) continue;
+    number = number * BigInt(62) + BigInt(digit);
   }
-  return CryptoJS.enc.Base64.parse(base64);
+  // Convertir BigInt a bytes (big-endian)
+  const hex = number.toString(16).padStart(64, "0"); // 32 bytes → 64 hex chars
+  return CryptoJS.enc.Hex.parse(hex.substring(hex.length - 64)); // tomar últimos 64 chars (32 bytes)
 }
 
+/**
+ * Desencripta un dato QR en formato Base62 (solo ciphertext).
+ * @returns user_id o null
+ */
 export function decryptQrData(qrData: string): number | null {
   try {
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("📥 QR recibido:", qrData);
-    const cleanData = qrData.trim().replace(/[^A-Za-z0-9\-_]/g, "");
-    console.log("📥 QR limpio:", cleanData);
-    if (cleanData.length === 0) {
-      console.error("❌ QR vacío o caracteres inválidos");
-      return null;
-    }
+    // Limpiar caracteres no alfanuméricos
+    const cleanData = qrData.trim().replace(/[^0-9A-Za-z]/g, "");
+    if (cleanData.length === 0) return null;
 
-    // 1. Base64URL → bytes (como WordArray)
-    const combined = base64UrlToWordArray(cleanData);
-    const hex = CryptoJS.enc.Hex.stringify(combined);
-    console.log("🔸 Hex combinado:", hex);
+    // 1. Base62 → bytes (ciphertext puro)
+    const ciphertext = base62ToWordArray(cleanData);
 
-    // Verificar longitud mínima (16 bytes = 32 caracteres hex)
-    if (hex.length < 32) {
-      console.error("❌ Datos QR demasiado cortos");
-      return null;
-    }
-
-    // 2. Separar IV y ciphertext usando subcadenas hex
-    const ivHex = hex.substring(0, 32); // primeros 16 bytes
-    const ciphertextHex = hex.substring(32); // resto
-    console.log("🔸 IV (hex):", ivHex);
-    console.log("🔸 Ciphertext (hex):", ciphertextHex);
-
+    // 2. IV fijo: primeros 16 bytes de la clave (igual que backend)
+    const keyHex = QR_KEY!;
+    const ivHex = keyHex.substring(0, 32); // 16 bytes = 32 hex chars
     const iv = CryptoJS.enc.Hex.parse(ivHex);
-    const ciphertext = CryptoJS.enc.Hex.parse(ciphertextHex);
 
     // 3. Desencriptar
-    const keyWordArray = hexToWordArray(QR_KEY!);
-    console.log("🔑 Clave (hex):", QR_KEY!.substring(0, 10) + "...");
+    const keyWordArray = hexToWordArray(keyHex);
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: ciphertext } as any,
       keyWordArray,
@@ -69,27 +62,15 @@ export function decryptQrData(qrData: string): number | null {
     );
 
     const jsonString = decrypted.toString(CryptoJS.enc.Utf8);
-    console.log("🔸 JSON desencriptado:", jsonString);
-    if (!jsonString) {
-      console.error(
-        "❌ No se pudo obtener texto UTF-8 (posible clave incorrecta)",
-      );
-      return null;
-    }
+    if (!jsonString) return null;
 
-    // 4. Parsear JSON
     const payload = JSON.parse(jsonString);
-    console.log("🔸 Payload:", payload);
     if (payload.user_id && typeof payload.user_id === "number") {
-      console.log("✅ QR desencriptado, user_id:", payload.user_id);
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━");
       return payload.user_id;
     }
-
-    console.warn("⚠️ Payload sin user_id válido");
     return null;
   } catch (error) {
-    console.error("❌ Error al desencriptar QR:", error);
+    console.error("Error al desencriptar QR:", error);
     return null;
   }
 }
