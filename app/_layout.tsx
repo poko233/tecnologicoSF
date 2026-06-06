@@ -1,4 +1,4 @@
-// app/_layout.tsx
+import { injectGlobalScrollbar } from "@/components/globalScrollbar";
 import { Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
@@ -17,6 +17,14 @@ function AppContent() {
   const { user } = useAuth();
 
   const showDrawer = !!user && pathname !== "/";
+
+  React.useEffect(() => {
+    injectGlobalScrollbar({
+      background: theme.colors.background,
+      thumb: theme.colors.border,
+      thumbHover: theme.colors.borderHover,
+    });
+  }, [theme]);
 
   return (
     <>
