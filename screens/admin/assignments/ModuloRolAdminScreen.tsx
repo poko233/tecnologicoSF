@@ -290,7 +290,7 @@ export function ModuloRolAdminScreen() {
             ? <ActivityIndicator size="small" color="#fff" />
             : <Ionicons name="add" size={18} color="#fff" />
           }
-          <Text style={styles.addButtonText}>Nuevo Rol</Text>
+          <Text style={styles.addButtonText}>Asignar</Text>
         </TouchableOpacity>
       </View>
 
