@@ -20,8 +20,8 @@ import { CarreraInscrita, Cuota } from "../types/cuota.types";
 import { FilterDropdown } from "./FilterDropdown";
 import { FilterGroup } from "./FilterGroup";
 import { PaymentMulticuotaModal } from "./PaymentMulticuotaModal";
+import { ReciboViewerModal } from "./ReciboViewerModal";
 import { SummaryCards } from "./SummaryCards";
-
 interface Props {
   cuotas: Cuota[];
   loading: boolean;
@@ -43,6 +43,8 @@ export const CuotasTable: React.FC<Props> = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [cuotasDirectas, setCuotasDirectas] = useState<Cuota[] | null>(null);
 
+  const [reciboModalVisible, setReciboModalVisible] = useState(false);
+  const [selectedIdPago, setSelectedIdPago] = useState<number | null>(null);
   // Filtros
   const [filterYear, setFilterYear] = useState<string>("todos");
   const [filterType, setFilterType] = useState<string>("todos");
@@ -437,7 +439,11 @@ export const CuotasTable: React.FC<Props> = ({
                         <Pressable
                           onPress={async () => {
                             try {
-                              let idPago = (cuota as any).idPago || (cuota as any).id_pago || (cuota as any).pago_id;
+                              let idPago =
+                                (cuota as any).idPago ||
+                                (cuota as any).id_pago ||
+                                (cuota as any).pago_id;
+
                               if (!idPago) {
                                 const response = await pagoService.getPagos({
                                   idUsuario: selectedStudentId,
@@ -445,26 +451,46 @@ export const CuotasTable: React.FC<Props> = ({
                                 });
 
                                 if (response.success && response.data?.data) {
-                                  const pagoMatch = response.data.data.find((p: any) => {
-                                    if (Array.isArray(p.cuotas)) {
-                                      return p.cuotas.some((c: any) => c.idCuota === cuota.idCuota || c === cuota.idCuota);
+                                  const pagos = response.data.data;
+                                  
+                                  // Log para ver estructura real
+                                  if (__DEV__) console.log('Primer pago:', JSON.stringify(pagos[0], null, 2));
+
+                                  const pagoMatch = pagos.find((p: any) => {
+                                    const cuotasArr = p.cuotas ?? p.Cuotas ?? [];
+                                    
+                                    if (Array.isArray(cuotasArr) && cuotasArr.length > 0) {
+                                      return cuotasArr.some((c: any) => {
+                                        // Si es objeto
+                                        if (typeof c === 'object' && c !== null) {
+                                          return (
+                                            c.idCuota === cuota.idCuota ||
+                                            c.id === cuota.idCuota ||
+                                            c.id_cuota === cuota.idCuota
+                                          );
+                                        }
+                                        // Si es número directo
+                                        return c === cuota.idCuota;
+                                      });
                                     }
-                                    return p.idPago === cuota.idCuota || p.id === cuota.idCuota;
+                                    return false;
                                   });
 
                                   if (pagoMatch) {
-                                    idPago = pagoMatch.id || pagoMatch.idPago;
+                                    idPago = pagoMatch.id ?? pagoMatch.idPago ?? pagoMatch.id_pago;
                                   }
                                 }
                               }
 
                               if (idPago) {
-                                pagoService.verRecibo(idPago);
+                                setSelectedIdPago(idPago);
+                                setReciboModalVisible(true);
                               } else {
-                                alert("Transacción en proceso: El ID del recibo aún no está sincronizado.");
+                                alert("El recibo aún no está disponible.");
                               }
                             } catch (error) {
-                              console.error("Error al buscar el recibo del pago:", error);
+                              console.error("Error al buscar el recibo:", error);
+                              alert("Error al buscar el recibo.");
                             }
                           }}
                           className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg"
@@ -502,6 +528,14 @@ export const CuotasTable: React.FC<Props> = ({
       />
 
       {/* Modal de pago multicuota */}
+      <ReciboViewerModal
+        visible={reciboModalVisible}
+        idPago={selectedIdPago}
+        onClose={() => {
+          setReciboModalVisible(false);
+          setSelectedIdPago(null);
+        }}
+      />
       <PaymentMulticuotaModal
         visible={modalVisible}
         cuotas={cuotasParaPagar}

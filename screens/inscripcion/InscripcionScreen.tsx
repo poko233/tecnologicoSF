@@ -1,15 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
   ScrollView,
+  TextInput,
   View,
   useWindowDimensions,
 } from "react-native";
-
 import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../components/ThemedText";
-import { httpClient } from "../../http/httpClient";
+import { BASE_URL, httpClient } from "../../http/httpClient";
 import { useTheme } from "../../theme/useTheme";
 
 import FormDateInput from "./components/FormDateInput";
@@ -37,11 +40,54 @@ type DocumentoLocal = {
   mimeType: string | null;
 };
 
+type ReferenciaEstudiante = {
+  idNumeroReferencia?: number;
+  idUsuario?: number;
+  nombreContactoReferencia?: string;
+  parentesco?: string;
+  numeroReferencia?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type EstudianteContinuar = {
+  id: number;
+  ci: string;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  genero: string;
+  expedido: string;
+  fecha_nac: string;
+  email: string;
+  direccion: string;
+  celular: string;
+  numero_referencias?: ReferenciaEstudiante[];
+  numeroReferencias?: ReferenciaEstudiante[];
+};
+
+const expedidoReverse: Record<string, DepartamentoBolivia> = {
+  LPZ: "La Paz",
+  CBBA: "Cochabamba",
+  OR: "Oruro",
+  PT: "Potosí",
+  TJ: "Tarija",
+  SCZ: "Santa Cruz",
+  BN: "Beni",
+  PD: "Pando",
+  CH: "Chuquisaca",
+  QR: "Cochabamba",
+  EXT: "Cochabamba",
+};
+
+const generoReverse: Record<string, Genero> = {
+  MASCULINO: "Masculino",
+  FEMENINO: "Femenino",
+};
+
 export default function InscripcionScreen() {
   const { width } = useWindowDimensions();
-
   const isMobile = width < 900;
-
   const { theme } = useTheme();
 
   const {
@@ -50,53 +96,44 @@ export default function InscripcionScreen() {
     step,
     setStep,
     resetForm,
-    setGruposSeleccionados,
   } = useInscripcionForm();
 
-  const [idEstudiante, setIdEstudiante] =
-    useState<number | null>(null);
+  const [idEstudiante, setIdEstudiante] = useState<number | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [maxStepReached, setMaxStepReached] = useState(1);
+  const [errors, setErrors] = useState<InscripcionErrors>({});
 
-  const [guardando, setGuardando] =
-    useState(false);
+  const [documentosLocales, setDocumentosLocales] = useState<
+    Record<string, DocumentoLocal>
+  >({});
 
-  const [maxStepReached, setMaxStepReached] =
-    useState(1);
+  const [modalContinuarVisible, setModalContinuarVisible] = useState(false);
+  const [loadingContinuar, setLoadingContinuar] = useState(false);
+  const [busquedaContinuar, setBusquedaContinuar] = useState("");
+  const [estudiantesContinuar, setEstudiantesContinuar] = useState<
+    EstudianteContinuar[]
+  >([]);
 
-  const [errors, setErrors] =
-    useState<InscripcionErrors>({});
+  const timeoutCarnet = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutCorreo = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [documentosLocales, setDocumentosLocales] =
-    useState<Record<string, DocumentoLocal>>(
-      {}
-    );
-
-  const timeoutCarnet =
-    useRef<ReturnType<
-      typeof setTimeout
-    > | null>(null);
-
-  const timeoutCorreo =
-    useRef<ReturnType<
-      typeof setTimeout
-    > | null>(null);
-
-  const [checkingCarnet, setCheckingCarnet] =
-    useState(false);
-
-  const [checkingCorreo, setCheckingCorreo] =
-    useState(false);
+  const [checkingCarnet, setCheckingCarnet] = useState(false);
+  const [checkingCorreo, setCheckingCorreo] = useState(false);
 
   const limpiarInscripcion = () => {
     resetForm();
-
     setErrors({});
-
     setIdEstudiante(null);
-
     setMaxStepReached(1);
-
     setDocumentosLocales({});
+    setBusquedaContinuar("");
+    setEstudiantesContinuar([]);
   };
+
+  const colorSecundario =
+    (theme.colors as any).textSecondary ??
+    (theme.colors as any).muted ??
+    "#94A3B8";
 
   const updateFieldWithValidation = (
     field: keyof typeof form,
@@ -110,91 +147,216 @@ export default function InscripcionScreen() {
     }));
   };
 
-  const validarFormulario = () => {
-    const nuevosErrores: InscripcionErrors =
-      {};
+  const fechaBackendAFrontend = (fecha?: string | null) => {
+    if (!fecha) return "";
 
-    if (!form.apellidoPaterno.trim()) {
-      nuevosErrores.apellidoPaterno =
-        "Ingrese el apellido paterno";
+    const limpia = fecha.split("T")[0];
+    const [year, month, day] = limpia.split("-");
+
+    if (!year || !month || !day) return "";
+
+    return `${day}/${month}/${year}`;
+  };
+
+  const normalizarArchivoUrl = (ubicacionArchivo: string | null) => {
+    if (!ubicacionArchivo) return null;
+
+    if (ubicacionArchivo.startsWith("http")) {
+      return ubicacionArchivo;
     }
 
-    if (!form.apellidoMaterno.trim()) {
-      nuevosErrores.apellidoMaterno =
-        "Ingrese el apellido materno";
+    return `${BASE_URL}/${ubicacionArchivo}`.replace(/([^:]\/)\/+/g, "$1");
+  };
+
+  const cargarDocumentosEstudiante = async (idUsuario: number) => {
+    try {
+      const response = await httpClient.getAuth<{
+        documentos: {
+          idDocumentoEstudiante: number;
+          nombreDocumento: string;
+          ubicacionArchivo: string | null;
+          estadoDocumento: string;
+          idUsuario: number;
+        }[];
+      }>(`/api/estudiantes/${idUsuario}/documentos-inscripcion`);
+
+      const documentosMap: Record<string, DocumentoLocal> = {};
+
+      (response.documentos ?? []).forEach((doc) => {
+        const archivo = doc.ubicacionArchivo ?? null;
+        const archivoNombre = archivo ? archivo.split("/").pop() ?? null : null;
+
+        if (!doc.nombreDocumento) return;
+
+        documentosMap[doc.nombreDocumento] = {
+          nombreDocumento: doc.nombreDocumento,
+          archivoNombre,
+          previewUri: normalizarArchivoUrl(archivo),
+          mimeType: null,
+        };
+      });
+
+      setDocumentosLocales(documentosMap);
+    } catch (error) {
+      console.error(error);
+      setDocumentosLocales({});
+    }
+  };
+
+  const abrirContinuarInscripcion = async () => {
+    try {
+      setModalContinuarVisible(true);
+      setLoadingContinuar(true);
+
+      const response = await httpClient.getAuth<{
+        estudiantes: EstudianteContinuar[];
+      }>("/api/estudiantes/continuar-inscripcion");
+
+      setEstudiantesContinuar(response.estudiantes ?? []);
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2:
+          error?.message ??
+          "No se pudieron cargar los estudiantes pendientes.",
+      });
+    } finally {
+      setLoadingContinuar(false);
+    }
+  };
+
+const seleccionarEstudianteContinuar = async (
+  estudiante: EstudianteContinuar
+) => {
+  const referencias =
+    estudiante.numeroReferencias ??
+    estudiante.numero_referencias ??
+    [];
+
+  const referencia = referencias.length > 0 ? referencias[0] : null;
+
+  updateField("apellidoPaterno", estudiante.apellidoPaterno ?? "");
+  updateField("apellidoMaterno", estudiante.apellidoMaterno ?? "");
+  updateField("nombres", estudiante.nombres ?? "");
+  updateField("carnet", estudiante.ci ?? "");
+  updateField("email", estudiante.email ?? "");
+  updateField("celular", estudiante.celular ?? "");
+  updateField("direccion", estudiante.direccion ?? "");
+
+  updateField(
+    "fechaNacimiento",
+    fechaBackendAFrontend(estudiante.fecha_nac)
+  );
+
+  updateField(
+    "expedidoEn",
+    expedidoReverse[estudiante.expedido] ?? "Cochabamba"
+  );
+
+  updateField(
+    "genero",
+    generoReverse[estudiante.genero] ?? "Masculino"
+  );
+
+  updateField(
+    "referenciaNombre",
+    referencia?.nombreContactoReferencia ?? ""
+  );
+
+  updateField(
+    "referenciaParentesco",
+    referencia?.parentesco ?? ""
+  );
+
+  updateField(
+    "referenciaNumero",
+    referencia?.numeroReferencia ?? ""
+  );
+
+  setIdEstudiante(estudiante.id);
+  setErrors({});
+  setMaxStepReached(2);
+  setStep(2);
+  setModalContinuarVisible(false);
+
+  await cargarDocumentosEstudiante(estudiante.id);
+
+  Toast.show({
+    type: "success",
+    text1: "Inscripción cargada",
+    text2: referencia
+      ? "Datos cargados correctamente."
+      : "El estudiante no tiene contacto de referencia registrado.",
+  });
+};
+
+  const estudiantesFiltrados = useMemo(() => {
+    const textoBusqueda = busquedaContinuar.trim().toLowerCase();
+
+    if (!textoBusqueda) return estudiantesContinuar;
+
+    return estudiantesContinuar.filter((estudiante) => {
+      const texto = `${estudiante.nombres} ${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.ci} ${estudiante.email}`.toLowerCase();
+
+      return texto.includes(textoBusqueda);
+    });
+  }, [busquedaContinuar, estudiantesContinuar]);
+
+  const validarFormulario = () => {
+    const nuevosErrores: InscripcionErrors = {};
+
+    if (!form.apellidoPaterno.trim()) {
+      nuevosErrores.apellidoPaterno = "Ingrese el apellido paterno";
     }
 
     if (!form.nombres.trim()) {
-      nuevosErrores.nombres =
-        "Ingrese los nombres";
+      nuevosErrores.nombres = "Ingrese los nombres";
     }
 
     if (!form.carnet.trim()) {
-      nuevosErrores.carnet =
-        "Ingrese el número de carnet";
+      nuevosErrores.carnet = "Ingrese el número de carnet";
     } else if (form.carnet.length < 5) {
-      nuevosErrores.carnet =
-        "Carnet inválido";
+      nuevosErrores.carnet = "Carnet inválido";
     }
 
     if (!form.email.trim()) {
-      nuevosErrores.email =
-        "Ingrese el correo electrónico";
-    } else if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        form.email
-      )
-    ) {
-      nuevosErrores.email =
-        "Correo electrónico inválido";
+      nuevosErrores.email = "Ingrese el correo electrónico";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      nuevosErrores.email = "Correo electrónico inválido";
     }
 
     if (!form.fechaNacimiento.trim()) {
-      nuevosErrores.fechaNacimiento =
-        "Seleccione una fecha";
+      nuevosErrores.fechaNacimiento = "Seleccione una fecha";
     }
 
     if (!form.direccion.trim()) {
-      nuevosErrores.direccion =
-        "Ingrese la dirección";
+      nuevosErrores.direccion = "Ingrese la dirección";
     }
 
     if (!form.celular.trim()) {
-      nuevosErrores.celular =
-        "Ingrese el celular";
+      nuevosErrores.celular = "Ingrese el celular";
     } else if (form.celular.length !== 8) {
-      nuevosErrores.celular =
-        "El celular debe tener 8 dígitos";
+      nuevosErrores.celular = "El celular debe tener 8 dígitos";
     }
 
     if (!form.referenciaNombre.trim()) {
-      nuevosErrores.referenciaNombre =
-        "Ingrese el nombre de referencia";
+      nuevosErrores.referenciaNombre = "Ingrese el nombre de referencia";
     }
 
-    if (
-      !form.referenciaParentesco.trim()
-    ) {
-      nuevosErrores.referenciaParentesco =
-        "Ingrese el parentesco";
+    if (!form.referenciaParentesco.trim()) {
+      nuevosErrores.referenciaParentesco = "Ingrese el parentesco";
     }
 
     if (!form.referenciaNumero.trim()) {
-      nuevosErrores.referenciaNumero =
-        "Ingrese el número de referencia";
-    } else if (
-      form.referenciaNumero.length !== 8
-    ) {
-      nuevosErrores.referenciaNumero =
-        "El número debe tener 8 dígitos";
+      nuevosErrores.referenciaNumero = "Ingrese el número de referencia";
+    } else if (form.referenciaNumero.length !== 8) {
+      nuevosErrores.referenciaNumero = "El número debe tener 8 dígitos";
     }
 
     setErrors(nuevosErrores);
 
-    return (
-      Object.keys(nuevosErrores).length ===
-      0
-    );
+    return Object.keys(nuevosErrores).length === 0;
   };
 
   const guardarEstudiante = async () => {
@@ -211,12 +373,7 @@ export default function InscripcionScreen() {
         return;
       }
 
-      if (
-        errors.carnet ||
-        errors.email ||
-        checkingCarnet ||
-        checkingCorreo
-      ) {
+      if (errors.carnet || errors.email || checkingCarnet || checkingCorreo) {
         Toast.show({
           type: "error",
           text1: "Validaciones pendientes",
@@ -249,7 +406,7 @@ export default function InscripcionScreen() {
 
       const payload = {
         apellidoPaterno: form.apellidoPaterno.trim(),
-        apellidoMaterno: form.apellidoMaterno.trim(),
+        apellidoMaterno: form.apellidoMaterno?.trim() ?? "",
         nombres: form.nombres.trim(),
         carnet: form.carnet.replace(/\D/g, ""),
         email: form.email.trim().toLowerCase(),
@@ -293,11 +450,7 @@ export default function InscripcionScreen() {
       }
 
       setIdEstudiante(estudianteId);
-
-      setMaxStepReached((prev) =>
-        Math.max(prev, 2)
-      );
-
+      setMaxStepReached((prev) => Math.max(prev, 2));
       setStep(2);
 
       Toast.show({
@@ -309,7 +462,6 @@ export default function InscripcionScreen() {
           ? "Los datos fueron actualizados correctamente."
           : "Ahora gestiona las cuotas.",
       });
-
     } catch (error: any) {
       console.error(error);
 
@@ -326,10 +478,7 @@ export default function InscripcionScreen() {
   };
 
   useEffect(() => {
-    if (
-      !form.carnet ||
-      form.carnet.length < 5
-    ) {
+    if (!form.carnet || form.carnet.length < 5) {
       return;
     }
 
@@ -337,38 +486,29 @@ export default function InscripcionScreen() {
       clearTimeout(timeoutCarnet.current);
     }
 
-    timeoutCarnet.current = setTimeout(
-      async () => {
-        try {
-          setCheckingCarnet(true);
+    timeoutCarnet.current = setTimeout(async () => {
+      try {
+        setCheckingCarnet(true);
 
-          const response =
-            await httpClient.postAuth<{
-              carnetExiste: boolean;
-            }>(
-              "/api/estudiantes/verificar-datos",
-              {
-                carnet: form.carnet,
-                idUsuario: idEstudiante,
-              }
-            );
+        const response = await httpClient.postAuth<{
+          carnetExiste: boolean;
+        }>("/api/estudiantes/verificar-datos", {
+          carnet: form.carnet,
+          idUsuario: idEstudiante,
+        });
 
-          setErrors((prev) => ({
-            ...prev,
-
-            carnet:
-              response.carnetExiste
-                ? "Este carnet ya está registrado"
-                : undefined,
-          }));
-        } catch (error) {
-          console.error(error);
-        } finally {
-          setCheckingCarnet(false);
-        }
-      },
-      700
-    );
+        setErrors((prev) => ({
+          ...prev,
+          carnet: response.carnetExiste
+            ? "Este carnet ya está registrado"
+            : undefined,
+        }));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setCheckingCarnet(false);
+      }
+    }, 700);
 
     return () => {
       if (timeoutCarnet.current) {
@@ -380,9 +520,7 @@ export default function InscripcionScreen() {
   useEffect(() => {
     if (
       !form.email ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        form.email
-      )
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
     ) {
       return;
     }
@@ -391,38 +529,29 @@ export default function InscripcionScreen() {
       clearTimeout(timeoutCorreo.current);
     }
 
-    timeoutCorreo.current = setTimeout(
-      async () => {
-        try {
-          setCheckingCorreo(true);
+    timeoutCorreo.current = setTimeout(async () => {
+      try {
+        setCheckingCorreo(true);
 
-          const response =
-            await httpClient.postAuth<{
-              correoExiste: boolean;
-            }>(
-              "/api/estudiantes/verificar-datos",
-              {
-                email: form.email,
-                idUsuario: idEstudiante,
-              }
-            );
+        const response = await httpClient.postAuth<{
+          correoExiste: boolean;
+        }>("/api/estudiantes/verificar-datos", {
+          email: form.email,
+          idUsuario: idEstudiante,
+        });
 
-          setErrors((prev) => ({
-            ...prev,
-
-            email:
-              response.correoExiste
-                ? "Este correo ya está registrado"
-                : undefined,
-          }));
-        } catch (error) {
-          console.error(error);
-        } finally {
-          setCheckingCorreo(false);
-        }
-      },
-      700
-    );
+        setErrors((prev) => ({
+          ...prev,
+          email: response.correoExiste
+            ? "Este correo ya está registrado"
+            : undefined,
+        }));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setCheckingCorreo(false);
+      }
+    }, 700);
 
     return () => {
       if (timeoutCorreo.current) {
@@ -435,8 +564,7 @@ export default function InscripcionScreen() {
     <ScrollView
       style={{
         flex: 1,
-        backgroundColor:
-          theme.colors.background,
+        backgroundColor: theme.colors.background,
       }}
       contentContainerStyle={{
         padding: isMobile ? 16 : 34,
@@ -446,58 +574,31 @@ export default function InscripcionScreen() {
     >
       <View
         style={{
-          flexDirection: isMobile
-            ? "column"
-            : "row",
-
-          justifyContent:
-            "space-between",
-
-          alignItems: isMobile
-            ? "flex-start"
-            : "center",
-
+          flexDirection: isMobile ? "column" : "row",
+          justifyContent: "space-between",
+          alignItems: isMobile ? "flex-start" : "center",
           gap: 20,
-
           marginBottom: 30,
         }}
       >
         <ThemedText
           style={{
-            fontSize: isMobile
-              ? 28
-              : 38,
-
+            fontSize: isMobile ? 28 : 38,
             fontWeight: "900",
-
             color: theme.colors.text,
           }}
         >
-          {step === 1 &&
-            "Datos del Estudiante"}
-
-          {step === 2 &&
-            "Gestion de Cuotas"}
-
-          {step === 3 &&
-            "Carga de Documentos"}
-
-          {step === 4 &&
-            "Inscripción Finalizada"}
+          {step === 1 && "Datos del Estudiante"}
+          {step === 2 && "Gestion de Cuotas"}
+          {step === 3 && "Carga de Documentos"}
+          {step === 4 && "Inscripción Finalizada"}
         </ThemedText>
 
         <StepIndicator
           currentStep={step}
-          maxStepReached={
-            maxStepReached
-          }
-          onStepPress={(
-            selectedStep
-          ) => {
-            if (
-              selectedStep <=
-              maxStepReached
-            ) {
+          maxStepReached={maxStepReached}
+          onStepPress={(selectedStep) => {
+            if (selectedStep <= maxStepReached) {
               setStep(selectedStep);
             }
           }}
@@ -507,29 +608,53 @@ export default function InscripcionScreen() {
       {step === 1 && (
         <View
           style={{
-            backgroundColor:
-              theme.colors.card,
-
+            backgroundColor: theme.colors.card,
             borderRadius: 24,
-
-            padding: isMobile
-              ? 18
-              : 32,
-
+            padding: isMobile ? 18 : 32,
             borderWidth: 1,
-
-            borderColor:
-              theme.colors.border,
+            borderColor: theme.colors.border,
           }}
         >
+          <View
+            style={{
+              alignItems: isMobile ? "stretch" : "flex-end",
+              marginBottom: 24,
+            }}
+          >
+            <Pressable
+              onPress={abrirContinuarInscripcion}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                backgroundColor: theme.colors.primary,
+                paddingHorizontal: 18,
+                paddingVertical: 13,
+                borderRadius: 14,
+              }}
+            >
+              <Ionicons
+                name="play-forward-outline"
+                size={18}
+                color="#FFFFFF"
+              />
+
+              <ThemedText
+                style={{
+                  color: "#FFFFFF",
+                  fontWeight: "900",
+                }}
+              >
+                Continuar Inscripción
+              </ThemedText>
+            </Pressable>
+          </View>
+
           <View style={{ gap: 22 }}>
             <View
               style={{
-                flexDirection:
-                  isMobile
-                    ? "column"
-                    : "row",
-
+                flexDirection: isMobile ? "column" : "row",
                 gap: 18,
               }}
             >
@@ -537,41 +662,22 @@ export default function InscripcionScreen() {
                 required
                 label="APELLIDO PATERNO"
                 placeholder="Escriba su primer apellido"
-                value={
-                  form.apellidoPaterno
-                }
-                error={
-                  errors.apellidoPaterno
-                }
-                onChangeText={(
-                  text
-                ) =>
-                  updateFieldWithValidation(
-                    "apellidoPaterno",
-                    text
-                  )
+                value={form.apellidoPaterno}
+                error={errors.apellidoPaterno}
+                onChangeText={(text) =>
+                  updateFieldWithValidation("apellidoPaterno", text)
                 }
               />
 
-              <FormInput
-                required
-                label="APELLIDO MATERNO"
-                placeholder="Escriba su segundo apellido"
-                value={
-                  form.apellidoMaterno
-                }
-                error={
-                  errors.apellidoMaterno
-                }
-                onChangeText={(
-                  text
-                ) =>
-                  updateFieldWithValidation(
-                    "apellidoMaterno",
-                    text
-                  )
-                }
-              />
+             <FormInput
+  label="APELLIDO MATERNO"
+  placeholder="Escriba su segundo apellido"
+  value={form.apellidoMaterno}
+  error={errors.apellidoMaterno}
+  onChangeText={(text) =>
+    updateFieldWithValidation("apellidoMaterno", text)
+  }
+/>
 
               <FormInput
                 required
@@ -579,24 +685,15 @@ export default function InscripcionScreen() {
                 placeholder="Sus nombres completos"
                 value={form.nombres}
                 error={errors.nombres}
-                onChangeText={(
-                  text
-                ) =>
-                  updateFieldWithValidation(
-                    "nombres",
-                    text
-                  )
+                onChangeText={(text) =>
+                  updateFieldWithValidation("nombres", text)
                 }
               />
             </View>
 
             <View
               style={{
-                flexDirection:
-                  isMobile
-                    ? "column"
-                    : "row",
-
+                flexDirection: isMobile ? "column" : "row",
                 gap: 18,
               }}
             >
@@ -613,32 +710,22 @@ export default function InscripcionScreen() {
                 success={
                   !checkingCarnet &&
                   !errors.carnet &&
-                  form.carnet
-                    .length >= 5
+                  form.carnet.length >= 5
                     ? "Carnet disponible"
                     : undefined
                 }
-                loading={
-                  checkingCarnet
-                }
+                loading={checkingCarnet}
                 keyboardType="numeric"
                 onlyNumbers
-                maxLength={15}
-                onChangeText={(
-                  text
-                ) =>
-                  updateFieldWithValidation(
-                    "carnet",
-                    text
-                  )
+                maxLength={12}
+                onChangeText={(text) =>
+                  updateFieldWithValidation("carnet", text)
                 }
               />
 
               <FormSelect
                 label="EXPEDIDO EN"
-                value={
-                  form.expedidoEn
-                }
+                value={form.expedidoEn}
                 options={[
                   "La Paz",
                   "Cochabamba",
@@ -650,41 +737,24 @@ export default function InscripcionScreen() {
                   "Beni",
                   "Pando",
                 ]}
-                onChange={(
-                  value
-                ) =>
-                  updateField(
-                    "expedidoEn",
-                    value as DepartamentoBolivia
-                  )
+                onChange={(value) =>
+                  updateField("expedidoEn", value as DepartamentoBolivia)
                 }
               />
 
               <FormSelect
                 label="GÉNERO"
                 value={form.genero}
-                options={[
-                  "Masculino",
-                  "Femenino",
-                ]}
-                onChange={(
-                  value
-                ) =>
-                  updateField(
-                    "genero",
-                    value as Genero
-                  )
+                options={["Masculino", "Femenino"]}
+                onChange={(value) =>
+                  updateField("genero", value as Genero)
                 }
               />
             </View>
 
             <View
               style={{
-                flexDirection:
-                  isMobile
-                    ? "column"
-                    : "row",
-
+                flexDirection: isMobile ? "column" : "row",
                 gap: 18,
               }}
             >
@@ -701,39 +771,23 @@ export default function InscripcionScreen() {
                 success={
                   !checkingCorreo &&
                   !errors.email &&
-                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                    form.email
-                  )
+                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
                     ? "Correo disponible"
                     : undefined
                 }
-                loading={
-                  checkingCorreo
-                }
+                loading={checkingCorreo}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                onChangeText={(
-                  text
-                ) =>
-                  updateFieldWithValidation(
-                    "email",
-                    text
-                  )
+                onChangeText={(text) =>
+                  updateFieldWithValidation("email", text)
                 }
               />
 
               <FormDateInput
                 label="FECHA DE NACIMIENTO"
-                value={
-                  form.fechaNacimiento
-                }
-                onChangeText={(
-                  text
-                ) =>
-                  updateFieldWithValidation(
-                    "fechaNacimiento",
-                    text
-                  )
+                value={form.fechaNacimiento}
+                onChangeText={(text) =>
+                  updateFieldWithValidation("fechaNacimiento", text)
                 }
               />
             </View>
@@ -745,10 +799,7 @@ export default function InscripcionScreen() {
               value={form.direccion}
               error={errors.direccion}
               onChangeText={(text) =>
-                updateFieldWithValidation(
-                  "direccion",
-                  text
-                )
+                updateFieldWithValidation("direccion", text)
               }
             />
 
@@ -762,10 +813,7 @@ export default function InscripcionScreen() {
               onlyNumbers
               maxLength={8}
               onChangeText={(text) =>
-                updateFieldWithValidation(
-                  "celular",
-                  text
-                )
+                updateFieldWithValidation("celular", text)
               }
             />
 
@@ -773,70 +821,285 @@ export default function InscripcionScreen() {
               isMobile={isMobile}
               form={form}
               errors={errors}
-              updateField={
-                updateFieldWithValidation
-              }
+              updateField={updateFieldWithValidation}
             />
 
             <NavigationButtons
-              onNext={
-                guardarEstudiante
-              }
+              onNext={guardarEstudiante}
               loading={guardando}
             />
           </View>
         </View>
       )}
 
-     {step === 2 && idEstudiante && (
-  <PasoCuotas
-    idEstudiante={idEstudiante}
-    onFinish={() => {
-      setMaxStepReached((prev) => Math.max(prev, 3));
-      setStep(3);
-    }}
-  />
-)}
+      {step === 2 && idEstudiante && (
+        <PasoCuotas
+          idEstudiante={idEstudiante}
+          onFinish={() => {
+            setMaxStepReached((prev) => Math.max(prev, 3));
+            setStep(3);
+          }}
+        />
+      )}
 
-      {step === 3 &&
-        idEstudiante && (
-          <PasoDocumentacion
-            idUsuario={
-              idEstudiante
-            }
-            documentosLocales={
-              documentosLocales
-            }
-            setDocumentosLocales={
-              setDocumentosLocales
-            }
-            onBack={() =>
-              setStep(2)
-            }
-            onFinish={() => {
-              setMaxStepReached((prev) =>
-                Math.max(prev, 4)
-              );
+      {step === 3 && idEstudiante && (
+        <PasoDocumentacion
+          idUsuario={idEstudiante}
+          documentosLocales={documentosLocales}
+          setDocumentosLocales={setDocumentosLocales}
+          onBack={() => setStep(2)}
+          onFinish={() => {
+            setMaxStepReached((prev) => Math.max(prev, 4));
+            setStep(4);
+          }}
+        />
+      )}
 
-              setStep(4);
+      {step === 4 && idEstudiante && (
+        <PasoFinalizar
+          idUsuario={idEstudiante}
+          onDashboard={limpiarInscripcion}
+          onResetForm={limpiarInscripcion}
+        />
+      )}
+
+      <Modal
+        visible={modalContinuarVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalContinuarVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.65)",
+            justifyContent: "center",
+            padding: isMobile ? 14 : 28,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.colors.card,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              padding: isMobile ? 16 : 22,
+              maxHeight: "86%",
             }}
-          />
-        )}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+                marginBottom: 18,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <ThemedText
+                  style={{
+                    fontSize: isMobile ? 20 : 24,
+                    fontWeight: "900",
+                    color: theme.colors.text,
+                  }}
+                >
+                  Continuar Inscripción
+                </ThemedText>
 
-      {step === 4 &&
-        idEstudiante && (
-          <PasoFinalizar
-            idUsuario={
-              idEstudiante
-            }
-            onDashboard={
-              limpiarInscripcion
-            }
-            onResetForm={
-              limpiarInscripcion
-            }
-          />
-        )}
+                <ThemedText
+                  style={{
+                    color: colorSecundario,
+                    marginTop: 4,
+                    lineHeight: 20,
+                  }}
+                >
+                  Se muestran estudiantes sin cuotas asignadas y sin carrera
+                  registrada.
+                </ThemedText>
+              </View>
+
+              <Pressable
+                onPress={() => setModalContinuarVisible(false)}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: theme.colors.background,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                }}
+              >
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color={theme.colors.text}
+                />
+              </Pressable>
+            </View>
+
+            <TextInput
+              placeholder="Buscar por nombre, carnet o correo..."
+              placeholderTextColor={colorSecundario}
+              value={busquedaContinuar}
+              onChangeText={setBusquedaContinuar}
+              style={{
+                backgroundColor: theme.colors.background,
+                color: theme.colors.text,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: 14,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                marginBottom: 16,
+                outlineStyle: "none" as any,
+              }}
+            />
+
+            {loadingContinuar ? (
+              <View
+                style={{
+                  paddingVertical: 36,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ActivityIndicator
+                  color={theme.colors.primary}
+                  size="large"
+                />
+
+                <ThemedText
+                  style={{
+                    color: colorSecundario,
+                    marginTop: 12,
+                  }}
+                >
+                  Cargando estudiantes...
+                </ThemedText>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {estudiantesFiltrados.length === 0 ? (
+                  <View
+                    style={{
+                      padding: 28,
+                      borderRadius: 18,
+                      backgroundColor: theme.colors.background,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name="folder-open-outline"
+                      size={34}
+                      color={colorSecundario}
+                    />
+
+                    <ThemedText
+                      style={{
+                        color: colorSecundario,
+                        textAlign: "center",
+                        marginTop: 10,
+                        fontWeight: "700",
+                      }}
+                    >
+                      No hay estudiantes pendientes para continuar.
+                    </ThemedText>
+                  </View>
+                ) : (
+                  estudiantesFiltrados.map((estudiante) => (
+                    <Pressable
+                      key={estudiante.id}
+                      onPress={() =>
+                        seleccionarEstudianteContinuar(estudiante)
+                      }
+                      style={{
+                        padding: 16,
+                        borderRadius: 18,
+                        backgroundColor: theme.colors.background,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: isMobile ? "column" : "row",
+                          justifyContent: "space-between",
+                          gap: 10,
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <ThemedText
+                            style={{
+                              fontSize: 16,
+                              fontWeight: "900",
+                              color: theme.colors.text,
+                            }}
+                          >
+                            {estudiante.apellidoPaterno}{" "}
+                            {estudiante.apellidoMaterno} {estudiante.nombres}
+                          </ThemedText>
+
+                          <ThemedText
+                            style={{
+                              color: colorSecundario,
+                              marginTop: 5,
+                            }}
+                          >
+                            CI: {estudiante.ci}
+                          </ThemedText>
+
+                          <ThemedText
+                            style={{
+                              color: colorSecundario,
+                              marginTop: 2,
+                            }}
+                          >
+                            {estudiante.email}
+                          </ThemedText>
+                        </View>
+
+                        <View
+                          style={{
+                            alignSelf: isMobile ? "flex-start" : "center",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 6,
+                            backgroundColor: theme.colors.primary,
+                            paddingHorizontal: 12,
+                            paddingVertical: 9,
+                            borderRadius: 12,
+                          }}
+                        >
+                          <ThemedText
+                            style={{
+                              color: "#FFFFFF",
+                              fontWeight: "900",
+                            }}
+                          >
+                            Continuar
+                          </ThemedText>
+
+                          <Ionicons
+                            name="arrow-forward"
+                            size={16}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                      </View>
+                    </Pressable>
+                  ))
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }

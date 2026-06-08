@@ -39,9 +39,15 @@ export type MateriaSemestreUno = {
 
 export type DocumentoEstudiante = {
   idDocumentoEstudiante: number;
-  nombreDocumento: string;
-  estadoDocumento: boolean | number;
   idUsuario: number;
+
+  nombreDocumento: string;
+  estadoDocumento: string;
+
+  ubicacionArchivo?: string;
+
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type InscripcionDetalle = {
@@ -71,9 +77,12 @@ export type CarreraEstudiante = {
 export type DetalleEstudianteResponse = {
   estudiante: Estudiante;
   carreras: CarreraEstudiante[];
+
   documentos: DocumentoEstudiante[];
+
   documentosPendientes: string[];
   debeDocumentos: boolean;
+
   inscripciones: InscripcionDetalle[];
 };
 

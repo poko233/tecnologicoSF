@@ -1,13 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
@@ -21,6 +23,8 @@ type Props = {
   onRevisar: (estudiante: Estudiante) => void;
   onEditar: (estudiante: Estudiante) => void;
 };
+
+const ITEMS_PER_PAGE = 10;
 
 export default function EstudiantesTable({
   estudiantes,
@@ -36,6 +40,13 @@ export default function EstudiantesTable({
   const isCompact = width < 1180;
 
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
+  const topScrollRef = useRef<ScrollView | null>(null);
+  const tableScrollRef = useRef<ScrollView | null>(null);
+
+  const syncingTop = useRef(false);
+  const syncingTable = useRef(false);
 
   const isDark =
     theme.colors.background.toLowerCase().includes("0") ||
@@ -47,8 +58,11 @@ export default function EstudiantesTable({
   const strongText = isDark ? "#F8FAFC" : theme.colors.text;
   const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
 
+  const tableWidth = isMobile ? 1120 : Math.max(width + 280, 1550);
+
   const filtrados = useMemo(() => {
     const q = search.trim().toLowerCase();
+
     if (!q) return estudiantes;
 
     return estudiantes.filter((e) => {
@@ -66,6 +80,63 @@ export default function EstudiantesTable({
     });
   }, [estudiantes, search]);
 
+  const totalPages = Math.max(1, Math.ceil(filtrados.length / ITEMS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+
+  const estudiantesPagina = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+
+    return filtrados.slice(start, end);
+  }, [filtrados, currentPage]);
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const limpiarBusqueda = () => {
+    setSearch("");
+    setPage(1);
+  };
+
+  const goPrev = () => {
+    setPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const goNext = () => {
+    setPage((prev) => Math.min(totalPages, prev + 1));
+  };
+
+  const syncHorizontalScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+    source: "top" | "table"
+  ) => {
+    const x = event.nativeEvent.contentOffset.x;
+
+    if (source === "top") {
+      if (syncingTable.current) return;
+
+      syncingTop.current = true;
+      tableScrollRef.current?.scrollTo({ x, animated: false });
+
+      requestAnimationFrame(() => {
+        syncingTop.current = false;
+      });
+    }
+
+    if (source === "table") {
+      if (syncingTop.current) return;
+
+      syncingTable.current = true;
+      topScrollRef.current?.scrollTo({ x, animated: false });
+
+      requestAnimationFrame(() => {
+        syncingTable.current = false;
+      });
+    }
+  };
+
   return (
     <View
       style={[
@@ -81,7 +152,11 @@ export default function EstudiantesTable({
           <View
             style={[
               styles.iconCircle,
-              { backgroundColor: isDark ? "rgba(59,130,246,0.18)" : "#DBEAFE" },
+              {
+                backgroundColor: isDark
+                  ? "rgba(59,130,246,0.18)"
+                  : "#DBEAFE",
+              },
             ]}
           >
             <Ionicons name="people" size={22} color={theme.colors.primary} />
@@ -91,6 +166,7 @@ export default function EstudiantesTable({
             <ThemedText style={[styles.title, { color: strongText }]}>
               Estudiantes
             </ThemedText>
+
             <ThemedText style={[styles.subtitle, { color: mutedText }]}>
               {filtrados.length} de {estudiantes.length} estudiantes encontrados
             </ThemedText>
@@ -107,16 +183,17 @@ export default function EstudiantesTable({
           ]}
         >
           <Ionicons name="search" size={18} color={mutedText} />
+
           <TextInput
             placeholder="Buscar por nombre, CI, email o matrícula"
             placeholderTextColor={mutedText}
             value={search}
-            onChangeText={setSearch}
+            onChangeText={handleSearch}
             style={[styles.searchInput, { color: strongText }]}
           />
 
           {search.length > 0 && (
-            <Pressable onPress={() => setSearch("")}>
+            <Pressable onPress={limpiarBusqueda}>
               <Ionicons name="close-circle" size={18} color={mutedText} />
             </Pressable>
           )}
@@ -126,6 +203,7 @@ export default function EstudiantesTable({
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color={theme.colors.primary} />
+
           <ThemedText style={[styles.loadingText, { color: mutedText }]}>
             Cargando estudiantes...
           </ThemedText>
@@ -135,165 +213,291 @@ export default function EstudiantesTable({
           <View
             style={[
               styles.emptyIcon,
-              { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "#F1F5F9" },
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.06)"
+                  : "#F1F5F9",
+              },
             ]}
           >
             <Ionicons name="people-outline" size={42} color={mutedText} />
           </View>
+
           <ThemedText style={[styles.emptyTitle, { color: strongText }]}>
             No hay estudiantes
           </ThemedText>
+
           <ThemedText style={[styles.emptySubtitle, { color: mutedText }]}>
             Intenta con otro nombre, CI o correo.
           </ThemedText>
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ minWidth: isMobile ? 920 : "100%" }}>
-            <View
-              style={[
-                styles.row,
-                styles.tableHeader,
-                {
-                  backgroundColor: softHeader,
-                  borderColor: mutedBorder,
-                },
-              ]}
+        <>
+          <View
+            style={[
+              styles.tableShell,
+              {
+                borderColor: mutedBorder,
+                backgroundColor: isDark
+                  ? "rgba(15,23,42,0.42)"
+                  : "rgba(248,250,252,0.65)",
+              },
+            ]}
+          >
+            <ScrollView
+              ref={topScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator
+              scrollEventThrottle={16}
+              onScroll={(event) => syncHorizontalScroll(event, "top")}
+              style={styles.topHorizontalScroll}
+              contentContainerStyle={styles.topHorizontalContent}
             >
-              <ThemedText style={[styles.th, { flex: 1, color: mutedText }]}>
-                CI
-              </ThemedText>
-              <ThemedText style={[styles.th, { flex: 2.5, color: mutedText }]}>
-                Estudiante
-              </ThemedText>
-              <ThemedText style={[styles.th, { flex: 1.35, color: mutedText }]}>
-                Celular
-              </ThemedText>
-              <ThemedText style={[styles.th, { flex: 2.25, color: mutedText }]}>
-                Email
-              </ThemedText>
-              <ThemedText style={[styles.th, { flex: 2.7, color: mutedText }]}>
-                Acciones
-              </ThemedText>
-            </View>
+              <View style={{ width: tableWidth, height: 18 }} />
+            </ScrollView>
 
-            <View style={styles.rowsBox}>
-              {filtrados.map((item) => {
-                const nombreCompleto = `${item.nombres} ${item.apellidoPaterno} ${
-                  item.apellidoMaterno ?? ""
-                }`.trim();
+            <ScrollView
+              ref={tableScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator
+              scrollEventThrottle={16}
+              onScroll={(event) => syncHorizontalScroll(event, "table")}
+              contentContainerStyle={styles.horizontalContent}
+            >
+              <View style={{ width: tableWidth }}>
+                <View
+                  style={[
+                    styles.row,
+                    styles.tableHeader,
+                    {
+                      backgroundColor: softHeader,
+                      borderColor: mutedBorder,
+                    },
+                  ]}
+                >
+                  <ThemedText style={[styles.th, { flex: 1, color: mutedText }]}>
+                    CI
+                  </ThemedText>
 
-                return (
-                  <View
-                    key={item.id}
-                    style={[
-                      styles.row,
-                      styles.bodyRow,
-                      {
-                        backgroundColor: softCard,
-                        borderColor: mutedBorder,
-                      },
-                    ]}
-                  >
-                    <View style={[styles.cell, { flex: 1 }]}>
-                      <ThemedText style={[styles.ciText, { color: strongText }]}>
-                        {item.ci || "—"}
-                      </ThemedText>
-                      {item.expedido && (
-                        <ThemedText style={[styles.smallText, { color: mutedText }]}>
-                          {item.expedido}
-                        </ThemedText>
-                      )}
-                    </View>
+                  <ThemedText style={[styles.th, { flex: 2.5, color: mutedText }]}>
+                    Estudiante
+                  </ThemedText>
 
-                    <View style={[styles.cell, { flex: 2.5 }]}>
-                      <View style={styles.studentBox}>
-                        <View
-                          style={[
-                            styles.avatar,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(59,130,246,0.18)"
-                                : "#DBEAFE",
-                            },
-                          ]}
-                        >
+                  <ThemedText style={[styles.th, { flex: 1.35, color: mutedText }]}>
+                    Celular
+                  </ThemedText>
+
+                  <ThemedText style={[styles.th, { flex: 2.25, color: mutedText }]}>
+                    Email
+                  </ThemedText>
+
+                  <ThemedText style={[styles.th, { flex: 2.7, color: mutedText }]}>
+                    Acciones
+                  </ThemedText>
+                </View>
+
+                <ScrollView
+                  style={styles.verticalScroll}
+                  contentContainerStyle={styles.rowsBox}
+                  showsVerticalScrollIndicator
+                  nestedScrollEnabled
+                >
+                  {estudiantesPagina.map((item) => {
+                    const nombreCompleto = `${item.nombres} ${item.apellidoPaterno} ${
+                      item.apellidoMaterno ?? ""
+                    }`.trim();
+
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.row,
+                          styles.bodyRow,
+                          {
+                            backgroundColor: softCard,
+                            borderColor: mutedBorder,
+                          },
+                        ]}
+                      >
+                        <View style={[styles.cell, { flex: 1 }]}>
+                          <ThemedText style={[styles.ciText, { color: strongText }]}>
+                            {item.ci || "—"}
+                          </ThemedText>
+
+                          {item.expedido && (
+                            <ThemedText style={[styles.smallText, { color: mutedText }]}>
+                              {item.expedido}
+                            </ThemedText>
+                          )}
+                        </View>
+
+                        <View style={[styles.cell, { flex: 2.5 }]}>
+                          <View style={styles.studentBox}>
+                            <View
+                              style={[
+                                styles.avatar,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(59,130,246,0.18)"
+                                    : "#DBEAFE",
+                                },
+                              ]}
+                            >
+                              <ThemedText
+                                style={[
+                                  styles.avatarText,
+                                  { color: theme.colors.primary },
+                                ]}
+                              >
+                                {nombreCompleto.charAt(0).toUpperCase() || "E"}
+                              </ThemedText>
+                            </View>
+
+                            <View style={{ flex: 1 }}>
+                              <ThemedText
+                                numberOfLines={1}
+                                style={[styles.nameText, { color: strongText }]}
+                              >
+                                {nombreCompleto || "Sin nombre"}
+                              </ThemedText>
+
+                              <ThemedText
+                                numberOfLines={1}
+                                style={[styles.smallText, { color: mutedText }]}
+                              >
+                                Matrícula: {item.matricula || "Sin matrícula"}
+                              </ThemedText>
+                            </View>
+                          </View>
+                        </View>
+
+                        <View style={[styles.cell, { flex: 1.35 }]}>
                           <ThemedText
-                            style={[
-                              styles.avatarText,
-                              { color: theme.colors.primary },
-                            ]}
+                            numberOfLines={1}
+                            style={[styles.normalText, { color: strongText }]}
                           >
-                            {nombreCompleto.charAt(0).toUpperCase() || "E"}
+                            {item.celular || "Sin celular"}
                           </ThemedText>
                         </View>
 
-                        <View style={{ flex: 1 }}>
+                        <View style={[styles.cell, { flex: 2.25 }]}>
                           <ThemedText
                             numberOfLines={1}
-                            style={[styles.nameText, { color: strongText }]}
+                            style={[styles.normalText, { color: strongText }]}
                           >
-                            {nombreCompleto || "Sin nombre"}
+                            {item.email || "Sin email"}
                           </ThemedText>
-                          <ThemedText
-                            numberOfLines={1}
-                            style={[styles.smallText, { color: mutedText }]}
-                          >
-                            Matrícula: {item.matricula || "Sin matrícula"}
-                          </ThemedText>
+                        </View>
+
+                        <View style={[styles.actions, { flex: 2.7 }]}>
+                          <ActionButton
+                            label={isCompact ? "Inscribir" : "Inscribir"}
+                            icon="school-outline"
+                            color={theme.colors.primary}
+                            isDark={isDark}
+                            onPress={() => onInscribir(item)}
+                          />
+
+                          <ActionButton
+                            label="Revisar"
+                            icon="eye-outline"
+                            color="#16A34A"
+                            isDark={isDark}
+                            onPress={() => onRevisar(item)}
+                          />
+
+                          <ActionButton
+                            label="Editar"
+                            icon="create-outline"
+                            color="#F59E0B"
+                            isDark={isDark}
+                            onPress={() => onEditar(item)}
+                          />
                         </View>
                       </View>
-                    </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </ScrollView>
+          </View>
 
-                    <View style={[styles.cell, { flex: 1.35 }]}>
-                      <ThemedText
-                        numberOfLines={1}
-                        style={[styles.normalText, { color: strongText }]}
-                      >
-                        {item.celular || "Sin celular"}
-                      </ThemedText>
-                    </View>
+          <View style={styles.pagination}>
+            <View>
+              <ThemedText style={[styles.pageText, { color: strongText }]}>
+                Página {currentPage} de {totalPages}
+              </ThemedText>
 
-                    <View style={[styles.cell, { flex: 2.25 }]}>
-                      <ThemedText
-                        numberOfLines={1}
-                        style={[styles.normalText, { color: strongText }]}
-                      >
-                        {item.email || "Sin email"}
-                      </ThemedText>
-                    </View>
+              <ThemedText style={[styles.pageSubText, { color: mutedText }]}>
+                Mostrando {estudiantesPagina.length} de {filtrados.length}
+              </ThemedText>
+            </View>
 
-                    <View style={[styles.actions, { flex: 2.7 }]}>
-                      <ActionButton
-                        label={isCompact ? "Inscribir" : "Inscribir"}
-                        icon="school-outline"
-                        color={theme.colors.primary}
-                        isDark={isDark}
-                        onPress={() => onInscribir(item)}
-                      />
+            <View style={styles.pageActions}>
+              <Pressable
+                onPress={goPrev}
+                disabled={currentPage === 1}
+                style={({ pressed }) => [
+                  styles.pageBtn,
+                  {
+                    borderColor: mutedBorder,
+                    backgroundColor:
+                      currentPage === 1 ? softCard : theme.colors.primary,
+                    opacity: pressed ? 0.78 : currentPage === 1 ? 0.55 : 1,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="chevron-back"
+                  size={18}
+                  color={currentPage === 1 ? mutedText : "#fff"}
+                />
 
-                      <ActionButton
-                        label="Revisar"
-                        icon="eye-outline"
-                        color="#16A34A"
-                        isDark={isDark}
-                        onPress={() => onRevisar(item)}
-                      />
+                <ThemedText
+                  style={[
+                    styles.pageBtnText,
+                    { color: currentPage === 1 ? mutedText : "#fff" },
+                  ]}
+                >
+                  Anterior
+                </ThemedText>
+              </Pressable>
 
-                      <ActionButton
-                        label="Editar"
-                        icon="create-outline"
-                        color="#F59E0B"
-                        isDark={isDark}
-                        onPress={() => onEditar(item)}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
+              <Pressable
+                onPress={goNext}
+                disabled={currentPage === totalPages}
+                style={({ pressed }) => [
+                  styles.pageBtn,
+                  {
+                    borderColor: mutedBorder,
+                    backgroundColor:
+                      currentPage === totalPages ? softCard : theme.colors.primary,
+                    opacity: pressed
+                      ? 0.78
+                      : currentPage === totalPages
+                      ? 0.55
+                      : 1,
+                  },
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.pageBtnText,
+                    { color: currentPage === totalPages ? mutedText : "#fff" },
+                  ]}
+                >
+                  Siguiente
+                </ThemedText>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={currentPage === totalPages ? mutedText : "#fff"}
+                />
+              </Pressable>
             </View>
           </View>
-        </ScrollView>
+        </>
       )}
     </View>
   );
@@ -428,6 +632,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
   },
+  tableShell: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 10,
+  },
+  topHorizontalScroll: {
+    height: 22,
+    marginBottom: 8,
+  },
+  topHorizontalContent: {
+    minHeight: 18,
+  },
+  horizontalContent: {
+    paddingBottom: 8,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -439,8 +658,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginBottom: 10,
   },
+  verticalScroll: {
+    maxHeight: 650,
+  },
   rowsBox: {
     gap: 10,
+    paddingBottom: 8,
   },
   bodyRow: {
     borderWidth: 1,
@@ -523,5 +746,40 @@ const styles = StyleSheet.create({
   actionText: {
     fontWeight: "900",
     fontSize: 11.5,
+  },
+  pagination: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  pageText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  pageSubText: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  pageActions: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  pageBtn: {
+    minHeight: 40,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  pageBtnText: {
+    fontSize: 13,
+    fontWeight: "900",
   },
 });
