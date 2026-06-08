@@ -57,6 +57,9 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
   const [cantidadCuotas, setCantidadCuotas] = useState("1");
   const [cuotas, setCuotas] = useState<CuotaEditable[]>([]);
 
+  const [totalCuotasEditable, setTotalCuotasEditable] = useState("0");
+  const [montoTodasCuotas, setMontoTodasCuotas] = useState("");
+
   const totalCarreraFijo = Number(carrera?.costo ?? 0);
   const matriculaNumber = Number(montoMatricula || 0);
 
@@ -79,17 +82,19 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
   const limpiarNumero = (value: string) => {
     return value.replace(/[^0-9.]/g, "");
   };
-const fechaActual = () => new Date().toISOString().slice(0, 10);
 
-const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
-  const base = fechaBase || fechaActual();
-  const [year, month] = base.split("-").map(Number);
+  const fechaActual = () => new Date().toISOString().slice(0, 10);
 
-  const date = new Date(year, month - 1, 1);
-  date.setMonth(date.getMonth() + mesesAdelante);
+  const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
+    const base = fechaBase || fechaActual();
+    const [year, month] = base.split("-").map(Number);
 
-  return date.toISOString().slice(0, 10);
-};
+    const date = new Date(year, month - 1, 1);
+    date.setMonth(date.getMonth() + mesesAdelante);
+
+    return date.toISOString().slice(0, 10);
+  };
+
   const redondear2 = (value: number) => {
     return Math.round(value * 100) / 100;
   };
@@ -98,60 +103,83 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
     return `Bs ${redondear2(value).toFixed(2)}`;
   };
 
-  const sumarMesesDesdeFecha = (fechaBase: string, meses: number) => {
-    const base = fechaBase || hoy();
-    const [year, month, day] = base.split("-").map(Number);
+  const repartirMontoEnCuotas = (
+    total: number,
+    cuotasActuales: CuotaEditable[]
+  ) => {
+    const cuotasDebe = cuotasActuales.filter(
+      (cuota) => cuota.estadoCuota !== "Condonado"
+    );
 
-    const date = new Date(year, month - 1, day || 1);
-    date.setMonth(date.getMonth() + meses);
+    if (cuotasDebe.length === 0) {
+      return cuotasActuales;
+    }
 
-    return date.toISOString().slice(0, 10);
+    const montoBase = redondear2(total / cuotasDebe.length);
+    let acumulado = 0;
+
+    return cuotasActuales.map((cuota) => {
+      if (cuota.estadoCuota === "Condonado") {
+        return cuota;
+      }
+
+      const esUltimaDebe =
+        cuota.numeroCuota === cuotasDebe[cuotasDebe.length - 1].numeroCuota;
+
+      const monto = esUltimaDebe
+        ? redondear2(total - acumulado)
+        : montoBase;
+
+      acumulado = redondear2(acumulado + monto);
+
+      return {
+        ...cuota,
+        monto: monto.toFixed(2),
+      };
+    });
   };
 
   const generarCuotasRepartidas = (
-  cantidad: number,
-  totalCarrera: number,
-  matricula: number,
-  fechaBase: string,
-  cuotasPrevias: CuotaEditable[] = []
-): CuotaEditable[] => {
-  const cantidadFinal = Math.max(Number(cantidad || 1), 1);
-  const saldo = redondear2(Math.max(totalCarrera - matricula, 0));
+    cantidad: number,
+    totalACobrar: number,
+    fechaBase: string,
+    cuotasPrevias: CuotaEditable[] = []
+  ): CuotaEditable[] => {
+    const cantidadFinal = Math.max(Number(cantidad || 1), 1);
+    const montoBase = redondear2(totalACobrar / cantidadFinal);
 
-  const montoBase = redondear2(saldo / cantidadFinal);
+    const nuevasCuotas = Array.from({ length: cantidadFinal }, (_, index) => {
+      const cuotaPrevia = cuotasPrevias[index];
 
-  const nuevasCuotas = Array.from({ length: cantidadFinal }, (_, index) => {
-    const cuotaPrevia = cuotasPrevias[index];
+      return {
+        numeroCuota: index + 1,
+        monto: montoBase.toFixed(2),
+        fecha_vencimiento:
+          cuotaPrevia?.fecha_vencimiento ||
+          (index === 0
+            ? fechaBase || fechaActual()
+            : primerDiaDelMes(fechaBase, index)),
+        estadoCuota: cuotaPrevia?.estadoCuota ?? "Debe",
+      };
+    });
 
-    return {
-      numeroCuota: index + 1,
-      monto: montoBase.toFixed(2),
-      fecha_vencimiento:
-        cuotaPrevia?.fecha_vencimiento ||
-        (index === 0
-          ? fechaBase || fechaActual()
-          : primerDiaDelMes(fechaBase, index)),
-      estadoCuota: cuotaPrevia?.estadoCuota ?? "Debe",
-    };
-  });
+    const sumaActual = nuevasCuotas.reduce(
+      (sum, cuota) => sum + Number(cuota.monto || 0),
+      0
+    );
 
-  const sumaActual = nuevasCuotas.reduce(
-    (sum, cuota) => sum + Number(cuota.monto || 0),
-    0
-  );
+    const diferencia = redondear2(totalACobrar - sumaActual);
 
-  const diferencia = redondear2(saldo - sumaActual);
+    if (nuevasCuotas.length > 0) {
+      const ultima = nuevasCuotas.length - 1;
 
-  if (nuevasCuotas.length > 0) {
-    const ultima = nuevasCuotas.length - 1;
+      nuevasCuotas[ultima].monto = redondear2(
+        Number(nuevasCuotas[ultima].monto || 0) + diferencia
+      ).toFixed(2);
+    }
 
-    nuevasCuotas[ultima].monto = redondear2(
-      Number(nuevasCuotas[ultima].monto || 0) + diferencia
-    ).toFixed(2);
-  }
-
-  return nuevasCuotas;
-};
+    return nuevasCuotas;
+  };
 
   const cargarCarreras = async () => {
     try {
@@ -203,19 +231,26 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
       }
 
       if (mensuales.length > 0) {
-        setCantidadCuotas(String(mensuales.length));
+        const cuotasExistentes = mensuales.map((item, index) => ({
+          numeroCuota: index + 1,
+          monto: Number(item.monto ?? 0).toFixed(2),
+          fecha_vencimiento: String(item.fecha_vencimiento ?? hoy()).slice(
+            0,
+            10
+          ),
+          estadoCuota:
+            item.estadoCuota === "Condonado" ? "Condonado" : "Debe",
+        })) as CuotaEditable[];
 
-        setCuotas(
-          mensuales.map((item, index) => ({
-            numeroCuota: index + 1,
-            monto: Number(item.monto ?? 0).toFixed(2),
-            fecha_vencimiento: String(
-              item.fecha_vencimiento ?? hoy()
-            ).slice(0, 10),
-            estadoCuota:
-              item.estadoCuota === "Condonado" ? "Condonado" : "Debe",
-          }))
-        );
+        setCantidadCuotas(String(cuotasExistentes.length));
+        setCuotas(cuotasExistentes);
+
+        const totalExistente = cuotasExistentes.reduce((sum, cuota) => {
+          if (cuota.estadoCuota === "Condonado") return sum;
+          return sum + Number(cuota.monto || 0);
+        }, 0);
+
+        setTotalCuotasEditable(totalExistente.toFixed(2));
       }
     } catch (error) {
       console.error(error);
@@ -234,12 +269,15 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
       1
     );
     const fecha = hoy();
+    const totalACobrar = redondear2(Math.max(total - matricula, 0));
 
     setMontoMatricula(String(matricula));
     setFechaMatricula(fecha);
     setCantidadCuotas(String(numeroCuotas));
+    setTotalCuotasEditable(totalACobrar.toFixed(2));
+    setMontoTodasCuotas("");
 
-    setCuotas(generarCuotasRepartidas(numeroCuotas, total, matricula, fecha));
+    setCuotas(generarCuotasRepartidas(numeroCuotas, totalACobrar, fecha));
 
     await cargarCuotasExistentes(item.idCarrera);
   };
@@ -247,47 +285,62 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
   const cambiarMatricula = (value: string) => {
     const limpio = limpiarNumero(value);
     const nuevaMatricula = Number(limpio || 0);
-    const cantidad = Number(cantidadCuotas || 1);
+    const totalACobrar = redondear2(
+      Math.max(totalCarreraFijo - nuevaMatricula, 0)
+    );
 
     setMontoMatricula(limpio);
+    setTotalCuotasEditable(totalACobrar.toFixed(2));
 
-    setCuotas((prev) =>
-      generarCuotasRepartidas(
-        cantidad,
-        totalCarreraFijo,
-        nuevaMatricula,
-        fechaMatricula,
-        prev
-      )
-    );
+    setCuotas((prev) => repartirMontoEnCuotas(totalACobrar, prev));
   };
 
- const cambiarFechaMatricula = (value: string) => {
-  setFechaMatricula(value);
+  const cambiarTotalCuotas = (value: string) => {
+    const limpio = limpiarNumero(value);
+    const total = Number(limpio || 0);
 
-  setCuotas((prev) =>
-    prev.map((cuota, index) => ({
-      ...cuota,
-      fecha_vencimiento:
-        index === 0 ? value : primerDiaDelMes(value, index),
-    }))
-  );
-};
+    setTotalCuotasEditable(limpio);
+
+    setCuotas((prev) => repartirMontoEnCuotas(total, prev));
+  };
+
+  const cambiarMontoTodasCuotas = (value: string) => {
+    const limpio = limpiarNumero(value);
+
+    setMontoTodasCuotas(limpio);
+
+    setCuotas((prev) =>
+      prev.map((cuota) => ({
+        ...cuota,
+        monto: limpio || "0",
+      }))
+    );
+
+    const nuevoTotal = redondear2(Number(limpio || 0) * cuotas.length);
+    setTotalCuotasEditable(nuevoTotal.toFixed(2));
+  };
+
+  const cambiarFechaMatricula = (value: string) => {
+    setFechaMatricula(value);
+
+    setCuotas((prev) =>
+      prev.map((cuota, index) => ({
+        ...cuota,
+        fecha_vencimiento:
+          index === 0 ? value : primerDiaDelMes(value, index),
+      }))
+    );
+  };
 
   const cambiarCantidadCuotas = (value: string) => {
     const limpio = value.replace(/\D/g, "");
     const cantidad = Math.max(Number(limpio || 1), 1);
+    const total = Number(totalCuotasEditable || 0);
 
     setCantidadCuotas(String(cantidad));
 
     setCuotas((prev) =>
-      generarCuotasRepartidas(
-        cantidad,
-        totalCarreraFijo,
-        matriculaNumber,
-        fechaMatricula,
-        prev
-      )
+      generarCuotasRepartidas(cantidad, total, fechaMatricula, prev)
     );
   };
 
@@ -309,16 +362,25 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
   ) => {
     const finalValue = field === "monto" ? limpiarNumero(value) : value;
 
-    setCuotas((prev) =>
-      prev.map((cuota, i) =>
+    setCuotas((prev) => {
+      const nuevas = prev.map((cuota, i) =>
         i === index
           ? {
               ...cuota,
               [field]: finalValue,
             }
           : cuota
-      )
-    );
+      );
+
+      const totalDebe = nuevas.reduce((sum, cuota) => {
+        if (cuota.estadoCuota === "Condonado") return sum;
+        return sum + Number(cuota.monto || 0);
+      }, 0);
+
+      setTotalCuotasEditable(totalDebe.toFixed(2));
+
+      return nuevas;
+    });
   };
 
   const validar = () => {
@@ -440,7 +502,7 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
         </ThemedText>
 
         <ThemedText style={[styles.subtitle, { color: theme.colors.muted }]}>
-          Elige la carrera y edita cada cuota individualmente.
+          Elige la carrera y edita las cuotas.
         </ThemedText>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -500,10 +562,14 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
 
             <MiniTotal label="Matrícula" value={formatoBs(matriculaNumber)} />
 
-            <MiniTotal
-              label="Cuotas a cobrar"
-              value={formatoBs(totalCuotasDebe)}
-            />
+            <View style={styles.miniTotal}>
+              <Input
+                label="Cuotas a cobrar"
+                value={totalCuotasEditable}
+                onChangeText={cambiarTotalCuotas}
+                keyboardType="numeric"
+              />
+            </View>
 
             <MiniTotal
               label="Condonado"
@@ -553,6 +619,16 @@ const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
                 value={fechaMatricula}
                 onChangeText={cambiarFechaMatricula}
                 placeholder="yyyy-mm-dd"
+              />
+            </View>
+
+            <View>
+              <Input
+                label="Monto para todas las cuotas"
+                value={montoTodasCuotas}
+                onChangeText={cambiarMontoTodasCuotas}
+                keyboardType="numeric"
+                placeholder="Ej: 1000"
               />
             </View>
 

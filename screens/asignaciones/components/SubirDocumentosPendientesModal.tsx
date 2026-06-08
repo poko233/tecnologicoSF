@@ -1,16 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Linking,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -23,6 +23,16 @@ type DocumentoLocal = {
   archivoNombre: string | null;
   previewUri: string | null;
   mimeType: string | null;
+  file?: any;
+};
+
+type DocumentoServidor = {
+  nombreDocumento?: string;
+  archivoNombre?: string;
+  archivo?: string;
+  ruta?: string;
+  url?: string;
+  mimeType?: string;
 };
 
 type Props = {
@@ -31,8 +41,15 @@ type Props = {
   estudianteNombre: string;
   documentosPendientes: string[];
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (documentosSubidos?: string[]) => void;
 };
+
+const normalizar = (texto: string) =>
+  texto
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 export default function SubirDocumentosPendientesModal({
   visible,
@@ -45,38 +62,94 @@ export default function SubirDocumentosPendientesModal({
   const { theme } = useTheme();
 
   const [documentosLocales, setDocumentosLocales] = useState<DocumentoLocal[]>([]);
+  const [documentosServidor, setDocumentosServidor] = useState<DocumentoServidor[]>([]);
+  const [documentosSubidos, setDocumentosSubidos] = useState<string[]>([]);
+  const [cargando, setCargando] = useState(false);
+
+  const documentosPendientesFiltrados = useMemo(() => {
+    return documentosPendientes.filter((pendiente) => {
+      const yaExisteServidor = documentosServidor.some(
+        (doc) =>
+          doc.nombreDocumento &&
+          normalizar(doc.nombreDocumento) === normalizar(pendiente)
+      );
+
+      return !yaExisteServidor;
+    });
+  }, [documentosPendientes, documentosServidor]);
 
   useEffect(() => {
     if (visible) {
+      setDocumentosSubidos([]);
       setDocumentosLocales(
         documentosPendientes.map((nombreDocumento) => ({
           nombreDocumento,
           archivoNombre: null,
           previewUri: null,
           mimeType: null,
+          file: null,
         }))
       );
     }
-  }, [visible, documentosPendientes]);
+
+    if (visible && idUsuario) {
+      cargarDocumentosExistentes();
+    }
+  }, [visible, idUsuario, documentosPendientes]);
+
+  const cargarDocumentosExistentes = async () => {
+    if (!idUsuario) return;
+
+    try {
+      setCargando(true);
+
+      const data = await httpClient.getAuth<any>(
+        `/api/documentos-estudiante/${idUsuario}`
+      );
+
+      const docs = data?.documentos ?? data?.data ?? data ?? [];
+
+      setDocumentosServidor(Array.isArray(docs) ? docs : []);
+    } catch (error) {
+      console.error("ERROR CARGANDO DOCUMENTOS EXISTENTES:", error);
+      setDocumentosServidor([]);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   const actualizarDocumento = (documento: DocumentoLocal) => {
     setDocumentosLocales((prev) => [
-      ...prev.filter((d) => d.nombreDocumento !== documento.nombreDocumento),
+      ...prev.filter(
+        (d) => normalizar(d.nombreDocumento) !== normalizar(documento.nombreDocumento)
+      ),
       documento,
     ]);
   };
 
-  const totalSubidos = documentosLocales.filter(
-    (d) => d.archivoNombre && d.previewUri
-  ).length;
+  const marcarComoSubido = (documento: DocumentoLocal) => {
+    setDocumentosServidor((prev) => [
+      ...prev.filter(
+        (d) =>
+          !d.nombreDocumento ||
+          normalizar(d.nombreDocumento) !== normalizar(documento.nombreDocumento)
+      ),
+      {
+        nombreDocumento: documento.nombreDocumento,
+        archivoNombre: documento.archivoNombre ?? undefined,
+        url: documento.previewUri ?? undefined,
+        mimeType: documento.mimeType ?? undefined,
+      },
+    ]);
+
+    setDocumentosSubidos((prev) => [
+      ...prev.filter((d) => normalizar(d) !== normalizar(documento.nombreDocumento)),
+      documento.nombreDocumento,
+    ]);
+  };
 
   const finalizar = () => {
-    Toast.show({
-      type: "success",
-      text1: "Documentos actualizados",
-    });
-
-    onSuccess();
+    onSuccess(documentosSubidos);
   };
 
   return (
@@ -141,63 +214,70 @@ export default function SubirDocumentosPendientesModal({
             />
 
             <ThemedText style={[styles.noticeText, { color: theme.colors.text }]}>
-              Puedes subir solo los documentos que tengas ahora. No es obligatorio subir todos.
+              Primero selecciona el archivo, revisa la vista previa y luego confirma la subida.
             </ThemedText>
           </View>
 
-          <ScrollView
-            style={styles.list}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {documentosPendientes.length === 0 ? (
-              <View
-                style={[
-                  styles.emptyBox,
-                  {
-                    backgroundColor: theme.colors.background,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={40}
-                  color={theme.colors.primary}
-                />
-
-                <ThemedText style={[styles.emptyTitle, { color: theme.colors.text }]}>
-                  No hay documentos pendientes
-                </ThemedText>
-              </View>
-            ) : (
-              documentosPendientes.map((titulo) => {
-                const documentoLocal = documentosLocales.find(
-                  (d) => d.nombreDocumento === titulo
-                );
-
-                return (
-                  <DocumentoPendienteCard
-                    key={titulo}
-                    idUsuario={idUsuario}
-                    titulo={titulo}
-                    descripcion="Documento pendiente del estudiante."
-                    documentoLocal={documentoLocal}
-                    onDocumentoChange={actualizarDocumento}
+          {cargando ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={theme.colors.primary} />
+              <ThemedText style={{ marginTop: 10, color: theme.colors.text }}>
+                Verificando documentos subidos...
+              </ThemedText>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.list}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {documentosPendientesFiltrados.length === 0 ? (
+                <View
+                  style={[
+                    styles.emptyBox,
+                    {
+                      backgroundColor: theme.colors.background,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={40}
+                    color={theme.colors.primary}
                   />
-                );
-              })
-            )}
-          </ScrollView>
 
-          <View
-            style={[
-              styles.footer,
-              {
-                borderTopColor: theme.colors.border,
-              },
-            ]}
-          >
+                  <ThemedText style={[styles.emptyTitle, { color: theme.colors.text }]}>
+                    Ya no hay documentos pendientes
+                  </ThemedText>
+
+                  <ThemedText style={[styles.emptySubtitle, { color: theme.colors.muted }]}>
+                    Todos los documentos requeridos ya están subidos.
+                  </ThemedText>
+                </View>
+              ) : (
+                documentosPendientesFiltrados.map((titulo) => {
+                  const documentoLocal = documentosLocales.find(
+                    (d) => normalizar(d.nombreDocumento) === normalizar(titulo)
+                  );
+
+                  return (
+                    <DocumentoPendienteCard
+                      key={titulo}
+                      idUsuario={idUsuario}
+                      titulo={titulo}
+                      descripcion="Documento pendiente del estudiante."
+                      documentoLocal={documentoLocal}
+                      onDocumentoChange={actualizarDocumento}
+                      onDocumentoSubido={marcarComoSubido}
+                    />
+                  );
+                })
+              )}
+            </ScrollView>
+          )}
+
+          <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
             <Pressable
               onPress={onClose}
               style={[
@@ -215,20 +295,12 @@ export default function SubirDocumentosPendientesModal({
 
             <Pressable
               onPress={finalizar}
-              disabled={totalSubidos === 0}
-              style={[
-                styles.doneBtn,
-                {
-                  backgroundColor:
-                    totalSubidos === 0 ? theme.colors.border : theme.colors.primary,
-                  opacity: totalSubidos === 0 ? 0.7 : 1,
-                },
-              ]}
+              style={[styles.doneBtn, { backgroundColor: theme.colors.primary }]}
             >
               <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
 
               <ThemedText style={styles.doneText}>
-                Finalizar ({totalSubidos})
+                Finalizar
               </ThemedText>
             </Pressable>
           </View>
@@ -244,16 +316,20 @@ function DocumentoPendienteCard({
   descripcion,
   documentoLocal,
   onDocumentoChange,
+  onDocumentoSubido,
 }: {
   idUsuario: number | null;
   titulo: string;
   descripcion: string;
   documentoLocal?: DocumentoLocal;
   onDocumentoChange: (documento: DocumentoLocal) => void;
+  onDocumentoSubido: (documento: DocumentoLocal) => void;
 }) {
   const { theme } = useTheme();
 
   const [subiendo, setSubiendo] = useState(false);
+  const [confirmado, setConfirmado] = useState(false);
+
   const [archivoNombre, setArchivoNombre] = useState<string | null>(
     documentoLocal?.archivoNombre ?? null
   );
@@ -263,23 +339,28 @@ function DocumentoPendienteCard({
   const [mimeType, setMimeType] = useState<string | null>(
     documentoLocal?.mimeType ?? null
   );
+  const [archivoFile, setArchivoFile] = useState<any>(documentoLocal?.file ?? null);
 
   useEffect(() => {
     setArchivoNombre(documentoLocal?.archivoNombre ?? null);
     setPreviewUri(documentoLocal?.previewUri ?? null);
     setMimeType(documentoLocal?.mimeType ?? null);
+    setArchivoFile(documentoLocal?.file ?? null);
   }, [documentoLocal]);
 
   const limpiarDocumentoLocal = () => {
     setArchivoNombre(null);
     setPreviewUri(null);
     setMimeType(null);
+    setArchivoFile(null);
+    setConfirmado(false);
 
     onDocumentoChange({
       nombreDocumento: titulo,
       archivoNombre: null,
       previewUri: null,
       mimeType: null,
+      file: null,
     });
   };
 
@@ -294,15 +375,7 @@ function DocumentoPendienteCard({
     Linking.openURL(previewUri);
   };
 
-  const subirArchivo = async () => {
-    if (!idUsuario) {
-      Toast.show({
-        type: "error",
-        text1: "No se encontró el estudiante",
-      });
-      return;
-    }
-
+  const seleccionarArchivo = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["application/pdf", "image/jpeg", "image/png"],
@@ -312,24 +385,59 @@ function DocumentoPendienteCard({
 
       if (result.canceled) return;
 
-      limpiarDocumentoLocal();
-
       const archivo = result.assets[0];
 
-      const documentoGuardado: DocumentoLocal = {
+      const documentoSeleccionado: DocumentoLocal = {
         nombreDocumento: titulo,
         archivoNombre: archivo.name ?? "documento",
         previewUri: archivo.uri,
         mimeType: archivo.mimeType ?? null,
+        file: archivo,
       };
 
+      setArchivoNombre(documentoSeleccionado.archivoNombre);
+      setPreviewUri(documentoSeleccionado.previewUri);
+      setMimeType(documentoSeleccionado.mimeType);
+      setArchivoFile(archivo);
+      setConfirmado(false);
+
+      onDocumentoChange(documentoSeleccionado);
+    } catch (error) {
+      console.error(error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo seleccionar el archivo.",
+      });
+    }
+  };
+
+  const confirmarYSubir = async () => {
+    if (!idUsuario) {
+      Toast.show({
+        type: "error",
+        text1: "No se encontró el estudiante",
+      });
+      return;
+    }
+
+    if (!archivoFile || !archivoNombre || !previewUri) {
+      Toast.show({
+        type: "info",
+        text1: "Selecciona un archivo primero",
+      });
+      return;
+    }
+
+    try {
       const formData = new FormData();
 
       formData.append("idUsuario", String(idUsuario));
       formData.append("nombreDocumento", titulo);
 
       if (Platform.OS === "web") {
-        const webFile = (archivo as any).file;
+        const webFile = archivoFile?.file;
 
         if (!webFile) {
           Toast.show({
@@ -343,9 +451,9 @@ function DocumentoPendienteCard({
         formData.append("archivo", webFile);
       } else {
         formData.append("archivo", {
-          uri: archivo.uri,
-          name: archivo.name || "documento.pdf",
-          type: archivo.mimeType || "application/pdf",
+          uri: archivoFile.uri,
+          name: archivoFile.name || "documento.pdf",
+          type: archivoFile.mimeType || "application/pdf",
         } as any);
       }
 
@@ -353,11 +461,16 @@ function DocumentoPendienteCard({
 
       await httpClient.postFormData("/api/documentos-estudiante", formData);
 
-      setArchivoNombre(documentoGuardado.archivoNombre);
-      setPreviewUri(documentoGuardado.previewUri);
-      setMimeType(documentoGuardado.mimeType);
+      const documentoSubido: DocumentoLocal = {
+        nombreDocumento: titulo,
+        archivoNombre,
+        previewUri,
+        mimeType,
+        file: archivoFile,
+      };
 
-      onDocumentoChange(documentoGuardado);
+      setConfirmado(true);
+      onDocumentoSubido(documentoSubido);
 
       Toast.show({
         type: "success",
@@ -365,9 +478,7 @@ function DocumentoPendienteCard({
         text2: titulo,
       });
     } catch (error: any) {
-      console.error("ERROR SUBIENDO DOCUMENTO PENDIENTE:", error);
-
-      limpiarDocumentoLocal();
+      console.error("ERROR SUBIENDO DOCUMENTO:", error);
 
       Toast.show({
         type: "error",
@@ -391,7 +502,7 @@ function DocumentoPendienteCard({
       style={[
         styles.docCard,
         {
-          borderColor: existeArchivo ? theme.colors.primary : theme.colors.border,
+          borderColor: confirmado ? "#22C55E" : existeArchivo ? theme.colors.primary : theme.colors.border,
           backgroundColor: theme.colors.card,
         },
       ]}
@@ -401,19 +512,29 @@ function DocumentoPendienteCard({
           style={[
             styles.docIcon,
             {
-              backgroundColor: existeArchivo
+              backgroundColor: confirmado
+                ? "rgba(34,197,94,0.18)"
+                : existeArchivo
                 ? `${theme.colors.primary}22`
                 : theme.colors.background,
-              borderColor: existeArchivo
+              borderColor: confirmado
+                ? "rgba(34,197,94,0.55)"
+                : existeArchivo
                 ? `${theme.colors.primary}55`
                 : theme.colors.border,
             },
           ]}
         >
           <Ionicons
-            name={existeArchivo ? "checkmark-circle" : "document-text-outline"}
+            name={
+              confirmado
+                ? "checkmark-done-circle"
+                : existeArchivo
+                ? "eye-outline"
+                : "document-text-outline"
+            }
             size={26}
-            color={existeArchivo ? theme.colors.primary : theme.colors.muted}
+            color={confirmado ? "#22C55E" : existeArchivo ? theme.colors.primary : theme.colors.muted}
           />
         </View>
 
@@ -428,21 +549,31 @@ function DocumentoPendienteCard({
         </View>
       </View>
 
-      <View
+      <Pressable
+        onPress={seleccionarArchivo}
+        disabled={subiendo || confirmado}
         style={[
           styles.dropZone,
           {
-            borderColor: existeArchivo ? theme.colors.primary : theme.colors.border,
-            backgroundColor: existeArchivo
+            borderColor: confirmado ? "#22C55E" : existeArchivo ? theme.colors.primary : theme.colors.border,
+            backgroundColor: confirmado
+              ? "rgba(34,197,94,0.10)"
+              : existeArchivo
               ? `${theme.colors.primary}12`
               : theme.colors.background,
           },
         ]}
       >
         <Ionicons
-          name={existeArchivo ? "checkmark-circle" : "cloud-upload-outline"}
+          name={
+            confirmado
+              ? "checkmark-circle"
+              : existeArchivo
+              ? "eye-outline"
+              : "cloud-upload-outline"
+          }
           size={24}
-          color={existeArchivo ? theme.colors.primary : theme.colors.muted}
+          color={confirmado ? "#22C55E" : existeArchivo ? theme.colors.primary : theme.colors.muted}
         />
 
         <ThemedText
@@ -453,15 +584,21 @@ function DocumentoPendienteCard({
             },
           ]}
         >
-          {archivoNombre || "PDF, JPG o PNG - máximo 5MB"}
+          {archivoNombre || "Toca para seleccionar PDF, JPG o PNG"}
         </ThemedText>
 
-        {existeArchivo && (
+        {existeArchivo && !confirmado && (
           <ThemedText style={[styles.fileOk, { color: theme.colors.primary }]}>
-            Documento cargado correctamente
+            Revisa la vista previa antes de confirmar
           </ThemedText>
         )}
-      </View>
+
+        {confirmado && (
+          <ThemedText style={[styles.fileOk, { color: "#22C55E" }]}>
+            Documento subido correctamente
+          </ThemedText>
+        )}
+      </Pressable>
 
       {previewUri && esImagen && (
         <Image
@@ -475,7 +612,7 @@ function DocumentoPendienteCard({
           src={previewUri}
           style={{
             width: "100%",
-            height: 260,
+            height: 280,
             border: `1px solid ${theme.colors.border}`,
             borderRadius: 18,
             backgroundColor: "#fff",
@@ -532,13 +669,13 @@ function DocumentoPendienteCard({
         </Pressable>
       )}
 
-      <View style={styles.docActions}>
-        {existeArchivo && (
+      <View style={styles.actionRow}>
+        {existeArchivo && !confirmado && (
           <Pressable
             disabled={subiendo}
             onPress={limpiarDocumentoLocal}
             style={[
-              styles.removeLocalBtn,
+              styles.secondaryBtn,
               {
                 borderColor: theme.colors.border,
                 backgroundColor: theme.colors.background,
@@ -546,43 +683,63 @@ function DocumentoPendienteCard({
             ]}
           >
             <Ionicons name="trash-outline" size={18} color="#EF4444" />
-
-            <ThemedText style={styles.removeLocalText}>Quitar</ThemedText>
+            <ThemedText style={styles.removeText}>Quitar</ThemedText>
           </Pressable>
         )}
 
+        {!confirmado && (
+          <Pressable
+            disabled={subiendo}
+            onPress={existeArchivo ? confirmarYSubir : seleccionarArchivo}
+            style={[
+              styles.uploadButton,
+              {
+                backgroundColor: subiendo ? theme.colors.border : theme.colors.primary,
+                opacity: subiendo ? 0.7 : 1,
+                flex: 1,
+              },
+            ]}
+          >
+            {subiendo ? (
+              <>
+                <ActivityIndicator color="#fff" />
+                <ThemedText style={styles.uploadButtonText}>Subiendo...</ThemedText>
+              </>
+            ) : (
+              <>
+                <Ionicons
+                  name={existeArchivo ? "cloud-upload-outline" : "add-circle-outline"}
+                  size={20}
+                  color="#fff"
+                />
+
+                <ThemedText style={styles.uploadButtonText}>
+                  {existeArchivo ? "Confirmar y subir" : "Seleccionar archivo"}
+                </ThemedText>
+              </>
+            )}
+          </Pressable>
+        )}
+      </View>
+
+      {existeArchivo && !confirmado && (
         <Pressable
           disabled={subiendo}
-          onPress={subirArchivo}
+          onPress={seleccionarArchivo}
           style={[
-            styles.uploadButton,
+            styles.changeBtn,
             {
-              backgroundColor: subiendo ? theme.colors.border : theme.colors.primary,
-              opacity: subiendo ? 0.7 : 1,
-              flex: 1,
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.background,
             },
           ]}
         >
-          {subiendo ? (
-            <>
-              <ActivityIndicator color="#fff" />
-              <ThemedText style={styles.uploadButtonText}>Subiendo...</ThemedText>
-            </>
-          ) : (
-            <>
-              <Ionicons
-                name={existeArchivo ? "refresh-circle-outline" : "add-circle-outline"}
-                size={20}
-                color="#fff"
-              />
-
-              <ThemedText style={styles.uploadButtonText}>
-                {existeArchivo ? "Cambiar Archivo" : "Subir Archivo"}
-              </ThemedText>
-            </>
-          )}
+          <Ionicons name="refresh-outline" size={18} color={theme.colors.primary} />
+          <ThemedText style={[styles.changeText, { color: theme.colors.primary }]}>
+            Cambiar archivo
+          </ThemedText>
         </Pressable>
-      </View>
+      )}
     </View>
   );
 }
@@ -655,6 +812,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 18,
   },
+  loadingBox: {
+    padding: 50,
+    alignItems: "center",
+  },
   list: {
     maxHeight: 560,
   },
@@ -672,6 +833,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     fontWeight: "900",
+  },
+  emptySubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
   },
   docCard: {
     borderWidth: 1,
@@ -753,11 +920,11 @@ const styles = StyleSheet.create({
   openText: {
     fontWeight: "900",
   },
-  docActions: {
+  actionRow: {
     flexDirection: "row",
     gap: 10,
   },
-  removeLocalBtn: {
+  secondaryBtn: {
     height: 52,
     borderRadius: 16,
     borderWidth: 1,
@@ -767,7 +934,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-  removeLocalText: {
+  removeText: {
     color: "#EF4444",
     fontWeight: "900",
   },
@@ -781,6 +948,18 @@ const styles = StyleSheet.create({
   },
   uploadButtonText: {
     color: "#fff",
+    fontWeight: "900",
+  },
+  changeBtn: {
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  changeText: {
     fontWeight: "900",
   },
   footer: {

@@ -1,6 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from "react-native";
+
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
 
@@ -12,8 +20,18 @@ type Props = {
 };
 
 const meses = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 const dias = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
@@ -83,25 +101,17 @@ export default function FormDateInput({
   onChangeText,
 }: Props) {
   const { theme } = useTheme();
+  const { width, height } = useWindowDimensions();
+
+  const isMobile = width < 560;
+  const isSmallHeight = height < 760;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const currentYear = today.getFullYear();
-
-  const maxBirthDate = new Date(
-    today.getFullYear() - 18,
-    today.getMonth(),
-    today.getDate()
-  );
-  maxBirthDate.setHours(0, 0, 0, 0);
-
   const parsedValue = parseDate(value);
-
-  const initialDate =
-    parsedValue && parsedValue <= maxBirthDate
-      ? parsedValue
-      : maxBirthDate;
+  const initialDate = parsedValue ?? today;
 
   const [open, setOpen] = useState(false);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
@@ -111,16 +121,16 @@ export default function FormDateInput({
   const [viewYear, setViewYear] = useState(initialDate.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(parsedValue);
 
-  const activeTextColor = isWhite(theme.colors.primary) ? "#111827" : "#FFFFFF";
+  const activeTextColor = isWhite(theme.colors.primary)
+    ? "#111827"
+    : "#FFFFFF";
 
   const age = selectedDate ? calculateAge(selectedDate) : null;
-  const canApply = selectedDate !== null && selectedDate <= maxBirthDate;
-  const isUnderAge = selectedDate !== null && !canApply;
 
   const years = useMemo(() => {
     const list: number[] = [];
 
-    for (let year = currentYear - 18; year >= currentYear - 100; year--) {
+    for (let year = currentYear; year >= currentYear - 120; year--) {
       list.push(year);
     }
 
@@ -144,6 +154,10 @@ export default function FormDateInput({
       daysArray.push(new Date(viewYear, viewMonth, day));
     }
 
+    while (daysArray.length < 42) {
+      daysArray.push(null);
+    }
+
     return daysArray;
   }, [viewMonth, viewYear]);
 
@@ -155,15 +169,9 @@ export default function FormDateInput({
   const handleSelectYear = (year: number) => {
     setViewYear(year);
     setYearPickerOpen(false);
-
-    if (new Date(year, viewMonth, 1) > maxBirthDate) {
-      setViewMonth(maxBirthDate.getMonth());
-    }
   };
 
   const handleSelectMonth = (month: number) => {
-    if (new Date(viewYear, month, 1) > maxBirthDate) return;
-
     setViewMonth(month);
     setMonthPickerOpen(false);
   };
@@ -182,9 +190,6 @@ export default function FormDateInput({
   const nextMonth = () => {
     closePickers();
 
-    const next = new Date(viewYear, viewMonth + 1, 1);
-    if (next > maxBirthDate) return;
-
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear(viewYear + 1);
@@ -194,11 +199,14 @@ export default function FormDateInput({
   };
 
   const handleApply = () => {
-    if (!canApply || !selectedDate) return;
+    if (!selectedDate) return;
 
     onChangeText(formatDate(selectedDate));
     setOpen(false);
   };
+
+  const dayCellHeight = isMobile || isSmallHeight ? 34 : 40;
+  const calendarHeight = dayCellHeight * 6;
 
   return (
     <View style={{ flex: 1 }}>
@@ -206,7 +214,7 @@ export default function FormDateInput({
         style={{
           fontSize: 12,
           marginBottom: 8,
-          fontWeight: "800",
+          fontWeight: "900",
           color: theme.colors.text,
         }}
       >
@@ -216,8 +224,8 @@ export default function FormDateInput({
       <Pressable onPress={() => setOpen(true)}>
         <View
           style={{
-            height: 52,
-            borderRadius: 14,
+            height: 54,
+            borderRadius: 16,
             borderWidth: 1,
             borderColor: theme.colors.border,
             backgroundColor: theme.colors.background,
@@ -237,376 +245,68 @@ export default function FormDateInput({
               height: "100%",
               color: theme.colors.text,
               fontSize: 15,
+              fontWeight: "800",
               outlineStyle: "none" as any,
             }}
           />
 
-          <Ionicons
-            name="calendar-outline"
-            size={20}
-            color={theme.colors.text}
-          />
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 12,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: theme.colors.card,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+            }}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={theme.colors.text}
+            />
+          </View>
         </View>
       </Pressable>
 
-      <Modal transparent visible={open} animationType="fade">
-        <Pressable
-          onPress={closePickers}
+      <Modal
+        transparent
+        visible={open}
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <View
           style={{
             flex: 1,
-            backgroundColor: "rgba(0,0,0,0.65)",
+            backgroundColor: "rgba(0,0,0,0.72)",
             justifyContent: "center",
             alignItems: "center",
-            padding: 18,
+            padding: isMobile ? 10 : 18,
           }}
         >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
+          <View
             style={{
               width: "100%",
-              maxWidth: 470,
-              maxHeight: "96%",
+              maxWidth: 520,
+              maxHeight: "94%",
               backgroundColor: theme.colors.card,
-              borderRadius: 24,
+              borderRadius: 26,
               borderWidth: 1,
               borderColor: theme.colors.border,
-              padding: 20,
               shadowColor: "#000",
               shadowOpacity: 0.35,
               shadowRadius: 30,
               elevation: 14,
-              overflow: "visible",
+              overflow: "hidden",
             }}
           >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 14,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <ThemedText
-                  style={{
-                    fontSize: 24,
-                    fontWeight: "900",
-                    color: theme.colors.text,
-                  }}
-                >
-                  Fecha de nacimiento
-                </ThemedText>
-
-                <ThemedText
-                  style={{
-                    marginTop: 4,
-                    fontSize: 12,
-                    fontWeight: "700",
-                    color: theme.colors.muted,
-                  }}
-                >
-                  Solo mayores de 17 años
-                </ThemedText>
-              </View>
-
-              <Pressable
-                onPress={() => setOpen(false)}
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 999,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: theme.colors.background,
-                  borderWidth: 1,
-                  borderColor: theme.colors.border,
-                }}
-              >
-                <Ionicons name="close" size={22} color={theme.colors.text} />
-              </Pressable>
-            </View>
-
-            <View
-              style={{
-                backgroundColor: theme.colors.background,
-                borderRadius: 18,
-                paddingVertical: 14,
-                paddingHorizontal: 14,
-                marginBottom: 12,
-                borderWidth: 1,
-                borderColor: isUnderAge ? "#EF4444" : theme.colors.border,
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <ThemedText
-                  style={{
-                    color: theme.colors.muted,
-                    fontWeight: "900",
-                    fontSize: 10,
-                    marginBottom: 4,
-                  }}
-                >
-                  SELECCIONADA
-                </ThemedText>
-
-                <ThemedText
-                  style={{
-                    color: theme.colors.text,
-                    fontWeight: "900",
-                    fontSize: 20,
-                  }}
-                >
-                  {selectedDate ? formatDate(selectedDate) : "Sin fecha"}
-                </ThemedText>
-              </View>
-
-              <View
-                style={{
-                  paddingVertical: 9,
-                  paddingHorizontal: 14,
-                  borderRadius: 999,
-                  backgroundColor: isUnderAge
-                    ? "#EF4444"
-                    : theme.colors.primary,
-                }}
-              >
-                <ThemedText
-                  style={{
-                    color: isUnderAge ? "#FFFFFF" : activeTextColor,
-                    fontWeight: "900",
-                    fontSize: 13,
-                  }}
-                >
-                  {age !== null ? `${age} años` : "-- años"}
-                </ThemedText>
-              </View>
-            </View>
-
-            {isUnderAge && (
-              <ThemedText
-                style={{
-                  color: "#EF4444",
-                  fontWeight: "800",
-                  fontSize: 12,
-                  marginBottom: 10,
-                }}
-              >
-                Debe tener 18 años o más.
-              </ThemedText>
-            )}
-
-            <View
-              style={{
-                position: "relative",
-                zIndex: 50,
-                flexDirection: "row",
-                gap: 10,
-                marginBottom: 12,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Pressable
-                  onPress={() => {
-                    setMonthPickerOpen(!monthPickerOpen);
-                    setYearPickerOpen(false);
-                  }}
-                  style={{
-                    height: 44,
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.background,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingHorizontal: 12,
-                  }}
-                >
-                  <ThemedText
-                    style={{
-                      color: theme.colors.text,
-                      fontWeight: "900",
-                      fontSize: 13,
-                    }}
-                  >
-                    {meses[viewMonth]}
-                  </ThemedText>
-
-                  <Ionicons
-                    name="chevron-down"
-                    size={16}
-                    color={theme.colors.text}
-                  />
-                </Pressable>
-
-                {monthPickerOpen && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 50,
-                      left: 0,
-                      right: 0,
-                      zIndex: 999,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 16,
-                      overflow: "hidden",
-                      backgroundColor: theme.colors.card,
-                      elevation: 20,
-                    }}
-                  >
-                    <ScrollView style={{ maxHeight: 220 }}>
-                      {meses.map((mes, index) => {
-                        const disabled =
-                          new Date(viewYear, index, 1) > maxBirthDate;
-                        const active = index === viewMonth;
-
-                        return (
-                          <Pressable
-                            key={mes}
-                            disabled={disabled}
-                            onPress={() => handleSelectMonth(index)}
-                            style={{
-                              paddingVertical: 12,
-                              paddingHorizontal: 14,
-                              backgroundColor: active
-                                ? theme.colors.primary
-                                : theme.colors.card,
-                              opacity: disabled ? 0.35 : 1,
-                              borderBottomWidth: 1,
-                              borderBottomColor: theme.colors.border,
-                            }}
-                          >
-                            <ThemedText
-                              style={{
-                                color: active
-                                  ? activeTextColor
-                                  : theme.colors.text,
-                                fontWeight: "900",
-                                fontSize: 13,
-                              }}
-                            >
-                              {mes}
-                            </ThemedText>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                )}
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Pressable
-                  onPress={() => {
-                    setYearPickerOpen(!yearPickerOpen);
-                    setMonthPickerOpen(false);
-                  }}
-                  style={{
-                    height: 44,
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.background,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingHorizontal: 12,
-                  }}
-                >
-                  <ThemedText
-                    style={{
-                      color: theme.colors.text,
-                      fontWeight: "900",
-                      fontSize: 13,
-                    }}
-                  >
-                    {viewYear}
-                  </ThemedText>
-
-                  <Ionicons
-                    name="chevron-down"
-                    size={16}
-                    color={theme.colors.text}
-                  />
-                </Pressable>
-
-                {yearPickerOpen && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 50,
-                      left: 0,
-                      right: 0,
-                      zIndex: 999,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 16,
-                      overflow: "hidden",
-                      backgroundColor: theme.colors.card,
-                      elevation: 20,
-                    }}
-                  >
-                    <ScrollView style={{ maxHeight: 220 }}>
-                      {years.map((year) => {
-                        const active = year === viewYear;
-
-                        return (
-                          <Pressable
-                            key={year}
-                            onPress={() => handleSelectYear(year)}
-                            style={{
-                              paddingVertical: 12,
-                              paddingHorizontal: 14,
-                              backgroundColor: active
-                                ? theme.colors.primary
-                                : theme.colors.card,
-                              borderBottomWidth: 1,
-                              borderBottomColor: theme.colors.border,
-                              flexDirection: "row",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
-                          >
-                            <ThemedText
-                              style={{
-                                color: active
-                                  ? activeTextColor
-                                  : theme.colors.text,
-                                fontWeight: "900",
-                              }}
-                            >
-                              {year}
-                            </ThemedText>
-
-                            {active && (
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={18}
-                                color={activeTextColor}
-                              />
-                            )}
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            <View
-              style={{
-                backgroundColor: theme.colors.background,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                padding: 12,
-                zIndex: 1,
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                padding: isMobile ? 14 : 20,
+                paddingBottom: 10,
               }}
             >
               <View
@@ -614,168 +314,480 @@ export default function FormDateInput({
                   flexDirection: "row",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: 10,
+                  marginBottom: 14,
+                  gap: 12,
                 }}
               >
+                <View style={{ flex: 1 }}>
+                  <ThemedText
+                    style={{
+                      fontSize: isMobile ? 20 : 24,
+                      fontWeight: "900",
+                      color: theme.colors.text,
+                    }}
+                  >
+                    Fecha de nacimiento
+                  </ThemedText>
+
+                  <ThemedText
+                    style={{
+                      marginTop: 4,
+                      fontSize: 12,
+                      fontWeight: "700",
+                      color: theme.colors.muted,
+                    }}
+                  >
+                    Selecciona día, mes y año.
+                  </ThemedText>
+                </View>
+
                 <Pressable
-                  onPress={prevMonth}
+                  onPress={() => setOpen(false)}
                   style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 13,
+                    width: 42,
+                    height: 42,
+                    borderRadius: 999,
                     justifyContent: "center",
                     alignItems: "center",
-                    backgroundColor: theme.colors.card,
+                    backgroundColor: theme.colors.background,
                     borderWidth: 1,
                     borderColor: theme.colors.border,
                   }}
                 >
-                  <Ionicons
-                    name="chevron-back"
-                    size={20}
-                    color={theme.colors.text}
-                  />
-                </Pressable>
-
-                <ThemedText
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "900",
-                    color: theme.colors.text,
-                  }}
-                >
-                  {meses[viewMonth]} {viewYear}
-                </ThemedText>
-
-                <Pressable
-                  onPress={nextMonth}
-                  disabled={new Date(viewYear, viewMonth + 1, 1) > maxBirthDate}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 13,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: theme.colors.card,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    opacity:
-                      new Date(viewYear, viewMonth + 1, 1) > maxBirthDate
-                        ? 0.35
-                        : 1,
-                  }}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.colors.text}
-                  />
+                  <Ionicons name="close" size={22} color={theme.colors.text} />
                 </Pressable>
               </View>
 
-              <View style={{ flexDirection: "row", marginBottom: 6 }}>
-                {dias.map((dia) => (
+              <View
+                style={{
+                  backgroundColor: theme.colors.background,
+                  borderRadius: 20,
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  flexDirection: isMobile ? "column" : "row",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  gap: 12,
+                }}
+              >
+                <View style={{ flex: 1 }}>
                   <ThemedText
-                    key={dia}
+                    style={{
+                      color: theme.colors.muted,
+                      fontWeight: "900",
+                      fontSize: 10,
+                      marginBottom: 4,
+                    }}
+                  >
+                    FECHA SELECCIONADA
+                  </ThemedText>
+
+                  <ThemedText
+                    style={{
+                      color: theme.colors.text,
+                      fontWeight: "900",
+                      fontSize: isMobile ? 18 : 22,
+                    }}
+                  >
+                    {selectedDate ? formatDate(selectedDate) : "Sin fecha"}
+                  </ThemedText>
+                </View>
+
+                <View
+                  style={{
+                    paddingVertical: 9,
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    backgroundColor: theme.colors.primary,
+                    alignSelf: isMobile ? "flex-start" : "center",
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      color: activeTextColor,
+                      fontWeight: "900",
+                      fontSize: 13,
+                    }}
+                  >
+                    {age !== null ? `${age} años` : "-- años"}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View
+                style={{
+                  zIndex: 50,
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: 10,
+                  marginBottom: 12,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Pressable
+                    onPress={() => {
+                      setMonthPickerOpen(!monthPickerOpen);
+                      setYearPickerOpen(false);
+                    }}
+                    style={{
+                      height: 46,
+                      borderRadius: 15,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.background,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingHorizontal: 12,
+                    }}
+                  >
+                    <ThemedText
+                      style={{
+                        color: theme.colors.text,
+                        fontWeight: "900",
+                        fontSize: 13,
+                      }}
+                    >
+                      {meses[viewMonth]}
+                    </ThemedText>
+
+                    <Ionicons
+                      name="chevron-down"
+                      size={16}
+                      color={theme.colors.text}
+                    />
+                  </Pressable>
+
+                  {monthPickerOpen && (
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                        backgroundColor: theme.colors.card,
+                      }}
+                    >
+                      <ScrollView style={{ maxHeight: 190 }}>
+                        {meses.map((mes, index) => {
+                          const active = index === viewMonth;
+
+                          return (
+                            <Pressable
+                              key={mes}
+                              onPress={() => handleSelectMonth(index)}
+                              style={{
+                                paddingVertical: 12,
+                                paddingHorizontal: 14,
+                                backgroundColor: active
+                                  ? theme.colors.primary
+                                  : theme.colors.card,
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.colors.border,
+                              }}
+                            >
+                              <ThemedText
+                                style={{
+                                  color: active
+                                    ? activeTextColor
+                                    : theme.colors.text,
+                                  fontWeight: "900",
+                                  fontSize: 13,
+                                }}
+                              >
+                                {mes}
+                              </ThemedText>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Pressable
+                    onPress={() => {
+                      setYearPickerOpen(!yearPickerOpen);
+                      setMonthPickerOpen(false);
+                    }}
+                    style={{
+                      height: 46,
+                      borderRadius: 15,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.background,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingHorizontal: 12,
+                    }}
+                  >
+                    <ThemedText
+                      style={{
+                        color: theme.colors.text,
+                        fontWeight: "900",
+                        fontSize: 13,
+                      }}
+                    >
+                      {viewYear}
+                    </ThemedText>
+
+                    <Ionicons
+                      name="chevron-down"
+                      size={16}
+                      color={theme.colors.text}
+                    />
+                  </Pressable>
+
+                  {yearPickerOpen && (
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                        backgroundColor: theme.colors.card,
+                      }}
+                    >
+                      <ScrollView style={{ maxHeight: 190 }}>
+                        {years.map((year) => {
+                          const active = year === viewYear;
+
+                          return (
+                            <Pressable
+                              key={year}
+                              onPress={() => handleSelectYear(year)}
+                              style={{
+                                paddingVertical: 12,
+                                paddingHorizontal: 14,
+                                backgroundColor: active
+                                  ? theme.colors.primary
+                                  : theme.colors.card,
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.colors.border,
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <ThemedText
+                                style={{
+                                  color: active
+                                    ? activeTextColor
+                                    : theme.colors.text,
+                                  fontWeight: "900",
+                                }}
+                              >
+                                {year}
+                              </ThemedText>
+
+                              {active && (
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={18}
+                                  color={activeTextColor}
+                                />
+                              )}
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <View
+                style={{
+                  backgroundColor: theme.colors.background,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  padding: isMobile ? 10 : 12,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Pressable
+                    onPress={prevMonth}
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 13,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: theme.colors.card,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={20}
+                      color={theme.colors.text}
+                    />
+                  </Pressable>
+
+                  <ThemedText
+                    numberOfLines={1}
                     style={{
                       flex: 1,
                       textAlign: "center",
+                      fontSize: isMobile ? 15 : 18,
                       fontWeight: "900",
-                      color: theme.colors.muted,
-                      fontSize: 11,
+                      color: theme.colors.text,
+                      paddingHorizontal: 8,
                     }}
                   >
-                    {dia}
+                    {meses[viewMonth]} {viewYear}
                   </ThemedText>
-                ))}
-              </View>
 
-              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                {calendarDays.map((date, index) => {
-                  if (!date) {
-                    return (
-                      <View
-                        key={`empty-${index}`}
-                        style={{
-                          width: `${100 / 7}%`,
-                          height: 34,
-                        }}
-                      />
-                    );
-                  }
+                  <Pressable
+                    onPress={nextMonth}
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 13,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: theme.colors.card,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.text}
+                    />
+                  </Pressable>
+                </View>
 
-                  const disabled = date > maxBirthDate;
-                  const active = selectedDate
-                    ? isSameDate(date, selectedDate)
-                    : false;
-
-                  return (
-                    <Pressable
-                      key={date.toISOString()}
-                      disabled={disabled}
-                      onPress={() => {
-                        closePickers();
-                        setSelectedDate(date);
-                      }}
+                <View style={{ flexDirection: "row", marginBottom: 6 }}>
+                  {dias.map((dia) => (
+                    <ThemedText
+                      key={dia}
                       style={{
                         width: `${100 / 7}%`,
-                        height: 34,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        opacity: disabled ? 0.25 : 1,
+                        textAlign: "center",
+                        fontWeight: "900",
+                        color: theme.colors.muted,
+                        fontSize: 11,
                       }}
                     >
-                      <View
+                      {dia}
+                    </ThemedText>
+                  ))}
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    height: calendarHeight,
+                  }}
+                >
+                  {calendarDays.map((date, index) => {
+                    if (!date) {
+                      return (
+                        <View
+                          key={`empty-${index}`}
+                          style={{
+                            width: `${100 / 7}%`,
+                            height: dayCellHeight,
+                          }}
+                        />
+                      );
+                    }
+
+                    const active = selectedDate
+                      ? isSameDate(date, selectedDate)
+                      : false;
+
+                    const isToday = isSameDate(date, today);
+
+                    return (
+                      <Pressable
+                        key={`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`}
+                        onPress={() => {
+                          closePickers();
+                          setSelectedDate(date);
+                        }}
                         style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 999,
+                          width: `${100 / 7}%`,
+                          height: dayCellHeight,
                           justifyContent: "center",
                           alignItems: "center",
-                          backgroundColor: active
-                            ? theme.colors.primary
-                            : "transparent",
                         }}
                       >
-                        <ThemedText
+                        <View
                           style={{
-                            color: active
-                              ? activeTextColor
-                              : theme.colors.text,
-                            fontWeight: active ? "900" : "700",
-                            fontSize: 12,
+                            width: isMobile ? 30 : 34,
+                            height: isMobile ? 30 : 34,
+                            borderRadius: 999,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            backgroundColor: active
+                              ? theme.colors.primary
+                              : isToday
+                                ? theme.colors.card
+                                : "transparent",
+                            borderWidth: isToday && !active ? 1 : 0,
+                            borderColor: theme.colors.border,
                           }}
                         >
-                          {date.getDate()}
-                        </ThemedText>
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                          <ThemedText
+                            style={{
+                              color: active
+                                ? activeTextColor
+                                : theme.colors.text,
+                              fontWeight: active || isToday ? "900" : "700",
+                              fontSize: 12,
+                            }}
+                          >
+                            {date.getDate()}
+                          </ThemedText>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
-            </View>
+            </ScrollView>
 
             <View
               style={{
                 flexDirection: "row",
                 gap: 10,
-                marginTop: 16,
-                paddingTop: 14,
+                paddingHorizontal: isMobile ? 14 : 20,
+                paddingVertical: 14,
                 borderTopWidth: 1,
                 borderTopColor: theme.colors.border,
+                backgroundColor: theme.colors.card,
               }}
             >
               <Pressable
                 onPress={() => setOpen(false)}
                 style={{
                   flex: 1,
-                  height: 46,
-                  borderRadius: 14,
+                  height: 48,
+                  borderRadius: 15,
                   borderWidth: 1,
                   borderColor: theme.colors.border,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: theme.colors.card,
+                  backgroundColor: theme.colors.background,
                   flexDirection: "row",
                   gap: 6,
                 }}
@@ -799,19 +811,19 @@ export default function FormDateInput({
 
               <Pressable
                 onPress={handleApply}
-                disabled={!canApply}
+                disabled={!selectedDate}
                 style={{
                   flex: 1,
-                  height: 46,
-                  borderRadius: 14,
+                  height: 48,
+                  borderRadius: 15,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: theme.colors.primary,
-                  opacity: !canApply ? 0.55 : 1,
+                  opacity: !selectedDate ? 0.55 : 1,
                   flexDirection: "row",
                   gap: 6,
                   borderWidth: 1,
-                  borderColor: theme.colors.border,
+                  borderColor: theme.colors.primary,
                 }}
               >
                 <ThemedText
@@ -831,8 +843,8 @@ export default function FormDateInput({
                 />
               </Pressable>
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
