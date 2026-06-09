@@ -149,4 +149,21 @@ export const httpClient = {
 
     return data;
   },
+  async _rawFetch(path: string, accept: string): Promise<Response> {
+    const token = await getToken();
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "GET",
+      headers: {
+        Accept: accept,
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let msg = "Error al descargar";
+      try { msg = JSON.parse(text).message ?? msg; } catch {}
+      throw new Error(msg);
+    }
+    return res;
+  },
 };

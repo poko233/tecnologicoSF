@@ -38,3 +38,23 @@ export const batchRegistrarAsistencia = (body: BatchAsistenciaBody) =>
     "/api/docente/asistencia/batch",
     body,
   );
+  
+export const descargarReporteAsistencia = async (
+  idGrupoMateriaDocente: number,
+  formato: "csv" | "pdf",
+): Promise<{ blob: Blob; filename: string }> => {
+  // httpClient ya maneja el token internamente
+  const res = await (httpClient as any)._rawFetch(
+    `/api/docente/grupos-asignados/${idGrupoMateriaDocente}/reporte/${formato}`,
+    formato === "pdf" ? "application/pdf" : "text/csv",
+  );
+
+  const blob = await res.blob();
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const match = disposition.match(/filename[^;=\n]*=["']?([^"';\n]+)/i);
+  const filename =
+    match?.[1]?.trim() ??
+    `asistencia_grupo${idGrupoMateriaDocente}.${formato}`;
+
+  return { blob, filename };
+};

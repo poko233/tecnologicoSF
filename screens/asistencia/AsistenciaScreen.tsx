@@ -19,6 +19,7 @@ import { GroupSelector } from "./components/GroupSelector";
 import { ListModeView } from "./components/ListModeView";
 import { ModeSwitcher } from "./components/ModeSwitcher";
 import { QuickModeView } from "./components/QuickModeView";
+import { ReporteButton } from "./components/ReporteButton";
 import { ScheduleSelector } from "./components/ScheduleSelector";
 import { LocalAttendanceState, useAsistencia } from "./hooks/useAsistencia";
 
@@ -46,6 +47,7 @@ export function AsistenciaScreen() {
     updateLocalChange,
     submitBatch,
     resetToGroupSelection,
+    selectedGrupoId,
   } = useAsistencia();
 
   const [step, setStep] = useState<Step>("groups");
@@ -167,11 +169,17 @@ export function AsistenciaScreen() {
                 "Registre la asistencia de los estudiantes."}
             </Text>
           </View>
-          {step === "attendance" && (
-            <View style={{ marginTop: isMobile ? 12 : 0 }}>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: isMobile ? 12 : 0, alignItems: "center" }}>
+            {estudiantesData && (
+              <ReporteButton
+                idGrupoMateriaDocente={selectedGrupoId!}
+                grupoNombre={selectedGroupName}
+              />
+            )}
+            {step === "attendance" && (
               <ModeSwitcher currentMode={viewMode} onModeChange={setViewMode} />
-            </View>
-          )}
+            )}
+          </View>
         </View>
 
         {/* Contenido */}
@@ -306,7 +314,6 @@ export function AsistenciaScreen() {
                   />
                 </View>
               )}
-
               {/* Derecha: botón Guardar */}
               <TouchableOpacity
                 onPress={handleOpenConfirm}
