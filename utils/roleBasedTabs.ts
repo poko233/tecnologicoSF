@@ -6,9 +6,9 @@ export interface TabDefinition {
 }
 const roleTabMap: Record<string, TabDefinition[]> = {
   Estudiante: [
-    { name: "notas", title: "Notas", icon: "document-text-outline" },
-    { name: "horario", title: "Horario", icon: "calendar-outline" },
     { name: "perfil", title: "Perfil", icon: "person-outline" },
+    { name: "mis-notas", title: "Notas", icon: "document-text-outline" },
+    { name: "materias", title: "Materias", icon: "book-outline" },
   ],
   Docente: [
     { name: "perfil", title: "Perfil", icon: "person-outline" },

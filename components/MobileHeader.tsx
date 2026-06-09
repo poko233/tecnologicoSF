@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import Toast from "react-native-toast-message";
+import { useAuth } from "../contexts/AuthContext";
 import { useMobileDrawer } from "../contexts/MobileDrawerContext";
 import { useTheme } from "../theme/useTheme";
 
@@ -15,38 +15,31 @@ export const MobileHeader: React.FC = () => {
   const { theme } = useTheme();
   const c = theme.colors;
   const { toggleDrawer } = useMobileDrawer();
+  const { user } = useAuth();
 
   const hamburgerScale = useSharedValue(1);
-  const bellScale = useSharedValue(1);
 
   const hamburgerAnim = useAnimatedStyle(() => ({
     transform: [{ scale: hamburgerScale.value }],
   }));
-  const bellAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: bellScale.value }],
-  }));
 
-  const showToast = () => {
-    Toast.show({
-      type: "info",
-      text1: "Función en desarrollo",
-      text2: "Pronto podrás ver tus notificaciones.",
-      visibilityTime: 3000,
-    });
-  };
+  const isStudent = user?.roles?.includes("Estudiante");
+
+  // Si es estudiante no renderizamos nada (el AppLayout ya no llamará a este componente)
+  if (isStudent) return null;
 
   return (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "flex-start",
         backgroundColor: c.background,
         paddingHorizontal: 16,
         paddingVertical: 12,
       }}
     >
-      {/* Botón menú con fondo circular */}
+      {/* Solo hamburguesa (sin campanita) */}
       <Animated.View style={hamburgerAnim}>
         <Pressable
           onPress={() => toggleDrawer()}
@@ -67,30 +60,6 @@ export const MobileHeader: React.FC = () => {
           accessibilityLabel="Abrir menú lateral"
         >
           <Ionicons name="menu" size={24} color={c.text} />
-        </Pressable>
-      </Animated.View>
-
-      {/* Icono de notificaciones */}
-      <Animated.View style={bellAnim}>
-        <Pressable
-          onPress={showToast}
-          onPressIn={() => {
-            bellScale.value = withTiming(0.9, { duration: 150 });
-          }}
-          onPressOut={() => {
-            bellScale.value = withTiming(1, { duration: 150 });
-          }}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.backgroundSecondary,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          accessibilityLabel="Notificaciones"
-        >
-          <Ionicons name="notifications-outline" size={24} color={c.text} />
         </Pressable>
       </Animated.View>
     </View>

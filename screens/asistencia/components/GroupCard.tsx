@@ -26,12 +26,13 @@ export function GroupCard({ grupo, onPress, index, itemWidth }: Props) {
       animate={cardEntrance.animate}
       transition={{
         ...cardEntrance.transition,
-        delay: index * 50, // stagger suave, sin rebote
+        delay: index * 50,
       }}
       style={[
         styles.card,
         {
           width: itemWidth,
+          flex: 1, // <-- OBLIGA A LA TARJETA A ESTIRARSE AL ALTO DE LA FILA
           backgroundColor: c.card,
           borderColor: c.border,
           shadowColor: "#000",
@@ -44,7 +45,8 @@ export function GroupCard({ grupo, onPress, index, itemWidth }: Props) {
     >
       <MotiPressable
         onPress={() => onPress(grupo.id_grupo_materia_docente)}
-        style={styles.pressable}
+        // DISTRIBUYE EL ESPACIO: El título arriba y los detalles empujados al fondo
+        style={[styles.pressable, { flex: 1, justifyContent: "space-between" }]}
         animate={({ pressed }) => {
           "worklet";
           return {
@@ -53,7 +55,7 @@ export function GroupCard({ grupo, onPress, index, itemWidth }: Props) {
         }}
       >
         <View style={styles.header}>
-          <Text style={[styles.title, { color: c.primary }]} numberOfLines={2}>
+          <Text style={[styles.title, { color: c.primary }]} numberOfLines={3}>
             {grupo.grupo} - {grupo.materia}
           </Text>
         </View>
@@ -87,7 +89,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 12,
   },
   pressable: {
     padding: 20,
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     flex: 1,
     marginRight: 8,

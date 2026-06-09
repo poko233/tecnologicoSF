@@ -1,14 +1,16 @@
+// screens/notas/components/GroupList.tsx
 import { useTheme } from "@/theme/useTheme";
 import { Search } from "lucide-react-native";
 import { MotiView } from "moti";
 import React, { useMemo, useState } from "react";
 import {
+  DimensionValue,
   FlatList,
+  LayoutChangeEvent,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { fadeSlideUp } from "../animations/notas.animations";
@@ -23,13 +25,11 @@ interface Props {
 export function GroupList({ grupos, onSelect }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { width } = useWindowDimensions();
-
   const [query, setQuery] = useState("");
   const [selectedGestion, setSelectedGestion] = useState<string | null>(null);
   const [showGestionPicker, setShowGestionPicker] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  // Obtener gestiones únicas
   const gestionesUnicas = useMemo(() => {
     const gestiones = new Set(grupos.map((g) => g.gestion));
     return Array.from(gestiones).sort();
@@ -52,15 +52,35 @@ export function GroupList({ grupos, onSelect }: Props) {
     return result;
   }, [grupos, query, selectedGestion]);
 
-  const numColumns = width < 768 ? 1 : width < 1024 ? 2 : 3;
-  const gap = 12;
-  const paddingHorizontal = 16;
-  const availableWidth = width - paddingHorizontal * 2 - gap * (numColumns - 1);
-  const itemWidth = availableWidth / numColumns;
+  const onLayout = (event: LayoutChangeEvent) => {
+    setContainerWidth(event.nativeEvent.layout.width);
+  };
+
+  const getGridConfig = (): {
+    numColumns: number;
+    itemWidth: DimensionValue;
+    gap: number;
+  } => {
+    if (containerWidth === 0)
+      return { numColumns: 1, itemWidth: "100%", gap: 0 };
+
+    const gap = 12;
+    const numColumns = containerWidth < 768 ? 1 : containerWidth < 1024 ? 2 : 3;
+
+    // CORRECCIÓN: Restar el padding horizontal total (16 de la izquierda + 16 de la derecha)
+    const totalPadding = 32;
+    const availableWidth = containerWidth - totalPadding;
+
+    const totalGapWidth = gap * (numColumns - 1);
+    const itemWidth = (availableWidth - totalGapWidth) / numColumns;
+
+    return { numColumns, itemWidth, gap };
+  };
+
+  const { numColumns, itemWidth, gap } = getGridConfig();
 
   return (
     <MotiView style={styles.container} {...fadeSlideUp}>
-      {/* Filtros */}
       <View style={styles.filters}>
         <View
           style={[
@@ -72,16 +92,12 @@ export function GroupList({ grupos, onSelect }: Props) {
           <TextInput
             placeholder="Buscar grupo o materia..."
             placeholderTextColor={c.textMuted}
-            style={[
-              styles.input,
-              { color: c.text, outlineStyle: "none" as any },
-            ]}
+            style={[styles.input, { color: c.text }]}
             value={query}
             onChangeText={setQuery}
           />
         </View>
 
-        {/* Selector de gestión */}
         <TouchableOpacity
           style={[
             styles.gestionButton,
@@ -138,38 +154,40 @@ export function GroupList({ grupos, onSelect }: Props) {
           No se encontraron grupos.
         </Text>
       ) : (
-        <FlatList
-          data={filtered}
-          key={numColumns}
-          keyExtractor={(item) => item.id_grupo_materia_docente.toString()}
-          numColumns={numColumns}
-          renderItem={({ item, index }) => (
-            <View
-              style={{
-                width: itemWidth,
-                marginRight: index % numColumns < numColumns - 1 ? gap : 0,
-              }}
-            >
-              <GroupCard
-                grupo={item}
-                onPress={onSelect}
-                index={index}
-                itemWidth={itemWidth}
-              />
-            </View>
+        <View style={styles.listContainer} onLayout={onLayout}>
+          {containerWidth > 0 && (
+            <FlatList
+              data={filtered}
+              key={numColumns}
+              keyExtractor={(item) => item.id_grupo_materia_docente.toString()}
+              numColumns={numColumns}
+              columnWrapperStyle={
+                numColumns > 1
+                  ? { alignItems: "stretch", justifyContent: "flex-start" }
+                  : undefined
+              }
+              renderItem={({ item, index }) => (
+                <GroupCard
+                  grupo={item}
+                  onPress={onSelect}
+                  index={index}
+                  itemWidth={Number(itemWidth)}
+                  marginRight={index % numColumns < numColumns - 1 ? gap : 0}
+                  marginBottom={gap}
+                />
+              )}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+            />
           )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        />
+        </View>
       )}
     </MotiView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   filters: {
     flexDirection: "row",
     gap: 8,
@@ -218,13 +236,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  empty: {
-    textAlign: "center",
-    marginTop: 24,
-    fontSize: 15,
-  },
+  listContainer: { flex: 1 },
+  list: { paddingHorizontal: 16, paddingBottom: 20 },
+  empty: { textAlign: "center", marginTop: 24, fontSize: 15 },
 });

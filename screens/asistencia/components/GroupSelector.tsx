@@ -4,11 +4,12 @@ import { Search } from "lucide-react-native";
 import { MotiView } from "moti";
 import React, { useMemo, useState } from "react";
 import {
+  DimensionValue,
   FlatList,
+  LayoutChangeEvent,
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { fadeSlideUp } from "../animations/asistencia.animations";
@@ -23,8 +24,10 @@ interface Props {
 export function GroupSelector({ grupos, onSelect }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { width } = useWindowDimensions();
   const [query, setQuery] = useState("");
+
+  // Estado para guardar el ancho real del FlatList
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return grupos;
@@ -37,11 +40,33 @@ export function GroupSelector({ grupos, onSelect }: Props) {
     });
   }, [grupos, query]);
 
-  const numColumns = width < 768 ? 1 : width < 1024 ? 2 : 3;
-  const gap = 12;
-  const paddingHorizontal = 16;
-  const availableWidth = width - paddingHorizontal * 2 - gap * (numColumns - 1);
-  const itemWidth = availableWidth / numColumns;
+  // Capturar el ancho real del contenedor
+  const onLayout = (event: LayoutChangeEvent) => {
+    setContainerWidth(event.nativeEvent.layout.width);
+  };
+
+  // Calcular columnas y ancho basado en el espacio REAL
+  const getGridConfig = (): {
+    numColumns: number;
+    itemWidth: DimensionValue;
+    gap: number;
+  } => {
+    // Si aún no hemos medido, evitamos renderizar mal
+    if (containerWidth === 0)
+      return { numColumns: 1, itemWidth: "100%", gap: 0 };
+
+    const gap = 12;
+    // Decidir columnas basado en el ancho real del contenedor, no de la pantalla
+    const numColumns = containerWidth < 768 ? 1 : containerWidth < 1024 ? 2 : 3;
+
+    // Ancho total disponible menos los espacios entre columnas
+    const totalGapWidth = gap * (numColumns - 1);
+    const itemWidth = (containerWidth - totalGapWidth) / numColumns;
+
+    return { numColumns, itemWidth, gap };
+  };
+
+  const { numColumns, itemWidth, gap } = getGridConfig();
 
   return (
     <MotiView style={styles.container} {...fadeSlideUp}>
@@ -66,30 +91,39 @@ export function GroupSelector({ grupos, onSelect }: Props) {
           No se encontraron grupos.
         </Text>
       ) : (
-        <FlatList
-          data={filtered}
-          key={numColumns}
-          keyExtractor={(item) => item.id_grupo_materia_docente.toString()}
-          numColumns={numColumns}
-          renderItem={({ item, index }) => (
-            <View
-              style={{
-                width: itemWidth,
-                marginRight: index % numColumns < numColumns - 1 ? gap : 0,
-              }}
-            >
-              <GroupCard
-                grupo={item}
-                onPress={onSelect}
-                index={index}
-                itemWidth={itemWidth}
-                columnCount={numColumns}
-              />
-            </View>
+        <View style={styles.listContainer} onLayout={onLayout}>
+          {containerWidth > 0 && (
+            <FlatList
+              data={filtered}
+              key={numColumns}
+              keyExtractor={(item) => item.id_grupo_materia_docente.toString()}
+              numColumns={numColumns}
+              // ESTO ES CLAVE: Hace que todas las celdas de una misma fila tengan la misma altura
+              columnWrapperStyle={
+                numColumns > 1 ? { alignItems: "stretch" } : undefined
+              }
+              renderItem={({ item, index }) => (
+                <View
+                  style={{
+                    width: itemWidth,
+                    marginRight: index % numColumns < numColumns - 1 ? gap : 0,
+                    marginBottom: gap, // <-- AQUÍ CORREGIMOS EL ESPACIO VERTICAL
+                  }}
+                >
+                  <GroupCard
+                    grupo={item}
+                    onPress={onSelect}
+                    index={index}
+                    itemWidth={Number(itemWidth)}
+                    columnCount={numColumns}
+                  />
+                </View>
+              )}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+            />
           )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        />
+        </View>
       )}
     </MotiView>
   );
@@ -114,6 +148,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginLeft: 8,
     fontSize: 16,
+  },
+  listContainer: {
+    flex: 1,
   },
   list: {
     paddingBottom: 20,

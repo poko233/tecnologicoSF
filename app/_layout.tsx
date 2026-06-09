@@ -1,3 +1,4 @@
+// app/_layout.tsx
 import { injectGlobalScrollbar } from "@/components/globalScrollbar";
 import { Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -16,7 +17,9 @@ function AppContent() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const showDrawer = !!user && pathname !== "/";
+  // El drawer solo se monta si hay usuario, no estamos en la raíz y NO es estudiante
+  const isStudent = user?.roles?.includes("Estudiante");
+  const showDrawer = !!user && pathname !== "/" && !isStudent;
 
   React.useEffect(() => {
     injectGlobalScrollbar({

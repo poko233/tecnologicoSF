@@ -1,17 +1,63 @@
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { LogOut } from "lucide-react-native";
 import { MotiView } from "moti";
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Toast from "react-native-toast-message";
+import { useAuth } from "../../../contexts/AuthContext";
+import { useMobileDrawer } from "../../../contexts/MobileDrawerContext";
 import { useResponsive } from "../../../hooks/useResponsive";
+import { useModulesStore } from "../../../store/modulesStore";
 import { useTheme } from "../../../theme/useTheme";
 import { usePerfilData } from "../hooks/usePerfilData";
 
 export const PerfilHeader = () => {
   const { theme } = useTheme();
-  const { isDesktop } = useResponsive();
+  const { isDesktop, isMobile } = useResponsive();
   const { nombreCompleto, roles, foto } = usePerfilData();
-  const rolPrincipal = roles.length > 0 ? roles[0] : "Usuario";
+  const { logout } = useAuth();
+  const router = useRouter();
+  const { closeDrawer } = useMobileDrawer();
+  const [loading, setLoading] = useState(false);
+
   const styles = getStyles(theme, isDesktop);
+
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      await logout();
+      Toast.show({
+        type: "success",
+        text1: "Sesión cerrada",
+        text2: "Has salido correctamente.",
+        visibilityTime: 3000,
+      });
+      closeDrawer();
+      useModulesStore.getState().clearModulos();
+      router.replace("/");
+    } catch (e) {
+      // Si falla, el ProtectedRoute se encargará
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditProfile = () => {
+    // Placeholder: funcionalidad en desarrollo
+    Toast.show({
+      type: "info",
+      text1: "Editar perfil",
+      text2: "Funcionalidad en desarrollo.",
+      visibilityTime: 2000,
+    });
+  };
 
   return (
     <MotiView
@@ -87,6 +133,55 @@ export const PerfilHeader = () => {
               </View>
             ))}
           </View>
+        </View>
+
+        {/* Botones de acción (visible solo en móvil el de logout) */}
+        <View style={styles.actions}>
+          {/* Cerrar sesión solo en móvil */}
+          {isMobile && (
+            <Pressable
+              onPress={handleLogout}
+              disabled={loading}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor:
+                  pressed || loading
+                    ? theme.colors.destructive
+                    : theme.colors.border,
+                backgroundColor:
+                  pressed || loading
+                    ? theme.colors.destructive + "12"
+                    : "transparent",
+                opacity: loading ? 0.6 : 1,
+              })}
+            >
+              {loading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.destructive}
+                />
+              ) : (
+                <>
+                  <LogOut size={16} color={theme.colors.destructive} />
+                  <Text
+                    style={{
+                      color: theme.colors.destructive,
+                      fontSize: 13,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Cerrar Sesión
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          )}
         </View>
       </View>
     </MotiView>
@@ -180,5 +275,11 @@ const getStyles = (theme: any, isDesktop: boolean) =>
     chipText: {
       fontSize: 12,
       fontWeight: "600",
+    },
+    actions: {
+      flexDirection: "row",
+      gap: 8,
+      marginTop: isDesktop ? 0 : 16,
+      alignItems: "center",
     },
   });

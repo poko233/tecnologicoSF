@@ -11,8 +11,8 @@ import { TabDefinition, getTabsForRoles } from "../../utils/roleBasedTabs";
 // ⚠️ Lista COMPLETA de todas las pantallas que existen en app/(tabs)/
 // Si agregas un archivo nuevo a (tabs), agrégalo aquí también.
 const ALL_POSSIBLE_TABS: TabDefinition[] = [
-  { name: "notas", title: "Notas", icon: "document-text-outline" },
-  { name: "horario", title: "Horario", icon: "calendar-outline" },
+  { name: "mis-notas", title: "Notas", icon: "document-text-outline" },
+  { name: "materias", title: "Materias", icon: "book-outline" },
   { name: "perfil", title: "Perfil", icon: "person-outline" },
   { name: "marcado", title: "Marcado", icon: "create-outline" },
 ];

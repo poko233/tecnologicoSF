@@ -1,6 +1,7 @@
 // components/AppLayout.tsx
 import React from "react";
 import { View } from "react-native";
+import { useAuth } from "../contexts/AuthContext"; // añadido
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../theme/useTheme";
 import { MobileHeader } from "./MobileHeader";
@@ -10,16 +11,10 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-/**
- * Layout común para todas las pantallas de la app:
- * - Escritorio: Sidebar fijo + contenido a la derecha.
- * - Móvil: MobileHeader + contenido.
- *
- * El drawer móvil se maneja desde el root _layout.tsx.
- */
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { isDesktop } = useResponsive();
   const { theme } = useTheme();
+  const { user } = useAuth(); // añadido
 
   if (isDesktop) {
     return (
@@ -43,9 +38,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     );
   }
 
+  // Móvil: solo mostramos el header si NO es estudiante
+  const isStudent = user?.roles?.includes("Estudiante");
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <MobileHeader />
+      {!isStudent && <MobileHeader />}
       <View style={{ flex: 1 }}>{children}</View>
     </View>
   );
