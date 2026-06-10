@@ -93,6 +93,32 @@ export default function LoginScreen() {
           style={{ backgroundColor: theme.colors.background }}
           {...panResponder.panHandlers}
         >
+          {/* 🔥 ELEMENTOS DECORATIVOS DETRÁS DEL CRISTAL 🔥 */}
+          {/* Esto es solo un ejemplo. Coloca formas de colores absolutas para que el BlurView tenga algo que distorsionar */}
+          <View
+            style={{
+              position: "absolute",
+              top: "20%",
+              left: "-10%",
+              width: 200,
+              height: 200,
+              borderRadius: 100,
+              backgroundColor: theme.colors.primary, // Usa un color vivo de tu tema
+              opacity: 0.3,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              bottom: "10%",
+              right: "-10%",
+              width: 250,
+              height: 250,
+              borderRadius: 125,
+              backgroundColor: theme.colors.info, // Otro color vivo
+              opacity: 0.3,
+            }}
+          />
           {/* Mascota */}
           <View ref={mascotRef} style={styles.mascotWrapper}>
             <Mascot

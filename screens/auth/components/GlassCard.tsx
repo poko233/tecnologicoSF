@@ -15,14 +15,15 @@ export const GlassCard: React.FC<GlassCardProps> = ({ children }) => {
   return (
     <View style={styles.container}>
       <BlurView
-        intensity={20}
+        intensity={60} // Aumentamos la intensidad para que el efecto sea visible
         tint={tint}
         style={[
           styles.blur,
           {
+            // Bajamos la opacidad dramáticamente (de 0.7 a 0.15 o 0.1)
             backgroundColor: theme.dark
-              ? "rgba(255,255,255,0.05)"
-              : "rgba(255,255,255,0.7)",
+              ? "rgba(255,255,255,0.02)"
+              : "rgba(255,255,255,0.15)",
             borderColor: theme.colors.border,
             shadowColor: theme.colors.shadow,
           },
@@ -42,12 +43,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 40,
     elevation: 20,
+    // Importante: asegúrate de que el container padre no tenga un backgroundColor sólido
+    // que pise el efecto del BlurView.
   },
   blur: {
-    paddingVertical: 16, // antes 20
+    paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 32,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    // El borde semitransparente ayuda a dar el efecto de "brillo" en el borde del cristal
+    borderColor: "rgba(255,255,255,0.2)",
   },
 });
