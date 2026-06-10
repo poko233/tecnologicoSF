@@ -1,5 +1,4 @@
 // screens/qr/hooks/useManualVerification.ts
-import { getLocationString } from "@/utils/getLocation";
 import { decryptQrData } from "@/utils/qrCrypto";
 import * as Speech from "expo-speech";
 import { useCallback, useState } from "react";
@@ -19,16 +18,13 @@ export function useManualVerification() {
     setError(null);
     setResult(null);
     try {
-      const location = await getLocationString();
-      console.log(`📍 Ubicación final: "${location}"`);
-
       let data: VerifyAccessResponse;
       if (mode === "qr") {
         const userId = decryptQrData(value);
         if (!userId) throw new Error("Código QR inválido o corrupto");
-        data = await QrService.verifyAccess(userId, location);
+        data = await QrService.verifyAccess(userId);
       } else {
-        data = await QrService.verifyAccessByCI(value, location);
+        data = await QrService.verifyAccessByCI(value);
       }
 
       const texto = `${data.usuario.nombres}${data.usuario.apellido_paterno}, ${data.alerta.mensaje}`;

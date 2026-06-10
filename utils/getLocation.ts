@@ -10,7 +10,7 @@ export async function getLocationString(): Promise<string> {
 
   try {
     const response = await fetch(
-      "http://ip-api.com/json/?fields=city,country,lat,lon,isp,query",
+      "https://ip-api.com/json/?fields=city,country,lat,lon,isp,query",
     );
     if (!response.ok)
       throw new Error("Servicio de geolocalización no disponible");
