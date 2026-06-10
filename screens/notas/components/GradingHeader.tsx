@@ -15,9 +15,10 @@ interface Props {
   gestion: string;
   materia: string;
   onBack: () => void;
-  onExportCSV: () => void;
-  onSave: () => void; // <-- NUEVO PROP
-  saving: boolean; // <-- NUEVO PROP
+  onExportExcel: () => void;  
+  onExportPDF: () => void;
+  onSave: () => void;
+  saving: boolean; 
 }
 
 export function GradingHeader({
@@ -25,7 +26,8 @@ export function GradingHeader({
   gestion,
   materia,
   onBack,
-  onExportCSV,
+  onExportExcel,
+  onExportPDF,
   onSave,
   saving,
 }: Props) {
@@ -58,14 +60,22 @@ export function GradingHeader({
       {/* Contenedor de Botones de Acción */}
       <View style={styles.actionsSection}>
         <MotiPressable
-          onPress={onExportCSV}
-          style={[styles.exportBtn, { borderColor: c.border }]}
+          onPress={onExportExcel}
+          style={[styles.exportBtn, { borderColor: '#16a34a', borderWidth: 1 }]}
           animate={({ pressed }) => ({ scale: pressed ? 0.96 : 1 })}
         >
-          <Text
-            style={{ color: c.textSecondary, fontSize: 13, fontWeight: "600" }}
-          >
-            Exportar CSV
+          <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: "600" }}>
+            Excel
+          </Text>
+        </MotiPressable>
+
+        <MotiPressable
+          onPress={onExportPDF}
+          style={[styles.exportBtn, { borderColor: '#dc2626', borderWidth: 1 }]}
+          animate={({ pressed }) => ({ scale: pressed ? 0.96 : 1 })}
+        >
+          <Text style={{ color: '#dc2626', fontSize: 13, fontWeight: "600" }}>
+            PDF
           </Text>
         </MotiPressable>
 

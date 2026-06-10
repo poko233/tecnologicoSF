@@ -33,3 +33,27 @@ export async function guardarPlanilla(
   );
   return res;
 }
+
+export async function descargarExcel(idGrupo: number): Promise<void> {
+  const res = await httpClient._rawFetch(
+    `/api/reportes/${idGrupo}/excel`,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `planilla_${idGrupo}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function abrirPDF(idGrupo: number): Promise<void> {
+  const res = await httpClient._rawFetch(
+    `/api/reportes/${idGrupo}/pdf/ver`,
+    "application/pdf",
+  );
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}

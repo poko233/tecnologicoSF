@@ -8,11 +8,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { fadeSlideUp } from "../animations/notas.animations";
 import { usePlanilla } from "../hooks/usePlanilla";
+import { abrirPDF, descargarExcel } from "../services/notas.service";
 import { GuardarPayload } from "../types/notas.types";
 import { GradingHeader } from "./GradingHeader";
 import { GradingRow } from "./GradingRow";
@@ -42,12 +43,8 @@ export function GradingSheet({
   const { theme } = useTheme();
   const c = theme.colors;
   const { planilla, loading, cargar, guardar } = usePlanilla();
-  const [scores, setScores] = useState<
-    Record<number, Record<number, number | null>>
-  >({});
-  const [observaciones, setObservaciones] = useState<Record<number, string>>(
-    {},
-  );
+  const [scores, setScores] = useState<Record<number, Record<number, number | null>>>({});
+  const [observaciones, setObservaciones] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -60,15 +57,11 @@ export function GradingSheet({
     if (planilla) {
       const initialScores: Record<number, Record<number, number | null>> = {};
       const initialObs: Record<number, string> = {};
-
       planilla.estudiantes.forEach((est) => {
         initialScores[est.id_inscripcion] = {};
         initialObs[est.id_inscripcion] = "";
-
         planilla.elementos_competencia.forEach((ec) => {
-          const nota = est.notas_ec.find(
-            (n) => n.id_elemento_competencia === ec.id,
-          );
+          const nota = est.notas_ec.find((n) => n.id_elemento_competencia === ec.id);
           initialScores[est.id_inscripcion][ec.id] = nota?.puntaje ?? null;
         });
       });
@@ -83,15 +76,13 @@ export function GradingSheet({
         ...prev,
         [idInscripcion]: { ...prev[idInscripcion], [ecId]: puntaje },
       }));
-    },
-    [],
+    }, [],
   );
 
   const handleObservacionChange = useCallback(
     (idInscripcion: number, obs: string) => {
       setObservaciones((prev) => ({ ...prev, [idInscripcion]: obs }));
-    },
-    [],
+    }, [],
   );
 
   const handleSave = useCallback(async () => {
@@ -101,28 +92,18 @@ export function GradingSheet({
       const notas = planilla.estudiantes.map((est) => {
         const studentScores = scores[est.id_inscripcion] || {};
         const obs = observaciones[est.id_inscripcion] || null;
-
         const ecScores = planilla.elementos_competencia.map((ec) => ({
           id_elemento_competencia: ec.id,
           puntaje: studentScores[ec.id] ?? 0,
           observaciones: null,
         }));
-        const ecValues = planilla.elementos_competencia.map(
-          (ec) => studentScores[ec.id] ?? 0,
-        );
+        const ecValues = planilla.elementos_competencia.map((ec) => studentScores[ec.id] ?? 0);
         const validScores = ecValues.filter((v) => v !== null) as number[];
-        const promedio =
-          validScores.length > 0
-            ? validScores.reduce((a, b) => a + b, 0) / validScores.length
-            : 0;
-        const notaAcademica = promedio * 0.9;
-        const notaFinal = Math.min(notaAcademica + est.nota_asistencia, 100);
+        const promedio = validScores.length > 0
+          ? validScores.reduce((a, b) => a + b, 0) / validScores.length : 0;
+        const notaFinal = Math.min(promedio * 0.9 + est.nota_asistencia, 100);
         const notaFinalRedondeada = Math.round(notaFinal * 100) / 100;
-        const estado =
-          notaFinalRedondeada >= 51
-            ? ("Aprobado" as const)
-            : ("Reprobado" as const);
-
+        const estado = notaFinalRedondeada >= 51 ? ("Aprobado" as const) : ("Reprobado" as const);
         return {
           id_inscripcion: est.id_inscripcion,
           nota_asistencia: est.nota_asistencia,
@@ -132,36 +113,34 @@ export function GradingSheet({
           ecs: ecScores,
         };
       });
-
-      const payload: GuardarPayload = {
-        id_grupo_materia_docente: idGrupo,
-        notas,
-      };
+      const payload: GuardarPayload = { id_grupo_materia_docente: idGrupo, notas };
       await guardar(payload);
     } catch (err) {
-      // Manejado externamente
     } finally {
       setSaving(false);
     }
   }, [planilla, scores, observaciones, idGrupo, guardar]);
 
-  const handleExportCSV = () => {
-    Toast.show({
-      type: "info",
-      text1: "Exportar CSV",
-      text2: "Funcionalidad en desarrollo.",
-    });
-  };
+  // ─── EXCEL ───────────────────────────────────────────────
+  const handleExportExcel = useCallback(async () => {
+    try {
+      await descargarExcel(idGrupo);
+    } catch (err: any) {
+      Toast.show({ type: "error", text1: "Error", text2: err.message });
+    }
+  }, [idGrupo]);
+
+  const handleExportPDF = useCallback(async () => {
+    try {
+      await abrirPDF(idGrupo);
+    } catch (err: any) {
+      Toast.show({ type: "error", text1: "Error", text2: err.message });
+    }
+  }, [idGrupo]);
 
   const numECs = planilla?.elementos_competencia.length ?? 0;
   const minTableWidth = useMemo(
-    () =>
-      COL_STUDENT_MIN +
-      numECs * COL_EC +
-      COL_ASIST +
-      COL_FINAL +
-      COL_STATUS +
-      COL_OBS,
+    () => COL_STUDENT_MIN + numECs * COL_EC + COL_ASIST + COL_FINAL + COL_STATUS + COL_OBS,
     [numECs],
   );
 
@@ -182,137 +161,37 @@ export function GradingSheet({
   }
 
   const renderHeader = () => (
-    <View
-      style={[
-        styles.headerRow,
-        {
-          borderBottomColor: c.border + "100",
-          backgroundColor: c.backgroundSecondary,
-          zIndex: 9999,
-          elevation: 10,
-        },
-      ]}
-    >
-      {/* CABECERA: Estudiante */}
-      <View
-        style={[
-          styles.headerCell,
-          {
-            width: COL_STUDENT_MIN,
-            // AGREGA ESTAS DOS LÍNEAS PARA QUE APAREZCA EL BORDE
-            borderRightWidth: 1,
-            borderRightColor: c.border + "100",
-          },
-        ]}
-      >
-        <Text style={[styles.headerText, { color: c.textSecondary }]}>
-          Estudiante
-        </Text>
+    <View style={[styles.headerRow, { borderBottomColor: c.border + "100", backgroundColor: c.backgroundSecondary, zIndex: 9999, elevation: 10 }]}>
+      <View style={[styles.headerCell, { width: COL_STUDENT_MIN, borderRightWidth: 1, borderRightColor: c.border + "100" }]}>
+        <Text style={[styles.headerText, { color: c.textSecondary }]}>Estudiante</Text>
       </View>
       {planilla.elementos_competencia.map((ec) => (
-        <View
-          key={ec.id}
-          style={[
-            styles.headerCell,
-            {
-              width: COL_EC,
-              borderRightWidth: 1,
-              borderRightColor: c.border + "100",
-            },
-          ]}
-        >
-          <Text
-            style={[styles.headerText, { color: c.textSecondary }]}
-            numberOfLines={2}
-          >
-            {ec.nombre}
-          </Text>
+        <View key={ec.id} style={[styles.headerCell, { width: COL_EC, borderRightWidth: 1, borderRightColor: c.border + "100" }]}>
+          <Text style={[styles.headerText, { color: c.textSecondary }]} numberOfLines={2}>{ec.nombre}</Text>
         </View>
       ))}
-
-      <View
-        style={[
-          styles.headerCell,
-          {
-            width: COL_ASIST,
-            backgroundColor: c.backgroundSecondary + "40",
-            borderRightWidth: 1,
-            borderRightColor: c.border + "100",
-          },
-        ]}
-      >
+      <View style={[styles.headerCell, { width: COL_ASIST, backgroundColor: c.backgroundSecondary + "40", borderRightWidth: 1, borderRightColor: c.border + "100" }]}>
         <View style={styles.tooltipContainer}>
-          <Text style={[styles.headerText, { color: c.textSecondary }]}>
-            Asist. (10)
-          </Text>
-          <Tooltip
-            message="Puntaje consolidado derivado del registro de asistencias."
-            position="bottom"
-          />
+          <Text style={[styles.headerText, { color: c.textSecondary }]}>Asist. (10)</Text>
+          <Tooltip message="Puntaje consolidado derivado del registro de asistencias." position="bottom" />
         </View>
       </View>
-
-      <View
-        style={[
-          styles.headerCell,
-          {
-            width: COL_FINAL,
-            borderRightWidth: 1,
-            borderRightColor: c.border + "100",
-          },
-        ]}
-      >
+      <View style={[styles.headerCell, { width: COL_FINAL, borderRightWidth: 1, borderRightColor: c.border + "100" }]}>
         <View style={styles.tooltipContainer}>
-          <Text style={[styles.headerText, { color: c.textSecondary }]}>
-            Nota Final
-          </Text>
-          <Tooltip
-            message="Cálculo automático basado en el promedio de los Elementos de Competencia (90%) y la asistencia (10%)."
-            position="bottom"
-          />
+          <Text style={[styles.headerText, { color: c.textSecondary }]}>Nota Final</Text>
+          <Tooltip message="Cálculo automático basado en el promedio de los Elementos de Competencia (90%) y la asistencia (10%)." position="bottom" />
         </View>
       </View>
-
-      <View
-        style={[
-          styles.headerCell,
-          {
-            width: COL_STATUS,
-            borderRightWidth: 1,
-            borderRightColor: c.border + "100",
-          },
-        ]}
-      >
+      <View style={[styles.headerCell, { width: COL_STATUS, borderRightWidth: 1, borderRightColor: c.border + "100" }]}>
         <View style={styles.tooltipContainer}>
-          <Text style={[styles.headerText, { color: c.textSecondary }]}>
-            Estado
-          </Text>
-          <Tooltip
-            message="Indicador automático de Aprobado/Reprobado basado en la Nota Final (Aprobado ≥ 51)."
-            position="bottom"
-          />
+          <Text style={[styles.headerText, { color: c.textSecondary }]}>Estado</Text>
+          <Tooltip message="Indicador automático de Aprobado/Reprobado basado en la Nota Final (Aprobado ≥ 51)." position="bottom" />
         </View>
       </View>
-
-      <View
-        style={[
-          styles.headerCell,
-          {
-            flex: 1, // <-- 1. AÑADE ESTO (Permite que crezca)
-            minWidth: COL_OBS, // <-- 2. CAMBIA 'width' por 'minWidth'
-            borderRightWidth: 1,
-            borderRightColor: c.border + "100",
-          },
-        ]}
-      >
+      <View style={[styles.headerCell, { flex: 1, minWidth: COL_OBS, borderRightWidth: 1, borderRightColor: c.border + "100" }]}>
         <View style={styles.tooltipContainer}>
-          <Text style={[styles.headerText, { color: c.textSecondary }]}>
-            Observación
-          </Text>
-          <Tooltip
-            message="Campo libre para registrar comentarios adicionales sobre el desempeño del estudiante. (Este campo sera visible para el estudiante)"
-            position="bottom-left"
-          />
+          <Text style={[styles.headerText, { color: c.textSecondary }]}>Observación</Text>
+          <Tooltip message="Campo libre para registrar comentarios adicionales sobre el desempeño del estudiante. (Este campo sera visible para el estudiante)" position="bottom-left" />
         </View>
       </View>
     </View>
@@ -327,48 +206,25 @@ export function GradingSheet({
       initialObservacion={observaciones[item.id_inscripcion] || ""}
       onScoreChange={handleScoreChange}
       onObservacionChange={handleObservacionChange}
-      columnWidths={{
-        student: COL_STUDENT_MIN,
-        ec: COL_EC,
-        asist: COL_ASIST,
-        final: COL_FINAL,
-        status: COL_STATUS,
-        obs: COL_OBS,
-      }}
+      columnWidths={{ student: COL_STUDENT_MIN, ec: COL_EC, asist: COL_ASIST, final: COL_FINAL, status: COL_STATUS, obs: COL_OBS }}
     />
   );
 
   return (
-    <MotiView
-      style={[styles.container, { backgroundColor: c.background }]}
-      {...fadeSlideUp}
-    >
+    <MotiView style={[styles.container, { backgroundColor: c.background }]} {...fadeSlideUp}>
+      {/* GradingHeader ya tiene los botones Excel y PDF */}
       <GradingHeader
         grupo={grupoNombre}
         gestion={gestion}
         materia={materiaNombre}
         onBack={onBack}
-        onExportCSV={handleExportCSV}
+        onExportExcel={handleExportExcel}
+        onExportPDF={handleExportPDF}
         onSave={handleSave}
         saving={saving}
       />
-
-      <View
-        style={[
-          styles.tableContainer,
-          {
-            backgroundColor: c.card,
-            borderTopWidth: 1,
-            borderTopColor: c.border + "100",
-          },
-        ]}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={true}
-          style={styles.horizontalScroll}
-          contentContainerStyle={{ flexGrow: 1 }}
-        >
+      <View style={[styles.tableContainer, { backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border + "100" }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.horizontalScroll} contentContainerStyle={{ flexGrow: 1 }}>
           <View style={{ flexGrow: 1, zIndex: 1, minWidth: "100%" }}>
             {renderHeader()}
             <FlatList
@@ -394,40 +250,20 @@ export function GradingSheet({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  tableContainer: {
-    flex: 1,
-    marginTop: 16,
-    zIndex: 1,
-  },
+  tableContainer: { flex: 1, marginTop: 16, zIndex: 1 },
   horizontalScroll: { flex: 1 },
   flatList: { flex: 1 },
   headerRow: {
     flexDirection: "row",
     borderBottomWidth: 2,
     borderBottomColor: "#bcc9c5",
-    paddingVertical: 0, // Quitamos paddingVertical para que el alto sea controlado por el contenido
-    height: 50, // Definimos una altura fija para la fila
+    paddingVertical: 0,
+    height: 50,
     width: "100%",
-    alignItems: "stretch", // IMPORTANTE: Esto hace que los hijos ocupen todo el alto
+    alignItems: "stretch",
   },
-  headerCell: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-    // Al usar alignItems: 'stretch' en el padre, esto ahora ocupará todo el alto
-  },
-  headerText: {
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
-    textTransform: "uppercase",
-  },
-  tooltipContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingLeft: 12,
-  },
+  headerCell: { justifyContent: "center", alignItems: "center", paddingHorizontal: 4 },
+  headerText: { fontSize: 12, fontWeight: "700", textAlign: "center", textTransform: "uppercase" },
+  tooltipContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingLeft: 12 },
   listContent: { paddingBottom: 60 },
 });
