@@ -9,7 +9,6 @@ export function useReportData() {
       label: "Total General de Inscritos",
       value: "1,284",
       iconName: "Users",
-      // backgroundColor por defecto será theme.colors.primary
     },
     {
       label: "Docentes Activos",
@@ -26,6 +25,15 @@ export function useReportData() {
   ];
 
   const reportCards: ReportCardItem[] = [
+    // ⭐ CENTRALIZADOR DE CALIFICACIONES (PRIMERO)
+    {
+      id: "centralizador",
+      iconName: "FileSpreadsheet",
+      title: "Centralizador de Calificaciones",
+      description:
+        "Reporte completo de notas por carrera, gestión y turno con todas las materias.",
+      accentColor: "primary",
+    },
     {
       id: "rango-tiempo",
       iconName: "Clock",
@@ -71,7 +79,7 @@ export function useReportData() {
       iconName: "History",
       title: "Historial de Accesos",
       description:
-        "Logs detallados de entrada de estudiantes, docentes y personal administrativo.",
+        "Logs detallados de entrada de estudiantes, docentes y personal.",
       accentColor: "primary",
     },
     {

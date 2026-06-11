@@ -1,6 +1,6 @@
 export interface ReportCardItem {
   id: string;
-  iconName: string; // nombre de ícono de lucide-react-native (ej: "Badge")
+  iconName: string;
   title: string;
   description: string;
   accentColor?: "primary" | "secondary" | "destructive" | "info";
@@ -10,5 +10,12 @@ export interface SummaryMetric {
   label: string;
   value: string;
   iconName: string;
-  backgroundColor?: string; // por defecto, theme.colors.primary
+  backgroundColor?: string;
+}
+
+// NUEVO
+export interface FiltroOpciones {
+  carreras: { idCarrera: number; nombreCarrera: string; codigo: string }[];
+  gestiones: string[];
+  turnos: string[];
 }
