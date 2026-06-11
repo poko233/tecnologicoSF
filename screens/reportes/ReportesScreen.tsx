@@ -4,7 +4,6 @@ import React from "react";
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ReportModal } from "./components/ReportModal";
 import { ReportsGrid } from "./components/ReportsGrid";
-import { SummaryCard } from "./components/SummaryCard";
 import { useReportData } from "./hooks/useReportData";
 import { useReportModal } from "./hooks/useReportModal";
 
@@ -12,12 +11,8 @@ export function ReportesScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const { isMobile } = useResponsive();
-  const { summaryMetrics, reportCards } = useReportData();
+  const { reportCards } = useReportData();  // 👈 Solo reportCards
   const { visible, reportType, open, close, resetType } = useReportModal();
-
-  const handlePrintSummary = () => {
-    open("total-inscritos");
-  };
 
   const handlePrintReport = (id: string) => {
     open(id);
@@ -40,20 +35,7 @@ export function ReportesScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.summaryRow, { gap: isMobile ? 12 : 16 }]}>
-            {summaryMetrics.map((metric, index) => (
-              <View
-                key={metric.label}
-                style={[index === 0 ? { flex: 2 } : { flex: 1 }]}
-              >
-                <SummaryCard
-                  metric={metric}
-                  index={index}
-                  onPrint={handlePrintSummary}
-                />
-              </View>
-            ))}
-          </View>
+          {/* 👈 Sin summaryRow, sin SummaryCard */}
 
           <View style={styles.gridWrapper}>
             <ReportsGrid reports={reportCards} onPrint={handlePrintReport} />
@@ -96,11 +78,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 20,
     paddingBottom: 40,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    marginBottom: 24,
   },
   gridWrapper: {
     flex: 1,
