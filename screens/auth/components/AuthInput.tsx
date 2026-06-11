@@ -4,10 +4,10 @@ import { Eye, EyeOff } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Animated, {
-    interpolateColor,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useTheme } from "../../../theme/useTheme";
 import { errorShakeAnimation } from "../animations/auth.animations";
