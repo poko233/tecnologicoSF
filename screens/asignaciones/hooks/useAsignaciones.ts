@@ -2,18 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 
 import {
-    actualizarEstudianteAsignacion,
-    getDetalleEstudiante,
-    getEstudiantesAsignaciones,
-    getMateriasSemestreUno,
-    inscribirSemestreUno,
+  actualizarEstudianteAsignacion,
+  getDetalleEstudiante,
+  getEstudiantesAsignaciones,
+  getMateriasSemestreUno,
+  inscribirSemestreUno,
 } from "../services/asignaciones.services";
 
 import {
-    DetalleEstudianteResponse,
-    Estudiante,
-    EstudianteForm,
-    MateriaSemestreUno,
+  DetalleEstudianteResponse,
+  Estudiante,
+  EstudianteForm,
+  MateriaSemestreUno,
 } from "../types/asignaciones.types";
 
 export function useAsignaciones() {
@@ -30,16 +30,26 @@ export function useAsignaciones() {
   const [inscribiendo, setInscribiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
+ const limpiarSeleccion = useCallback((conLoading = false) => {
+  setDetalle(null);
+  setMaterias([]);
+  setLoadingDetalle(conLoading);
+  setLoadingMaterias(conLoading);
+}, []);
+
   const cargarEstudiantes = useCallback(async () => {
     try {
       setLoading(true);
+
       const data = await getEstudiantesAsignaciones();
       setEstudiantes(data);
     } catch (error: any) {
       Toast.show({
         type: "error",
         text1: "Error",
-        text2: error?.response?.data?.message ?? "No se pudieron cargar estudiantes.",
+        text2:
+          error?.response?.data?.message ??
+          "No se pudieron cargar estudiantes.",
       });
     } finally {
       setLoading(false);
@@ -49,72 +59,96 @@ export function useAsignaciones() {
   const cargarDetalle = useCallback(async (idUsuario: number) => {
     try {
       setLoadingDetalle(true);
+      setDetalle(null);
+
       const data = await getDetalleEstudiante(idUsuario);
       setDetalle(data);
+
       return data;
     } catch (error: any) {
+      setDetalle(null);
+
       Toast.show({
         type: "error",
         text1: "Error",
-        text2: error?.response?.data?.message ?? "No se pudo cargar el detalle.",
+        text2:
+          error?.response?.data?.message ?? "No se pudo cargar el detalle.",
       });
+
       return null;
     } finally {
       setLoadingDetalle(false);
     }
   }, []);
 
-  const cargarMaterias = useCallback(async (idUsuario: number, idCarrera?: number) => {
-    try {
-      setLoadingMaterias(true);
-      const data = await getMateriasSemestreUno(idUsuario, idCarrera);
-      setMaterias(data);
-      return data;
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: error?.response?.data?.message ?? "No se pudieron cargar materias.",
-      });
-      return [];
-    } finally {
-      setLoadingMaterias(false);
-    }
-  }, []);
+  const cargarMaterias = useCallback(
+    async (idUsuario: number, idCarrera?: number) => {
+      try {
+        setLoadingMaterias(true);
+        setMaterias([]);
 
-  const inscribir = useCallback(async (idUsuario: number, idCarrera?: number) => {
-    try {
-      setInscribiendo(true);
-      const data = await inscribirSemestreUno(idUsuario, idCarrera);
+        const data = await getMateriasSemestreUno(idUsuario, idCarrera);
+        setMaterias(data);
 
-      Toast.show({
-        type: "success",
-        text1: "Correcto",
-        text2: data.message,
-      });
+        return data;
+      } catch (error: any) {
+        setMaterias([]);
 
-      await cargarDetalle(idUsuario);
-      await cargarMaterias(idUsuario, idCarrera);
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2:
+            error?.response?.data?.message ??
+            "No se pudieron cargar materias.",
+        });
 
-      return data;
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2:
-          error?.response?.data?.message ??
-          "No se pudo realizar la inscripción automática.",
-      });
-      return null;
-    } finally {
-      setInscribiendo(false);
-    }
-  }, [cargarDetalle, cargarMaterias]);
+        return [];
+      } finally {
+        setLoadingMaterias(false);
+      }
+    },
+    []
+  );
+
+  const inscribir = useCallback(
+    async (idUsuario: number, idCarrera?: number) => {
+      try {
+        setInscribiendo(true);
+
+        const data = await inscribirSemestreUno(idUsuario, idCarrera);
+
+        Toast.show({
+          type: "success",
+          text1: "Correcto",
+          text2: data.message,
+        });
+
+        await cargarDetalle(idUsuario);
+        await cargarMaterias(idUsuario, idCarrera);
+
+        return data;
+      } catch (error: any) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2:
+            error?.response?.data?.message ??
+            "No se pudo realizar la inscripción automática.",
+        });
+
+        return null;
+      } finally {
+        setInscribiendo(false);
+      }
+    },
+    [cargarDetalle, cargarMaterias]
+  );
 
   const actualizarEstudiante = useCallback(
     async (idUsuario: number, form: EstudianteForm) => {
       try {
         setGuardando(true);
+
         await actualizarEstudianteAsignacion(idUsuario, form);
 
         Toast.show({
@@ -135,6 +169,7 @@ export function useAsignaciones() {
             error?.response?.data?.message ??
             "No se pudo actualizar el estudiante.",
         });
+
         return false;
       } finally {
         setGuardando(false);
@@ -166,5 +201,6 @@ export function useAsignaciones() {
     cargarMaterias,
     inscribir,
     actualizarEstudiante,
+    limpiarSeleccion,
   };
 }

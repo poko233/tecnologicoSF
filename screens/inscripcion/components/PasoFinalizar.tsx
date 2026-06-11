@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   View,
@@ -10,7 +11,7 @@ import {
 import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../../components/ThemedText";
-import { httpClient } from "../../../http/httpClient";
+import { BASE_URL, httpClient } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 
 type Props = {
@@ -29,9 +30,22 @@ type CuotaResumen = {
   tipo?: "MATRICULA" | "MENSUAL" | string;
 };
 
+type GrupoResumen = {
+  idGrupo?: number;
+  nombre?: string;
+  codigo?: string;
+  paralelo?: string;
+  turno?: string;
+  gestion?: string;
+  nombreMateria?: string;
+  codigoMateria?: string;
+  semestre?: number;
+};
+
 type ResumenFinal = {
   usuario: {
     id: number;
+    matricula?: string | null;
     nombres: string;
     apellidoPaterno: string;
     apellidoMaterno: string;
@@ -47,6 +61,7 @@ type ResumenFinal = {
     regimen?: string;
     costo?: number;
   } | null;
+  grupos?: GrupoResumen[];
   cuotas: CuotaResumen[];
   planPago?: {
     matricula: CuotaResumen | null;
@@ -81,6 +96,7 @@ export default function PasoFinalizar({
 
   const [loading, setLoading] = useState(true);
   const [finalizando, setFinalizando] = useState(false);
+  const [abriendoFormulario, setAbriendoFormulario] = useState(false);
   const [resumen, setResumen] = useState<ResumenFinal | null>(null);
 
   const cargarResumen = async () => {
@@ -102,6 +118,38 @@ export default function PasoFinalizar({
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const abrirFormularioRegistro = async () => {
+    try {
+      setAbriendoFormulario(true);
+
+      const url = `${BASE_URL}/api/inscripcion/formulario-registro/${idUsuario}/pdf`;
+
+      const puedeAbrir = await Linking.canOpenURL(url);
+
+      if (!puedeAbrir) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "No se pudo abrir el formulario de registro.",
+        });
+
+        return;
+      }
+
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error(error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo abrir el formulario de registro.",
+      });
+    } finally {
+      setAbriendoFormulario(false);
     }
   };
 
@@ -136,6 +184,7 @@ export default function PasoFinalizar({
   }, [idUsuario]);
 
   const documentosResumen = resumen?.documentos ?? [];
+  const gruposResumen = resumen?.grupos ?? [];
   const planPago = resumen?.planPago;
   const cuotasMensuales = planPago?.cuotasMensuales ?? [];
 
@@ -314,8 +363,8 @@ export default function PasoFinalizar({
                   fontWeight: "700",
                 }}
               >
-                Revisa los datos personales, el plan de pago y los documentos
-                antes de finalizar.
+                Revisa los datos personales, el plan de pago y genera el
+                formulario de registro antes de finalizar.
               </ThemedText>
             </View>
           </View>
@@ -327,6 +376,12 @@ export default function PasoFinalizar({
             }}
           >
             <StatBox
+              icon="id-card-outline"
+              label="Matrícula"
+              value={resumen.usuario.matricula ?? "Sin matrícula"}
+            />
+
+            <StatBox
               icon="school-outline"
               label="Carrera"
               value={resumen.carrera?.nombreCarrera ?? "Sin carrera"}
@@ -334,14 +389,8 @@ export default function PasoFinalizar({
 
             <StatBox
               icon="cash-outline"
-              label="Matrícula"
+              label="Matrícula económica"
               value={formatoBs(planPago?.totalMatricula)}
-            />
-
-            <StatBox
-              icon="calendar-number-outline"
-              label="Cuotas"
-              value={planPago?.cantidadCuotas ?? cuotasMensuales.length}
             />
 
             <StatBox
@@ -406,6 +455,11 @@ export default function PasoFinalizar({
             </View>
 
             <View style={{ gap: 14 }}>
+              <View style={{ gap: 5 }}>
+                <Label>Matrícula</Label>
+                <Value>{resumen.usuario.matricula ?? "Sin matrícula"}</Value>
+              </View>
+
               <View style={{ gap: 5 }}>
                 <Label>Nombre completo</Label>
                 <Value>{nombreCompleto}</Value>
@@ -554,7 +608,7 @@ export default function PasoFinalizar({
                     fontSize: 16,
                   }}
                 >
-                  Matrícula
+                  Matrícula económica
                 </ThemedText>
 
                 <View
@@ -583,6 +637,121 @@ export default function PasoFinalizar({
               </View>
             ) : null}
           </View>
+        </View>
+
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.card,
+            borderRadius: 26,
+            padding: 22,
+            gap: 18,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: isMobile ? "column" : "row",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              gap: 12,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 16,
+                  backgroundColor: `${theme.colors.primary}18`,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons
+                  name="book-outline"
+                  size={26}
+                  color={theme.colors.primary}
+                />
+              </View>
+
+              <ThemedText
+                style={{
+                  fontSize: 22,
+                  fontWeight: "900",
+                  color: theme.colors.text,
+                }}
+              >
+                Materias y Grupos
+              </ThemedText>
+            </View>
+
+            <ThemedText
+              style={{
+                color: theme.colors.muted,
+                fontWeight: "900",
+              }}
+            >
+              {gruposResumen.length} grupo(s)
+            </ThemedText>
+          </View>
+
+          {gruposResumen.length === 0 ? (
+            <ThemedText
+              style={{
+                color: theme.colors.muted,
+                fontWeight: "800",
+              }}
+            >
+              No hay grupos registrados.
+            </ThemedText>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {gruposResumen.map((grupo, index) => (
+                <View
+                  key={`${grupo.idGrupo}-${index}`}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.background,
+                    borderRadius: 18,
+                    padding: 14,
+                    flexDirection: isMobile ? "column" : "row",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    gap: 12,
+                  }}
+                >
+                  <View style={{ flex: 1.5 }}>
+                    <Label>Materia</Label>
+                    <Value>{grupo.nombreMateria ?? "-"}</Value>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Label>Código</Label>
+                    <Value>{grupo.codigoMateria ?? "-"}</Value>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Label>Grupo</Label>
+                    <Value>
+                      {grupo.nombre ?? "-"} {grupo.paralelo ?? ""}
+                    </Value>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Label>Turno</Label>
+                    <Value>{grupo.turno ?? "-"}</Value>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         <View
@@ -840,8 +1009,47 @@ export default function PasoFinalizar({
             flexDirection: isMobile ? "column" : "row",
             justifyContent: "center",
             gap: 16,
+            flexWrap: "wrap",
           }}
         >
+          <Pressable
+            onPress={abrirFormularioRegistro}
+            disabled={abriendoFormulario}
+            style={{
+              height: 58,
+              minWidth: 280,
+              borderRadius: 16,
+              backgroundColor: "#16A34A",
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "row",
+              gap: 8,
+              opacity: abriendoFormulario ? 0.7 : 1,
+            }}
+          >
+            {abriendoFormulario ? (
+              <>
+                <ActivityIndicator color="#FFFFFF" />
+
+                <ThemedText style={{ color: "#FFFFFF", fontWeight: "900" }}>
+                  Abriendo...
+                </ThemedText>
+              </>
+            ) : (
+              <>
+                <Ionicons
+                  name="document-text-outline"
+                  size={20}
+                  color="#FFFFFF"
+                />
+
+                <ThemedText style={{ color: "#FFFFFF", fontWeight: "900" }}>
+                  Formulario de Registro
+                </ThemedText>
+              </>
+            )}
+          </Pressable>
+
           <Pressable
             onPress={finalizar}
             disabled={finalizando}

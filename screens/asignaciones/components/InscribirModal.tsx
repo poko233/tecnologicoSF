@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-    ActivityIndicator,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
@@ -41,8 +41,12 @@ export default function InscribirModal({
   const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
   const modalBg = isDark ? "#111827" : theme.colors.card;
   const softBg = isDark ? "rgba(255,255,255,0.045)" : "rgba(15,23,42,0.035)";
-  const softBgStrong = isDark ? "rgba(255,255,255,0.075)" : "rgba(15,23,42,0.055)";
+  const softBgStrong = isDark
+    ? "rgba(255,255,255,0.075)"
+    : "rgba(15,23,42,0.055)";
   const border = isDark ? "rgba(255,255,255,0.11)" : "rgba(15,23,42,0.11)";
+
+  const cargandoDatos = loading || !estudiante;
 
   const materiasPendientes = materias.filter((m) => !m.yaInscrito);
   const materiasYaInscritas = materias.filter((m) => m.yaInscrito);
@@ -54,7 +58,12 @@ export default function InscribirModal({
     : "";
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={inscribiendo ? undefined : onClose}
+    >
       <View style={styles.backdrop}>
         <View
           style={[
@@ -77,7 +86,11 @@ export default function InscribirModal({
                   },
                 ]}
               >
-                <Ionicons name="school-outline" size={24} color={theme.colors.primary} />
+                <Ionicons
+                  name="school-outline"
+                  size={24}
+                  color={theme.colors.primary}
+                />
               </View>
 
               <View style={{ flex: 1 }}>
@@ -85,8 +98,11 @@ export default function InscribirModal({
                   Inscribir semestre 1
                 </ThemedText>
 
-                <ThemedText numberOfLines={1} style={[styles.studentName, { color: mutedText }]}>
-                  {nombre || "Sin estudiante seleccionado"}
+                <ThemedText
+                  numberOfLines={1}
+                  style={[styles.studentName, { color: mutedText }]}
+                >
+                  {cargandoDatos ? "Preparando datos..." : nombre}
                 </ThemedText>
               </View>
             </View>
@@ -106,17 +122,24 @@ export default function InscribirModal({
             </Pressable>
           </View>
 
-          {loading ? (
+          {cargandoDatos ? (
             <View style={styles.loadingBox}>
-              <View style={[styles.loadingCircle, { backgroundColor: softBgStrong }]}>
-                <ActivityIndicator color={theme.colors.primary} />
+              <View
+                style={[
+                  styles.loadingCircle,
+                  { backgroundColor: softBgStrong },
+                ]}
+              >
+                <ActivityIndicator size="large" color={theme.colors.primary} />
               </View>
 
               <ThemedText style={[styles.loadingTitle, { color: strongText }]}>
-                Cargando materias
+                Cargando datos
               </ThemedText>
 
-              <ThemedText style={[styles.loadingSubtitle, { color: mutedText }]}>
+              <ThemedText
+                style={[styles.loadingSubtitle, { color: mutedText }]}
+              >
                 Espera un momento...
               </ThemedText>
             </View>
@@ -132,31 +155,51 @@ export default function InscribirModal({
                 ]}
               >
                 <View style={styles.resumeItem}>
-                  <ThemedText style={[styles.resumeNumber, { color: theme.colors.primary }]}>
+                  <ThemedText
+                    style={[
+                      styles.resumeNumber,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
                     {materiasPendientes.length}
                   </ThemedText>
-                  <ThemedText style={[styles.resumeLabel, { color: mutedText }]}>
+                  <ThemedText
+                    style={[styles.resumeLabel, { color: mutedText }]}
+                  >
                     pendientes
                   </ThemedText>
                 </View>
 
-                <View style={[styles.resumeDivider, { backgroundColor: border }]} />
+                <View
+                  style={[styles.resumeDivider, { backgroundColor: border }]}
+                />
 
                 <View style={styles.resumeItem}>
-                  <ThemedText style={[styles.resumeNumber, { color: "#22C55E" }]}>
+                  <ThemedText
+                    style={[styles.resumeNumber, { color: "#22C55E" }]}
+                  >
                     {materiasYaInscritas.length}
                   </ThemedText>
-                  <ThemedText style={[styles.resumeLabel, { color: mutedText }]}>
+                  <ThemedText
+                    style={[styles.resumeLabel, { color: mutedText }]}
+                  >
                     ya inscritas
                   </ThemedText>
                 </View>
 
-                <View style={[styles.resumeDivider, { backgroundColor: border }]} />
+                <View
+                  style={[styles.resumeDivider, { backgroundColor: border }]}
+                />
 
                 <View style={styles.resumeTextBox}>
-                  <Ionicons name="information-circle-outline" size={20} color={theme.colors.primary} />
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color={theme.colors.primary}
+                  />
                   <ThemedText style={[styles.resumeText, { color: mutedText }]}>
-                    Se inscribirá automáticamente a materias activas con grupo activo.
+                    Se inscribirá automáticamente a materias activas con grupo
+                    activo.
                   </ThemedText>
                 </View>
               </View>
@@ -167,7 +210,9 @@ export default function InscribirModal({
                 showsVerticalScrollIndicator={false}
               >
                 <View style={styles.sectionHeader}>
-                  <ThemedText style={[styles.sectionTitle, { color: strongText }]}>
+                  <ThemedText
+                    style={[styles.sectionTitle, { color: strongText }]}
+                  >
                     Materias que se van a inscribir
                   </ThemedText>
 
@@ -181,7 +226,12 @@ export default function InscribirModal({
                       },
                     ]}
                   >
-                    <ThemedText style={[styles.countBadgeText, { color: theme.colors.primary }]}>
+                    <ThemedText
+                      style={[
+                        styles.countBadgeText,
+                        { color: theme.colors.primary },
+                      ]}
+                    >
                       {materiasPendientes.length}
                     </ThemedText>
                   </View>
@@ -197,11 +247,19 @@ export default function InscribirModal({
                       },
                     ]}
                   >
-                    <Ionicons name="checkmark-done-circle-outline" size={38} color="#22C55E" />
-                    <ThemedText style={[styles.emptyTitle, { color: strongText }]}>
+                    <Ionicons
+                      name="checkmark-done-circle-outline"
+                      size={38}
+                      color="#22C55E"
+                    />
+                    <ThemedText
+                      style={[styles.emptyTitle, { color: strongText }]}
+                    >
                       No hay materias pendientes
                     </ThemedText>
-                    <ThemedText style={[styles.emptyText, { color: mutedText }]}>
+                    <ThemedText
+                      style={[styles.emptyText, { color: mutedText }]}
+                    >
                       Ya está inscrito o no hay grupos activos disponibles.
                     </ThemedText>
                   </View>
@@ -223,7 +281,9 @@ export default function InscribirModal({
                 {materiasYaInscritas.length > 0 && (
                   <>
                     <View style={[styles.sectionHeader, { marginTop: 12 }]}>
-                      <ThemedText style={[styles.sectionTitle, { color: strongText }]}>
+                      <ThemedText
+                        style={[styles.sectionTitle, { color: strongText }]}
+                      >
                         Ya inscritas
                       </ThemedText>
 
@@ -237,7 +297,12 @@ export default function InscribirModal({
                           },
                         ]}
                       >
-                        <ThemedText style={[styles.countBadgeText, { color: "#22C55E" }]}>
+                        <ThemedText
+                          style={[
+                            styles.countBadgeText,
+                            { color: "#22C55E" },
+                          ]}
+                        >
                           {materiasYaInscritas.length}
                         </ThemedText>
                       </View>
@@ -272,7 +337,9 @@ export default function InscribirModal({
                   onPress={onClose}
                   disabled={inscribiendo}
                 >
-                  <ThemedText style={[styles.cancelText, { color: strongText }]}>
+                  <ThemedText
+                    style={[styles.cancelText, { color: strongText }]}
+                  >
                     Cancelar
                   </ThemedText>
                 </Pressable>
@@ -296,11 +363,17 @@ export default function InscribirModal({
                   {inscribiendo ? (
                     <>
                       <ActivityIndicator color="#fff" />
-                      <ThemedText style={styles.confirmText}>Inscribiendo...</ThemedText>
+                      <ThemedText style={styles.confirmText}>
+                        Inscribiendo...
+                      </ThemedText>
                     </>
                   ) : (
                     <>
-                      <Ionicons name="checkmark-circle" size={19} color="#fff" />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={19}
+                        color="#fff"
+                      />
                       <ThemedText style={styles.confirmText}>
                         Aceptar e inscribir
                       </ThemedText>
@@ -352,11 +425,17 @@ function MateriaCard({
       </View>
 
       <View style={styles.materiaContent}>
-        <ThemedText numberOfLines={1} style={[styles.materiaTitle, { color: strongText }]}>
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.materiaTitle, { color: strongText }]}
+        >
           {materia.nombreMateria}
         </ThemedText>
 
-        <ThemedText numberOfLines={1} style={[styles.materiaSubtitle, { color: mutedText }]}>
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.materiaSubtitle, { color: mutedText }]}
+        >
           {materia.codigoMateria} · {materia.nombreCarrera}
         </ThemedText>
 
@@ -364,7 +443,10 @@ function MateriaCard({
           <View style={styles.groupInfo}>
             <View style={styles.groupChip}>
               <Ionicons name="people-outline" size={13} color={mutedText} />
-              <ThemedText numberOfLines={1} style={[styles.groupText, { color: mutedText }]}>
+              <ThemedText
+                numberOfLines={1}
+                style={[styles.groupText, { color: mutedText }]}
+              >
                 {materia.grupoSeleccionado.nombreGrupo}
               </ThemedText>
             </View>
@@ -454,14 +536,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingBox: {
+    minHeight: 430,
     paddingVertical: 70,
     alignItems: "center",
     justifyContent: "center",
   },
   loadingCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+    width: 68,
+    height: 68,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14,

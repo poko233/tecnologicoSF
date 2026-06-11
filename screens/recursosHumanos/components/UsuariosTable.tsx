@@ -1,14 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
@@ -26,18 +26,46 @@ type Props = {
 
 function mediaUrl(path?: string | null) {
   if (!path) return null;
-  if (path.startsWith("http")) return path;
+
+  if (path.startsWith("http")) {
+    return path;
+  }
+
+  if (path.startsWith("data:image")) {
+    return path;
+  }
 
   const base = (BASE_URL || "").replace("/api", "");
   const clean = path.startsWith("/") ? path : `/${path}`;
 
-  if (clean.startsWith("/storage")) return `${base}${clean}`;
+  if (clean.startsWith("/storage")) {
+    return `${base}${clean}`;
+  }
 
   return `${base}/storage${clean}`;
 }
 
+function qrUrl(codigoQr?: string | null) {
+  if (!codigoQr) return null;
+
+  if (codigoQr.startsWith("data:image")) {
+    return codigoQr;
+  }
+
+  if (codigoQr.startsWith("http")) {
+    return codigoQr;
+  }
+
+  return `data:image/png;base64,${codigoQr}`;
+}
+
 function obtenerRoles(usuario: UsuarioRRHH) {
-  return usuario.roles?.map((r) => r.rol).filter(Boolean).join(", ") || "Sin rol";
+  return (
+    usuario.roles
+      ?.map((r) => r.rol)
+      .filter(Boolean)
+      .join(", ") || "Sin rol"
+  );
 }
 
 export default function UsuariosTable({
@@ -74,7 +102,7 @@ export default function UsuariosTable({
       ]
         .join(" ")
         .toLowerCase()
-        .includes(q),
+        .includes(q)
     );
   }, [usuarios, search]);
 
@@ -85,6 +113,7 @@ export default function UsuariosTable({
       <View style={styles.top}>
         <View style={styles.topTextBox}>
           <ThemedText style={styles.title}>Usuarios del sistema</ThemedText>
+
           <ThemedText style={styles.subtitle}>
             {data.length} usuario(s) encontrados
           </ThemedText>
@@ -96,6 +125,7 @@ export default function UsuariosTable({
             size={18}
             color={colors.primaryForeground}
           />
+
           {!isMobile && (
             <ThemedText style={styles.refreshText}>Actualizar</ThemedText>
           )}
@@ -117,6 +147,7 @@ export default function UsuariosTable({
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color={colors.primary} size="large" />
+
           <ThemedText style={styles.loadingText}>
             Cargando usuarios...
           </ThemedText>
@@ -139,7 +170,7 @@ export default function UsuariosTable({
 
             {data.map((u, index) => {
               const foto = mediaUrl(u.foto);
-              const qr = mediaUrl(u.codigo_qr);
+              const qr = qrUrl(u.codigo_qr);
               const puedeVerReferencia = !!u.esEstudiante;
 
               return (
@@ -184,9 +215,15 @@ export default function UsuariosTable({
                     width={260}
                   />
 
-                  <Cell text={`${u.ci || "-"} ${u.expedido || ""}`} width={120} />
+                  <Cell
+                    text={`${u.ci || "-"} ${u.expedido || ""}`}
+                    width={120}
+                  />
+
                   <Cell text={u.email || "Sin email"} width={220} />
+
                   <Cell text={u.celular || "Sin celular"} width={130} />
+
                   <Cell text={obtenerRoles(u)} width={180} />
 
                   <View style={[styles.cell, { width: 130 }]}>
@@ -215,16 +252,23 @@ export default function UsuariosTable({
                           size={16}
                           color={colors.infoForeground}
                         />
-                        <ThemedText style={styles.refText}>Referencia</ThemedText>
+
+                        <ThemedText style={styles.refText}>
+                          Referencia
+                        </ThemedText>
                       </Pressable>
                     )}
 
-                    <Pressable style={styles.editBtn} onPress={() => onEditar(u)}>
+                    <Pressable
+                      style={styles.editBtn}
+                      onPress={() => onEditar(u)}
+                    >
                       <Ionicons
                         name="create-outline"
                         size={17}
                         color={colors.primaryForeground}
                       />
+
                       <ThemedText style={styles.editText}>Editar</ThemedText>
                     </Pressable>
                   </View>
@@ -239,6 +283,7 @@ export default function UsuariosTable({
                   size={38}
                   color={colors.textMuted}
                 />
+
                 <ThemedText style={styles.emptyText}>
                   No se encontraron usuarios.
                 </ThemedText>
@@ -414,7 +459,7 @@ function createStyles(colors: any, isMobile: boolean) {
       width: 48,
       height: 48,
       borderRadius: 8,
-      backgroundColor: "#fff",
+      backgroundColor: "#FFFFFF",
     },
     qrEmpty: {
       width: 48,

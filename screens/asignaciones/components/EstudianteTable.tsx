@@ -16,12 +16,16 @@ import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
 import { Estudiante } from "../types/asignaciones.types";
 
+type EstudianteTabla = Estudiante & {
+  matricula?: string | null;
+  fechaInscripcion?: string | null;
+};
+
 type Props = {
-  estudiantes: Estudiante[];
+  estudiantes: EstudianteTabla[];
   loading: boolean;
-  onInscribir: (estudiante: Estudiante) => void;
-  onRevisar: (estudiante: Estudiante) => void;
-  onEditar: (estudiante: Estudiante) => void;
+  onInscribir: (estudiante: EstudianteTabla) => void;
+  onVerPdf: (estudiante: EstudianteTabla) => void;
 };
 
 const ITEMS_PER_PAGE = 10;
@@ -30,14 +34,12 @@ export default function EstudiantesTable({
   estudiantes,
   loading,
   onInscribir,
-  onRevisar,
-  onEditar,
+  onVerPdf,
 }: Props) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
 
   const isMobile = width < 850;
-  const isCompact = width < 1180;
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -58,7 +60,21 @@ export default function EstudiantesTable({
   const strongText = isDark ? "#F8FAFC" : theme.colors.text;
   const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
 
-  const tableWidth = isMobile ? 1120 : Math.max(width + 280, 1550);
+  const tableWidth = isMobile ? 1380 : Math.max(width + 420, 1740);
+
+  const formatearFecha = (fecha?: string | null) => {
+    if (!fecha) return "Sin fecha";
+
+    const limpia = String(fecha).split("T")[0];
+
+    if (!limpia.includes("-")) return limpia;
+
+    const [year, month, day] = limpia.split("-");
+
+    if (!year || !month || !day) return limpia;
+
+    return `${day}/${month}/${year}`;
+  };
 
   const filtrados = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -72,10 +88,11 @@ export default function EstudiantesTable({
 
       return (
         nombre.toLowerCase().includes(q) ||
-        e.ci?.toLowerCase().includes(q) ||
-        e.email?.toLowerCase().includes(q) ||
-        e.matricula?.toLowerCase().includes(q) ||
-        e.celular?.toLowerCase().includes(q)
+        String(e.ci ?? "").toLowerCase().includes(q) ||
+        String(e.matricula ?? "").toLowerCase().includes(q) ||
+        String(e.fechaInscripcion ?? "").toLowerCase().includes(q) ||
+        String(e.email ?? "").toLowerCase().includes(q) ||
+        String(e.celular ?? "").toLowerCase().includes(q)
       );
     });
   }, [estudiantes, search]);
@@ -185,7 +202,7 @@ export default function EstudiantesTable({
           <Ionicons name="search" size={18} color={mutedText} />
 
           <TextInput
-            placeholder="Buscar por nombre, CI, email o matrícula"
+            placeholder="Buscar por nombre, CI, matrícula, fecha o email"
             placeholderTextColor={mutedText}
             value={search}
             onChangeText={handleSearch}
@@ -228,7 +245,7 @@ export default function EstudiantesTable({
           </ThemedText>
 
           <ThemedText style={[styles.emptySubtitle, { color: mutedText }]}>
-            Intenta con otro nombre, CI o correo.
+            Intenta con otro nombre, CI, matrícula o correo.
           </ThemedText>
         </View>
       ) : (
@@ -279,19 +296,27 @@ export default function EstudiantesTable({
                     CI
                   </ThemedText>
 
-                  <ThemedText style={[styles.th, { flex: 2.5, color: mutedText }]}>
+                  <ThemedText style={[styles.th, { flex: 1.15, color: mutedText }]}>
+                    Matrícula
+                  </ThemedText>
+
+                  <ThemedText style={[styles.th, { flex: 2.3, color: mutedText }]}>
                     Estudiante
                   </ThemedText>
 
-                  <ThemedText style={[styles.th, { flex: 1.35, color: mutedText }]}>
+                  <ThemedText style={[styles.th, { flex: 1.45, color: mutedText }]}>
+                    Fecha inscripción
+                  </ThemedText>
+
+                  <ThemedText style={[styles.th, { flex: 1.2, color: mutedText }]}>
                     Celular
                   </ThemedText>
 
-                  <ThemedText style={[styles.th, { flex: 2.25, color: mutedText }]}>
+                  <ThemedText style={[styles.th, { flex: 2.1, color: mutedText }]}>
                     Email
                   </ThemedText>
 
-                  <ThemedText style={[styles.th, { flex: 2.7, color: mutedText }]}>
+                  <ThemedText style={[styles.th, { flex: 2, color: mutedText }]}>
                     Acciones
                   </ThemedText>
                 </View>
@@ -331,7 +356,16 @@ export default function EstudiantesTable({
                           )}
                         </View>
 
-                        <View style={[styles.cell, { flex: 2.5 }]}>
+                        <View style={[styles.cell, { flex: 1.15 }]}>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.matriculaText, { color: strongText }]}
+                          >
+                            {item.matricula || "Sin matrícula"}
+                          </ThemedText>
+                        </View>
+
+                        <View style={[styles.cell, { flex: 2.3 }]}>
                           <View style={styles.studentBox}>
                             <View
                               style={[
@@ -365,13 +399,21 @@ export default function EstudiantesTable({
                                 numberOfLines={1}
                                 style={[styles.smallText, { color: mutedText }]}
                               >
-                                Matrícula: {item.matricula || "Sin matrícula"}
                               </ThemedText>
                             </View>
                           </View>
                         </View>
 
-                        <View style={[styles.cell, { flex: 1.35 }]}>
+                        <View style={[styles.cell, { flex: 1.45 }]}>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.normalText, { color: strongText }]}
+                          >
+                            {formatearFecha(item.fechaInscripcion)}
+                          </ThemedText>
+                        </View>
+
+                        <View style={[styles.cell, { flex: 1.2 }]}>
                           <ThemedText
                             numberOfLines={1}
                             style={[styles.normalText, { color: strongText }]}
@@ -380,7 +422,7 @@ export default function EstudiantesTable({
                           </ThemedText>
                         </View>
 
-                        <View style={[styles.cell, { flex: 2.25 }]}>
+                        <View style={[styles.cell, { flex: 2.1 }]}>
                           <ThemedText
                             numberOfLines={1}
                             style={[styles.normalText, { color: strongText }]}
@@ -389,9 +431,9 @@ export default function EstudiantesTable({
                           </ThemedText>
                         </View>
 
-                        <View style={[styles.actions, { flex: 2.7 }]}>
+                        <View style={[styles.actions, { flex: 2 }]}>
                           <ActionButton
-                            label={isCompact ? "Inscribir" : "Inscribir"}
+                            label="Inscribir"
                             icon="school-outline"
                             color={theme.colors.primary}
                             isDark={isDark}
@@ -399,19 +441,11 @@ export default function EstudiantesTable({
                           />
 
                           <ActionButton
-                            label="Revisar"
-                            icon="eye-outline"
+                            label="Ver PDF"
+                            icon="document-text-outline"
                             color="#16A34A"
                             isDark={isDark}
-                            onPress={() => onRevisar(item)}
-                          />
-
-                          <ActionButton
-                            label="Editar"
-                            icon="create-outline"
-                            color="#F59E0B"
-                            isDark={isDark}
-                            onPress={() => onEditar(item)}
+                            onPress={() => onVerPdf(item)}
                           />
                         </View>
                       </View>
@@ -471,7 +505,9 @@ export default function EstudiantesTable({
                   {
                     borderColor: mutedBorder,
                     backgroundColor:
-                      currentPage === totalPages ? softCard : theme.colors.primary,
+                      currentPage === totalPages
+                        ? softCard
+                        : theme.colors.primary,
                     opacity: pressed
                       ? 0.78
                       : currentPage === totalPages
@@ -686,6 +722,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
+  matriculaText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
   normalText: {
     fontSize: 14,
     fontWeight: "700",
@@ -719,26 +759,26 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 10,
     paddingHorizontal: 8,
     flexWrap: "nowrap",
   },
   actionBtn: {
-    height: 34,
-    minWidth: 88,
+    height: 36,
+    minWidth: 112,
     flex: 1,
-    maxWidth: 108,
+    maxWidth: 140,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 7,
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 7,
+    paddingHorizontal: 10,
   },
   actionIconBox: {
-    width: 22,
-    height: 22,
+    width: 23,
+    height: 23,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",

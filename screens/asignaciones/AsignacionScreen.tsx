@@ -1,23 +1,24 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
 } from "react-native";
+import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../components/ThemedText";
+import { BASE_URL } from "../../http/httpClient";
 import { useTheme } from "../../theme/useTheme";
 
-import EditarEstudianteModal from "./components/EditarEstudianteModal";
 import EstudiantesTable from "./components/EstudianteTable";
 import InscribirModal from "./components/InscribirModal";
-import RevisarModal from "./components/RevisarModal";
 
 import { useAsignaciones } from "./hooks/useAsignaciones";
-import { Estudiante, EstudianteForm } from "./types/asignaciones.types";
+import { Estudiante } from "./types/asignaciones.types";
 
 export default function AsignacionesScreen() {
   const { theme } = useTheme();
@@ -36,18 +37,15 @@ export default function AsignacionesScreen() {
     loadingDetalle,
     loadingMaterias,
     inscribiendo,
-    guardando,
 
     cargarEstudiantes,
     cargarDetalle,
     cargarMaterias,
     inscribir,
-    actualizarEstudiante,
+    limpiarSeleccion,
   } = useAsignaciones();
 
   const [inscribirVisible, setInscribirVisible] = useState(false);
-  const [revisarVisible, setRevisarVisible] = useState(false);
-  const [editarVisible, setEditarVisible] = useState(false);
 
   const isDark =
     theme.colors.background.toLowerCase().includes("0") ||
@@ -56,26 +54,41 @@ export default function AsignacionesScreen() {
   const strongText = isDark ? "#F8FAFC" : theme.colors.text;
   const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
   const heroBg = isDark ? "rgba(15,23,42,0.72)" : "rgba(248,250,252,0.9)";
-  const heroBorder = isDark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)";
+  const heroBorder = isDark
+    ? "rgba(255,255,255,0.10)"
+    : "rgba(15,23,42,0.10)";
   const iconBg = isDark ? "rgba(59,130,246,0.18)" : "#DBEAFE";
 
   const abrirInscribir = async (estudiante: Estudiante) => {
+    limpiarSeleccion(true);
     setEstudianteSeleccionado(estudiante);
     setInscribirVisible(true);
-    await cargarDetalle(estudiante.id);
-    await cargarMaterias(estudiante.id);
+
+    await Promise.all([
+      cargarDetalle(estudiante.id),
+      cargarMaterias(estudiante.id),
+    ]);
   };
 
-  const abrirRevisar = async (estudiante: Estudiante) => {
-    setEstudianteSeleccionado(estudiante);
-    setRevisarVisible(true);
-    await cargarDetalle(estudiante.id);
+  const abrirPdfEstudiante = async (estudiante: Estudiante) => {
+    try {
+      const url = `${BASE_URL}/api/inscripcion/formulario-registro/${estudiante.id}/pdf`;
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error(error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo abrir el formulario de registro.",
+      });
+    }
   };
 
-  const abrirEditar = async (estudiante: Estudiante) => {
-    setEstudianteSeleccionado(estudiante);
-    setEditarVisible(true);
-    await cargarDetalle(estudiante.id);
+  const cerrarInscribir = () => {
+    setInscribirVisible(false);
+    setEstudianteSeleccionado(null);
+    limpiarSeleccion(false);
   };
 
   const confirmarInscripcion = async () => {
@@ -85,19 +98,10 @@ export default function AsignacionesScreen() {
     const response = await inscribir(estudianteSeleccionado.id, idCarrera);
 
     if (response) {
-      setInscribirVisible(false);
+      cerrarInscribir();
     }
   };
 
-  const guardarEdicion = async (form: EstudianteForm) => {
-    if (!estudianteSeleccionado) return;
-
-    const ok = await actualizarEstudiante(estudianteSeleccionado.id, form);
-
-    if (ok) {
-      setEditarVisible(false);
-    }
-  };
   return (
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       <ScrollView
@@ -146,8 +150,8 @@ export default function AsignacionesScreen() {
                 </ThemedText>
 
                 <ThemedText style={[styles.subtitle, { color: mutedText }]}>
-                  Inscripción automática de materias del semestre 1, revisión y
-                  edición de estudiantes.
+                  Inscripción automática de materias del semestre 1 y formulario
+                  de registro de estudiantes.
                 </ThemedText>
               </View>
             </View>
@@ -170,6 +174,7 @@ export default function AsignacionesScreen() {
                 size={18}
                 color={theme.colors.primary}
               />
+
               <ThemedText
                 style={[
                   styles.counterText,
@@ -188,37 +193,19 @@ export default function AsignacionesScreen() {
           estudiantes={estudiantes}
           loading={loading}
           onInscribir={abrirInscribir}
-          onRevisar={abrirRevisar}
-          onEditar={abrirEditar}
+          onVerPdf={abrirPdfEstudiante}
         />
       </ScrollView>
 
       <InscribirModal
+        key={`inscribir-${estudianteSeleccionado?.id ?? "empty"}`}
         visible={inscribirVisible}
         estudiante={estudianteSeleccionado}
         materias={materias}
-        loading={loadingMaterias}
+        loading={loadingDetalle || loadingMaterias}
         inscribiendo={inscribiendo}
-        onClose={() => setInscribirVisible(false)}
+        onClose={cerrarInscribir}
         onConfirm={confirmarInscripcion}
-      />
-
-      <RevisarModal
-        visible={revisarVisible}
-        estudiante={estudianteSeleccionado}
-        detalle={detalle}
-        loading={loadingDetalle}
-        onClose={() => setRevisarVisible(false)}
-      />
-
-      <EditarEstudianteModal
-        visible={editarVisible}
-        estudiante={estudianteSeleccionado}
-        detalle={detalle}
-        loading={loadingDetalle}
-        guardando={guardando}
-        onClose={() => setEditarVisible(false)}
-        onSave={guardarEdicion}
       />
     </View>
   );

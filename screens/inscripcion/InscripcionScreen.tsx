@@ -53,6 +53,7 @@ type ReferenciaEstudiante = {
 type EstudianteContinuar = {
   id: number;
   ci: string;
+  matricula?: string | null;
   nombres: string;
   apellidoPaterno: string;
   apellidoMaterno: string;
@@ -90,18 +91,17 @@ export default function InscripcionScreen() {
   const isMobile = width < 900;
   const { theme } = useTheme();
 
-  const {
-    form,
-    updateField,
-    step,
-    setStep,
-    resetForm,
-  } = useInscripcionForm();
+  const { form, updateField, step, setStep, resetForm } =
+    useInscripcionForm();
 
   const [idEstudiante, setIdEstudiante] = useState<number | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [maxStepReached, setMaxStepReached] = useState(1);
   const [errors, setErrors] = useState<InscripcionErrors>({});
+
+  const [matriculaPreview, setMatriculaPreview] = useState("");
+  const [fechaInscripcion, setFechaInscripcion] = useState("");
+  const [loadingMatricula, setLoadingMatricula] = useState(false);
 
   const [documentosLocales, setDocumentosLocales] = useState<
     Record<string, DocumentoLocal>
@@ -120,6 +120,43 @@ export default function InscripcionScreen() {
   const [checkingCarnet, setCheckingCarnet] = useState(false);
   const [checkingCorreo, setCheckingCorreo] = useState(false);
 
+  const colorSecundario =
+    (theme.colors as any).textSecondary ??
+    (theme.colors as any).muted ??
+    "#94A3B8";
+
+  const cargarSiguienteMatricula = async () => {
+    try {
+      setLoadingMatricula(true);
+
+      const response = await httpClient.getAuth<{
+        matricula: string;
+        fechaInscripcion: string;
+        fechaInscripcionTexto: string;
+      }>("/api/estudiantes/siguiente-matricula");
+
+      setMatriculaPreview(response.matricula ?? "");
+      setFechaInscripcion(
+        response.fechaInscripcionTexto ?? response.fechaInscripcion ?? ""
+      );
+    } catch (error: any) {
+      console.error(error);
+
+      setMatriculaPreview("");
+      setFechaInscripcion("");
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2:
+          error?.message ??
+          "No se pudo cargar la matrícula automática.",
+      });
+    } finally {
+      setLoadingMatricula(false);
+    }
+  };
+
   const limpiarInscripcion = () => {
     resetForm();
     setErrors({});
@@ -128,12 +165,8 @@ export default function InscripcionScreen() {
     setDocumentosLocales({});
     setBusquedaContinuar("");
     setEstudiantesContinuar([]);
+    cargarSiguienteMatricula();
   };
-
-  const colorSecundario =
-    (theme.colors as any).textSecondary ??
-    (theme.colors as any).muted ??
-    "#94A3B8";
 
   const updateFieldWithValidation = (
     field: keyof typeof form,
@@ -226,78 +259,72 @@ export default function InscripcionScreen() {
     }
   };
 
-const seleccionarEstudianteContinuar = async (
-  estudiante: EstudianteContinuar
-) => {
-  const referencias =
-    estudiante.numeroReferencias ??
-    estudiante.numero_referencias ??
-    [];
+  const seleccionarEstudianteContinuar = async (
+    estudiante: EstudianteContinuar
+  ) => {
+    const referencias =
+      estudiante.numeroReferencias ??
+      estudiante.numero_referencias ??
+      [];
 
-  const referencia = referencias.length > 0 ? referencias[0] : null;
+    const referencia = referencias.length > 0 ? referencias[0] : null;
 
-  updateField("apellidoPaterno", estudiante.apellidoPaterno ?? "");
-  updateField("apellidoMaterno", estudiante.apellidoMaterno ?? "");
-  updateField("nombres", estudiante.nombres ?? "");
-  updateField("carnet", estudiante.ci ?? "");
-  updateField("email", estudiante.email ?? "");
-  updateField("celular", estudiante.celular ?? "");
-  updateField("direccion", estudiante.direccion ?? "");
+    setMatriculaPreview(estudiante.matricula ?? "");
+    setFechaInscripcion(fechaBackendAFrontend(new Date().toISOString()));
 
-  updateField(
-    "fechaNacimiento",
-    fechaBackendAFrontend(estudiante.fecha_nac)
-  );
+    updateField("apellidoPaterno", estudiante.apellidoPaterno ?? "");
+    updateField("apellidoMaterno", estudiante.apellidoMaterno ?? "");
+    updateField("nombres", estudiante.nombres ?? "");
+    updateField("carnet", estudiante.ci ?? "");
+    updateField("email", estudiante.email ?? "");
+    updateField("celular", estudiante.celular ?? "");
+    updateField("direccion", estudiante.direccion ?? "");
 
-  updateField(
-    "expedidoEn",
-    expedidoReverse[estudiante.expedido] ?? "Cochabamba"
-  );
+    updateField(
+      "fechaNacimiento",
+      fechaBackendAFrontend(estudiante.fecha_nac)
+    );
 
-  updateField(
-    "genero",
-    generoReverse[estudiante.genero] ?? "Masculino"
-  );
+    updateField(
+      "expedidoEn",
+      expedidoReverse[estudiante.expedido] ?? "Cochabamba"
+    );
 
-  updateField(
-    "referenciaNombre",
-    referencia?.nombreContactoReferencia ?? ""
-  );
+    updateField("genero", generoReverse[estudiante.genero] ?? "Masculino");
 
-  updateField(
-    "referenciaParentesco",
-    referencia?.parentesco ?? ""
-  );
+    updateField(
+      "referenciaNombre",
+      referencia?.nombreContactoReferencia ?? ""
+    );
 
-  updateField(
-    "referenciaNumero",
-    referencia?.numeroReferencia ?? ""
-  );
+    updateField("referenciaParentesco", referencia?.parentesco ?? "");
 
-  setIdEstudiante(estudiante.id);
-  setErrors({});
-  setMaxStepReached(2);
-  setStep(2);
-  setModalContinuarVisible(false);
+    updateField("referenciaNumero", referencia?.numeroReferencia ?? "");
 
-  await cargarDocumentosEstudiante(estudiante.id);
+    setIdEstudiante(estudiante.id);
+    setErrors({});
+    setMaxStepReached(2);
+    setStep(2);
+    setModalContinuarVisible(false);
 
-  Toast.show({
-    type: "success",
-    text1: "Inscripción cargada",
-    text2: referencia
-      ? "Datos cargados correctamente."
-      : "El estudiante no tiene contacto de referencia registrado.",
-  });
-};
+    await cargarDocumentosEstudiante(estudiante.id);
+
+    Toast.show({
+      type: "success",
+      text1: "Inscripción cargada",
+      text2: referencia
+        ? "Datos cargados correctamente."
+        : "El estudiante no tiene contacto de referencia registrado.",
+    });
+  };
 
   const estudiantesFiltrados = useMemo(() => {
     const textoBusqueda = busquedaContinuar.trim().toLowerCase();
-
     if (!textoBusqueda) return estudiantesContinuar;
 
     return estudiantesContinuar.filter((estudiante) => {
-      const texto = `${estudiante.nombres} ${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.ci} ${estudiante.email}`.toLowerCase();
+      const texto =
+        `${estudiante.nombres} ${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.ci} ${estudiante.email} ${estudiante.matricula ?? ""}`.toLowerCase();
 
       return texto.includes(textoBusqueda);
     });
@@ -425,12 +452,17 @@ const seleccionarEstudianteContinuar = async (
             estudiante: {
               id?: number;
               idUsuario?: number;
+              matricula?: string | null;
             };
           }>(`/api/estudiantes/${idEstudiante}`, payload)
         : await httpClient.postAuth<{
+            matricula?: string;
+            fechaInscripcion?: string;
+            fechaInscripcionTexto?: string;
             estudiante: {
               id?: number;
               idUsuario?: number;
+              matricula?: string | null;
             };
           }>("/api/estudiantes", payload);
 
@@ -447,6 +479,19 @@ const seleccionarEstudianteContinuar = async (
         });
 
         return;
+      }
+
+      const matriculaGuardada =
+        response.estudiante.matricula ??
+        (response as any).matricula ??
+        matriculaPreview;
+
+      if (matriculaGuardada) {
+        setMatriculaPreview(matriculaGuardada);
+      }
+
+      if ((response as any).fechaInscripcionTexto) {
+        setFechaInscripcion((response as any).fechaInscripcionTexto);
       }
 
       setIdEstudiante(estudianteId);
@@ -468,14 +513,16 @@ const seleccionarEstudianteContinuar = async (
       Toast.show({
         type: "error",
         text1: "Error",
-        text2:
-          error?.message ??
-          "No se pudo guardar al estudiante.",
+        text2: error?.message ?? "No se pudo guardar al estudiante.",
       });
     } finally {
       setGuardando(false);
     }
   };
+
+  useEffect(() => {
+    cargarSiguienteMatricula();
+  }, []);
 
   useEffect(() => {
     if (!form.carnet || form.carnet.length < 5) {
@@ -518,10 +565,7 @@ const seleccionarEstudianteContinuar = async (
   }, [form.carnet, idEstudiante]);
 
   useEffect(() => {
-    if (
-      !form.email ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
-    ) {
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       return;
     }
 
@@ -639,7 +683,6 @@ const seleccionarEstudianteContinuar = async (
                 size={18}
                 color="#FFFFFF"
               />
-
               <ThemedText
                 style={{
                   color: "#FFFFFF",
@@ -658,6 +701,87 @@ const seleccionarEstudianteContinuar = async (
                 gap: 18,
               }}
             >
+              <View style={{ flex: 1 }}>
+                <ThemedText
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "900",
+                    color: colorSecundario,
+                    marginBottom: 7,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  MATRÍCULA AUTOMÁTICA
+                </ThemedText>
+
+                <TextInput
+                  value={
+                    loadingMatricula
+                      ? "Generando matrícula..."
+                      : matriculaPreview
+                  }
+                  editable={false}
+                  placeholder="10001"
+                  placeholderTextColor={colorSecundario}
+                  style={{
+                    backgroundColor: theme.colors.background,
+                    color: theme.colors.text,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 13,
+                    fontWeight: "800",
+                    opacity: 0.78,
+                    outlineStyle: "none" as any,
+                  }}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <ThemedText
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "900",
+                    color: colorSecundario,
+                    marginBottom: 7,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  FECHA DE INSCRIPCIÓN
+                </ThemedText>
+
+                <TextInput
+                  value={
+                    loadingMatricula
+                      ? "Cargando fecha..."
+                      : fechaInscripcion
+                  }
+                  editable={false}
+                  placeholder="Fecha de hoy"
+                  placeholderTextColor={colorSecundario}
+                  style={{
+                    backgroundColor: theme.colors.background,
+                    color: theme.colors.text,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 13,
+                    fontWeight: "800",
+                    opacity: 0.78,
+                    outlineStyle: "none" as any,
+                  }}
+                />
+              </View>
+            </View>
+
+            <View
+              style={{
+                flexDirection: isMobile ? "column" : "row",
+                gap: 18,
+              }}
+            >
               <FormInput
                 required
                 label="APELLIDO PATERNO"
@@ -669,15 +793,15 @@ const seleccionarEstudianteContinuar = async (
                 }
               />
 
-             <FormInput
-  label="APELLIDO MATERNO"
-  placeholder="Escriba su segundo apellido"
-  value={form.apellidoMaterno}
-  error={errors.apellidoMaterno}
-  onChangeText={(text) =>
-    updateFieldWithValidation("apellidoMaterno", text)
-  }
-/>
+              <FormInput
+                label="APELLIDO MATERNO"
+                placeholder="Escriba su segundo apellido"
+                value={form.apellidoMaterno}
+                error={errors.apellidoMaterno}
+                onChangeText={(text) =>
+                  updateFieldWithValidation("apellidoMaterno", text)
+                }
+              />
 
               <FormInput
                 required
@@ -703,9 +827,7 @@ const seleccionarEstudianteContinuar = async (
                 placeholder="0000000"
                 value={form.carnet}
                 error={
-                  checkingCarnet
-                    ? "Verificando carnet..."
-                    : errors.carnet
+                  checkingCarnet ? "Verificando carnet..." : errors.carnet
                 }
                 success={
                   !checkingCarnet &&
@@ -746,9 +868,7 @@ const seleccionarEstudianteContinuar = async (
                 label="GÉNERO"
                 value={form.genero}
                 options={["Masculino", "Femenino"]}
-                onChange={(value) =>
-                  updateField("genero", value as Genero)
-                }
+                onChange={(value) => updateField("genero", value as Genero)}
               />
             </View>
 
@@ -764,9 +884,7 @@ const seleccionarEstudianteContinuar = async (
                 placeholder="correo@gmail.com"
                 value={form.email}
                 error={
-                  checkingCorreo
-                    ? "Verificando correo..."
-                    : errors.email
+                  checkingCorreo ? "Verificando correo..." : errors.email
                 }
                 success={
                   !checkingCorreo &&
@@ -824,10 +942,7 @@ const seleccionarEstudianteContinuar = async (
               updateField={updateFieldWithValidation}
             />
 
-            <NavigationButtons
-              onNext={guardarEstudiante}
-              loading={guardando}
-            />
+            <NavigationButtons onNext={guardarEstudiante} loading={guardando} />
           </View>
         </View>
       )}
@@ -932,16 +1047,12 @@ const seleccionarEstudianteContinuar = async (
                   borderColor: theme.colors.border,
                 }}
               >
-                <Ionicons
-                  name="close"
-                  size={22}
-                  color={theme.colors.text}
-                />
+                <Ionicons name="close" size={22} color={theme.colors.text} />
               </Pressable>
             </View>
 
             <TextInput
-              placeholder="Buscar por nombre, carnet o correo..."
+              placeholder="Buscar por nombre, carnet, matrícula o correo..."
               placeholderTextColor={colorSecundario}
               value={busquedaContinuar}
               onChangeText={setBusquedaContinuar}
@@ -966,10 +1077,7 @@ const seleccionarEstudianteContinuar = async (
                   justifyContent: "center",
                 }}
               >
-                <ActivityIndicator
-                  color={theme.colors.primary}
-                  size="large"
-                />
+                <ActivityIndicator color={theme.colors.primary} size="large" />
 
                 <ThemedText
                   style={{
@@ -1049,6 +1157,15 @@ const seleccionarEstudianteContinuar = async (
                             style={{
                               color: colorSecundario,
                               marginTop: 5,
+                            }}
+                          >
+                            Matrícula: {estudiante.matricula ?? "Sin matrícula"}
+                          </ThemedText>
+
+                          <ThemedText
+                            style={{
+                              color: colorSecundario,
+                              marginTop: 2,
                             }}
                           >
                             CI: {estudiante.ci}

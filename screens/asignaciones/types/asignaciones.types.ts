@@ -12,6 +12,7 @@ export type Estudiante = {
   celular?: string | null;
   direccion?: string | null;
   matricula?: string | null;
+fechaInscripcion?: string | null;
   expedido?: string | null;
   estado?: string | null;
 };
