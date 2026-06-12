@@ -12,7 +12,6 @@ import {
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
-import { BASE_URL } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 import { UsuarioRRHH } from "../types/recursosHumanos.types";
 
@@ -20,44 +19,8 @@ type Props = {
   usuarios: UsuarioRRHH[];
   loading: boolean;
   onEditar: (usuario: UsuarioRRHH) => void;
-  onVerReferencias: (usuario: UsuarioRRHH) => void;
   onRefresh: () => void;
 };
-
-function mediaUrl(path?: string | null) {
-  if (!path) return null;
-
-  if (path.startsWith("http")) {
-    return path;
-  }
-
-  if (path.startsWith("data:image")) {
-    return path;
-  }
-
-  const base = (BASE_URL || "").replace("/api", "");
-  const clean = path.startsWith("/") ? path : `/${path}`;
-
-  if (clean.startsWith("/storage")) {
-    return `${base}${clean}`;
-  }
-
-  return `${base}/storage${clean}`;
-}
-
-function qrUrl(codigoQr?: string | null) {
-  if (!codigoQr) return null;
-
-  if (codigoQr.startsWith("data:image")) {
-    return codigoQr;
-  }
-
-  if (codigoQr.startsWith("http")) {
-    return codigoQr;
-  }
-
-  return `data:image/png;base64,${codigoQr}`;
-}
 
 function obtenerRoles(usuario: UsuarioRRHH) {
   return (
@@ -68,11 +31,16 @@ function obtenerRoles(usuario: UsuarioRRHH) {
   );
 }
 
+function nombreCompleto(usuario: UsuarioRRHH) {
+  return `${usuario.nombres || ""} ${usuario.apellidoPaterno || ""} ${
+    usuario.apellidoMaterno || ""
+  }`.trim();
+}
+
 export default function UsuariosTable({
   usuarios,
   loading,
   onEditar,
-  onVerReferencias,
   onRefresh,
 }: Props) {
   const { theme } = useTheme();
@@ -102,7 +70,7 @@ export default function UsuariosTable({
       ]
         .join(" ")
         .toLowerCase()
-        .includes(q)
+        .includes(q),
     );
   }, [usuarios, search]);
 
@@ -165,116 +133,77 @@ export default function UsuariosTable({
               <Cell text="Celular" header width={130} />
               <Cell text="Roles" header width={180} />
               <Cell text="Estado" header width={130} />
-              <Cell text="Acciones" header width={230} center />
+              <Cell text="Acción" header width={130} center />
             </View>
 
-            {data.map((u, index) => {
-              const foto = mediaUrl(u.foto);
-              const qr = qrUrl(u.codigo_qr);
-              const puedeVerReferencia = !!u.esEstudiante;
-
-              return (
-                <View
-                  key={u.id}
-                  style={[styles.row, index % 2 === 1 && styles.rowAlt]}
-                >
-                  <View style={[styles.cell, styles.center, { width: 90 }]}>
-                    {foto ? (
-                      <Image source={{ uri: foto }} style={styles.avatar} />
-                    ) : (
-                      <View style={styles.avatarEmpty}>
-                        <Ionicons
-                          name="person-outline"
-                          size={22}
-                          color={colors.textMuted}
-                        />
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={[styles.cell, styles.center, { width: 90 }]}>
-                    {qr ? (
-                      <Image source={{ uri: qr }} style={styles.qr} />
-                    ) : (
-                      <View style={styles.qrEmpty}>
-                        <Ionicons
-                          name="qr-code-outline"
-                          size={24}
-                          color={colors.textMuted}
-                        />
-                      </View>
-                    )}
-                  </View>
-
-                  <Cell text={u.usuario || "-"} width={130} />
-
-                  <Cell
-                    text={`${u.nombres || ""} ${u.apellidoPaterno || ""} ${
-                      u.apellidoMaterno || ""
-                    }`.trim()}
-                    width={260}
-                  />
-
-                  <Cell
-                    text={`${u.ci || "-"} ${u.expedido || ""}`}
-                    width={120}
-                  />
-
-                  <Cell text={u.email || "Sin email"} width={220} />
-
-                  <Cell text={u.celular || "Sin celular"} width={130} />
-
-                  <Cell text={obtenerRoles(u)} width={180} />
-
-                  <View style={[styles.cell, { width: 130 }]}>
-                    <View
-                      style={[
-                        styles.badge,
-                        u.estado === "ACTIVO"
-                          ? styles.badgeActive
-                          : styles.badgeInactive,
-                      ]}
-                    >
-                      <ThemedText style={styles.badgeText}>
-                        {u.estado || "-"}
-                      </ThemedText>
-                    </View>
-                  </View>
-
-                  <View style={[styles.cell, styles.actions, { width: 230 }]}>
-                    {puedeVerReferencia && (
-                      <Pressable
-                        style={styles.refBtn}
-                        onPress={() => onVerReferencias(u)}
-                      >
-                        <Ionicons
-                          name="call-outline"
-                          size={16}
-                          color={colors.infoForeground}
-                        />
-
-                        <ThemedText style={styles.refText}>
-                          Referencia
-                        </ThemedText>
-                      </Pressable>
-                    )}
-
-                    <Pressable
-                      style={styles.editBtn}
-                      onPress={() => onEditar(u)}
-                    >
+            {data.map((u, index) => (
+              <View
+                key={u.id}
+                style={[styles.row, index % 2 === 1 && styles.rowAlt]}
+              >
+                <View style={[styles.cell, styles.center, { width: 90 }]}>
+                  {u.fotoUrl ? (
+                    <Image source={{ uri: u.fotoUrl }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarEmpty}>
                       <Ionicons
-                        name="create-outline"
-                        size={17}
-                        color={colors.primaryForeground}
+                        name="person-outline"
+                        size={22}
+                        color={colors.textMuted}
                       />
+                    </View>
+                  )}
+                </View>
 
-                      <ThemedText style={styles.editText}>Editar</ThemedText>
-                    </Pressable>
+                <View style={[styles.cell, styles.center, { width: 90 }]}>
+                  {u.qrUrl ? (
+                    <Image source={{ uri: u.qrUrl }} style={styles.qr} />
+                  ) : (
+                    <View style={styles.qrEmpty}>
+                      <Ionicons
+                        name="qr-code-outline"
+                        size={24}
+                        color={colors.textMuted}
+                      />
+                    </View>
+                  )}
+                </View>
+
+                <Cell text={u.usuario || "-"} width={130} />
+                <Cell text={nombreCompleto(u) || "-"} width={260} />
+                <Cell text={`${u.ci || "-"} ${u.expedido || ""}`} width={120} />
+                <Cell text={u.email || "Sin email"} width={220} />
+                <Cell text={u.celular || "Sin celular"} width={130} />
+                <Cell text={obtenerRoles(u)} width={180} />
+
+                <View style={[styles.cell, { width: 130 }]}>
+                  <View
+                    style={[
+                      styles.badge,
+                      u.estado === "ACTIVO"
+                        ? styles.badgeActive
+                        : styles.badgeInactive,
+                    ]}
+                  >
+                    <ThemedText style={styles.badgeText}>
+                      {u.estado || "-"}
+                    </ThemedText>
                   </View>
                 </View>
-              );
-            })}
+
+                <View style={[styles.cell, styles.actions, { width: 130 }]}>
+                  <Pressable style={styles.editBtn} onPress={() => onEditar(u)}>
+                    <Ionicons
+                      name="create-outline"
+                      size={17}
+                      color={colors.primaryForeground}
+                    />
+
+                    <ThemedText style={styles.editText}>Editar</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
 
             {!data.length && (
               <View style={styles.empty}>
@@ -391,7 +320,7 @@ function createStyles(colors: any, isMobile: boolean) {
       fontWeight: "700",
     },
     table: {
-      minWidth: 1580,
+      minWidth: 1450,
       borderRadius: 18,
       overflow: "hidden",
       borderWidth: 1,
@@ -424,7 +353,6 @@ function createStyles(colors: any, isMobile: boolean) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
     },
     headerText: {
       fontSize: 12,
@@ -499,20 +427,6 @@ function createStyles(colors: any, isMobile: boolean) {
     },
     editText: {
       color: colors.primaryForeground,
-      fontWeight: "900",
-      fontSize: 12,
-    },
-    refBtn: {
-      backgroundColor: colors.info,
-      paddingHorizontal: 12,
-      paddingVertical: 9,
-      borderRadius: 12,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    refText: {
-      color: colors.infoForeground,
       fontWeight: "900",
       fontSize: 12,
     },

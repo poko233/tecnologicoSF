@@ -2,68 +2,114 @@ import { useCallback, useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 
 import {
-    actualizarUsuarioRRHH,
-    listarUsuariosRRHH,
+  actualizarFotoRRHH,
+  actualizarUsuarioRRHH,
+  getUsuarioDetalleRRHH,
+  getUsuariosRRHH,
 } from "../services/recursosHumanos.service";
-import {
-    UsuarioRRHH,
-    UsuarioRRHHForm,
-} from "../types/recursosHumanos.types";
+import { UsuarioFormRRHH, UsuarioRRHH } from "../types/recursosHumanos.types";
+
+type ArchivoFoto = {
+  uri: string;
+  name: string;
+  type: string;
+};
 
 export function useRecursosHumanos() {
   const [usuarios, setUsuarios] = useState<UsuarioRRHH[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
 
   const cargarUsuarios = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await listarUsuariosRRHH();
-      setUsuarios(data);
-    } catch (error: any) {
-      console.log("ERROR RRHH:", error);
 
+      const data = await getUsuariosRRHH();
+
+      setUsuarios(data.usuarios || []);
+    } catch (error: any) {
       Toast.show({
         type: "error",
-        text1: "Error",
-        text2: error?.message || "No se pudieron cargar los usuarios.",
+        text1: "Error al cargar usuarios",
+        text2: error?.message || "Intenta nuevamente.",
       });
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const guardarUsuario = async (id: number, form: UsuarioRRHHForm) => {
+  const cargarDetalleUsuario = useCallback(async (id: number) => {
     try {
-      setGuardando(true);
+      setCargandoDetalle(true);
 
-      const actualizado = await actualizarUsuarioRRHH(id, form);
+      const data = await getUsuarioDetalleRRHH(id);
 
-      setUsuarios((prev) =>
-        prev.map((u) => (u.id === id ? actualizado : u)),
-      );
-
-      Toast.show({
-        type: "success",
-        text1: "Usuario actualizado",
-        text2: "Los datos fueron guardados correctamente.",
-      });
-
-      return true;
+      return data.usuario || null;
     } catch (error: any) {
-      console.log("ERROR GUARDAR RRHH:", error);
-
       Toast.show({
         type: "error",
-        text1: "Error al guardar",
-        text2: error?.message || "Revisa los datos e intenta nuevamente.",
+        text1: "Error al cargar detalle",
+        text2: error?.message || "Intenta nuevamente.",
       });
 
-      return false;
+      return null;
     } finally {
-      setGuardando(false);
+      setCargandoDetalle(false);
     }
-  };
+  }, []);
+
+  const guardarUsuario = useCallback(
+    async (id: number, form: UsuarioFormRRHH) => {
+      try {
+        setGuardando(true);
+
+        const data = await actualizarUsuarioRRHH(id, form);
+        const actualizado = data.usuario;
+
+        setUsuarios((prev) =>
+          prev.map((u) => (u.id === actualizado.id ? actualizado : u)),
+        );
+
+        return actualizado;
+      } catch (error: any) {
+        Toast.show({
+          type: "error",
+          text1: "Error al guardar usuario",
+          text2: error?.message || "Revisa los datos ingresados.",
+        });
+
+        return null;
+      } finally {
+        setGuardando(false);
+      }
+    },
+    [],
+  );
+
+  const actualizarFotoUsuario = useCallback(
+    async (id: number, archivo: ArchivoFoto) => {
+      try {
+        const data = await actualizarFotoRRHH(id, archivo);
+        const actualizado = data.usuario;
+
+        setUsuarios((prev) =>
+          prev.map((u) => (u.id === actualizado.id ? actualizado : u)),
+        );
+
+        return actualizado;
+      } catch (error: any) {
+        Toast.show({
+          type: "error",
+          text1: "Error al actualizar foto",
+          text2: error?.message || "Intenta nuevamente.",
+        });
+
+        return null;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     cargarUsuarios();
@@ -73,7 +119,10 @@ export function useRecursosHumanos() {
     usuarios,
     loading,
     guardando,
+    cargandoDetalle,
     cargarUsuarios,
+    cargarDetalleUsuario,
     guardarUsuario,
+    actualizarFotoUsuario,
   };
 }

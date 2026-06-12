@@ -3,25 +3,56 @@ import { ScrollView, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "../../components/ThemedText";
 import { useTheme } from "../../theme/useTheme";
-import ReferenciasModal from "./components/ReferenciaModal";
 import UsuarioEditModal from "./components/UsuarioEditModal";
 import UsuariosTable from "./components/UsuariosTable";
 import { useRecursosHumanos } from "./hooks/useRecursosHumanos";
-import { UsuarioRRHH } from "./types/recursosHumanos.types";
+import {
+  FotoUsuarioArchivo,
+  UsuarioRRHH,
+} from "./types/recursosHumanos.types";
 
 export default function RecursosHumanosScreen() {
   const { theme } = useTheme();
   const colors = theme.colors;
 
-  const { usuarios, loading, guardando, cargarUsuarios, guardarUsuario } =
-    useRecursosHumanos();
+  const {
+    usuarios,
+    loading,
+    guardando,
+    cargandoDetalle,
+    cargarUsuarios,
+    guardarUsuario,
+    cargarDetalleUsuario,
+    actualizarFotoUsuario,
+  } = useRecursosHumanos();
 
   const [usuarioEditando, setUsuarioEditando] = useState<UsuarioRRHH | null>(
     null,
   );
 
-  const [usuarioReferencias, setUsuarioReferencias] =
-    useState<UsuarioRRHH | null>(null);
+  const abrirEditar = async (usuario: UsuarioRRHH) => {
+    setUsuarioEditando(usuario);
+
+    const detalle = await cargarDetalleUsuario(usuario.id);
+
+    if (detalle) {
+      setUsuarioEditando(detalle);
+    }
+  };
+
+  const cerrarEditar = () => {
+    setUsuarioEditando(null);
+  };
+
+  const refrescarDetalleEditando = async (id: number) => {
+    const detalle = await cargarDetalleUsuario(id);
+
+    if (detalle) {
+      setUsuarioEditando(detalle);
+    }
+
+    await cargarUsuarios();
+  };
 
   const styles = createStyles(colors);
 
@@ -39,15 +70,15 @@ export default function RecursosHumanosScreen() {
           </ThemedText>
 
           <ThemedText style={styles.subtitle}>
-            Administra los datos de todos los usuarios registrados en el sistema.
+            Administra, edita y revisa los datos, documentos, QR y foto de los
+            usuarios registrados en el sistema.
           </ThemedText>
         </View>
 
         <UsuariosTable
           usuarios={usuarios}
           loading={loading}
-          onEditar={setUsuarioEditando}
-          onVerReferencias={setUsuarioReferencias}
+          onEditar={abrirEditar}
           onRefresh={cargarUsuarios}
         />
       </ScrollView>
@@ -56,14 +87,23 @@ export default function RecursosHumanosScreen() {
         visible={!!usuarioEditando}
         usuario={usuarioEditando}
         guardando={guardando}
-        onClose={() => setUsuarioEditando(null)}
+        cargandoDetalle={cargandoDetalle}
+        onClose={cerrarEditar}
         onSave={guardarUsuario}
-      />
+        onFotoActualizada={async (
+          id: number,
+          archivo: FotoUsuarioArchivo,
+        ) => {
+          const actualizado = await actualizarFotoUsuario(id, archivo);
 
-      <ReferenciasModal
-        visible={!!usuarioReferencias}
-        usuario={usuarioReferencias}
-        onClose={() => setUsuarioReferencias(null)}
+          if (actualizado) {
+            setUsuarioEditando(actualizado);
+            await cargarUsuarios();
+          }
+        }}
+        onDocumentoSubido={async (id: number) => {
+          await refrescarDetalleEditando(id);
+        }}
       />
     </View>
   );

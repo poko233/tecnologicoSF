@@ -1,36 +1,59 @@
+import { Platform } from "react-native";
 import { httpClient } from "../../../http/httpClient";
 import {
-    UsuarioRRHH,
-    UsuarioRRHHForm,
+  FotoUsuarioArchivo,
+  UsuarioFormRRHH,
+  UsuarioRRHH,
 } from "../types/recursosHumanos.types";
 
-type UsuariosResponse = {
+export async function getUsuariosRRHH(): Promise<{
   usuarios: UsuarioRRHH[];
-};
+}> {
+  return httpClient.getAuth("/api/recursos-humanos/usuarios");
+}
 
-type UsuarioResponse = {
-  message: string;
-  usuario: UsuarioRRHH;
-};
-
-export async function listarUsuariosRRHH() {
-  const data = await httpClient.getAuth<UsuariosResponse>(
-    "/api/recursos-humanos/usuarios",
-    "No se pudieron cargar los usuarios",
-  );
-
-  return data.usuarios || [];
+export async function getUsuarioDetalleRRHH(
+  id: number,
+): Promise<{ usuario: UsuarioRRHH }> {
+  return httpClient.getAuth(`/api/recursos-humanos/usuarios/${id}`);
 }
 
 export async function actualizarUsuarioRRHH(
   id: number,
-  form: UsuarioRRHHForm,
-) {
-  const data = await httpClient.putAuth<UsuarioResponse>(
-    `/api/recursos-humanos/usuarios/${id}`,
-    form,
-    "No se pudo actualizar el usuario",
-  );
+  form: UsuarioFormRRHH,
+): Promise<{ message: string; usuario: UsuarioRRHH }> {
+  return httpClient.putAuth(`/api/recursos-humanos/usuarios/${id}`, form);
+}
 
-  return data.usuario;
+export async function actualizarFotoRRHH(
+  id: number,
+  archivo: FotoUsuarioArchivo,
+): Promise<{ message: string; usuario: UsuarioRRHH }> {
+  const formData = new FormData();
+
+  if (Platform.OS === "web") {
+    const response = await fetch(archivo.uri);
+    const blob = await response.blob();
+
+    const file = new File(
+      [blob],
+      archivo.name || `foto-${Date.now()}.jpg`,
+      {
+        type: archivo.type || blob.type || "image/jpeg",
+      },
+    );
+
+    formData.append("foto", file);
+  } else {
+    formData.append("foto", {
+      uri: archivo.uri,
+      name: archivo.name || `foto-${Date.now()}.jpg`,
+      type: archivo.type || "image/jpeg",
+    } as any);
+  }
+
+  return httpClient.postFormData(
+    `/api/recursos-humanos/usuarios/${id}/foto`,
+    formData,
+  );
 }

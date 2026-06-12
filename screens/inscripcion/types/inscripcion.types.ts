@@ -100,6 +100,7 @@ export interface InscripcionFormData {
   referenciaNumero: string;
 
   gruposSeleccionados: GrupoSeleccionado[];
+  observacionPromociones: string;
 }
 
 export interface InscripcionErrors {
@@ -128,6 +129,7 @@ export interface InscripcionErrors {
   referenciaParentesco?: string;
 
   referenciaNumero?: string;
+  observacionPromociones?: string;
 }
 
 /* =========================================================

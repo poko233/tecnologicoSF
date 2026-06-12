@@ -27,6 +27,8 @@ const initialForm: InscripcionFormData =
 
     celular: "",
 
+    observacionPromociones: "",
+
     referenciaNombre: "",
 
     referenciaParentesco: "",
