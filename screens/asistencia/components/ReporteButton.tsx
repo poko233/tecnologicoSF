@@ -1,14 +1,13 @@
-// screens/asistencia/components/ReporteButton.tsx
 import { useTheme } from "@/theme/useTheme";
 import { Download, FileSpreadsheet, FileText } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useReporteAsistencia } from "../hooks/useReporteAsistencia";
 
@@ -38,7 +37,6 @@ export function ReporteButton({ idGrupoMateriaDocente, grupoNombre }: Props) {
 
   return (
     <>
-      {/* Botón principal */}
       <TouchableOpacity
         onPress={() => setModalVisible(true)}
         disabled={isLoading}
@@ -60,7 +58,6 @@ export function ReporteButton({ idGrupoMateriaDocente, grupoNombre }: Props) {
         </Text>
       </TouchableOpacity>
 
-      {/* Modal de selección de formato */}
       <Modal
         visible={modalVisible}
         transparent
@@ -87,7 +84,6 @@ export function ReporteButton({ idGrupoMateriaDocente, grupoNombre }: Props) {
               </Text>
             )}
 
-            {/* Opción CSV */}
             <TouchableOpacity
               style={[styles.option, { borderColor: c.border }]}
               onPress={handleCsv}
@@ -99,7 +95,7 @@ export function ReporteButton({ idGrupoMateriaDocente, grupoNombre }: Props) {
               </View>
               <View style={styles.optionText}>
                 <Text style={[styles.optionTitle, { color: c.text }]}>
-                  Excel / CSV
+                  Excel
                 </Text>
                 <Text style={[styles.optionDesc, { color: c.textSecondary }]}>
                   Abre en Excel, Google Sheets, etc.
@@ -107,7 +103,6 @@ export function ReporteButton({ idGrupoMateriaDocente, grupoNombre }: Props) {
               </View>
             </TouchableOpacity>
 
-            {/* Opción PDF */}
             <TouchableOpacity
               style={[styles.option, { borderColor: c.border }]}
               onPress={handlePdf}
@@ -127,7 +122,6 @@ export function ReporteButton({ idGrupoMateriaDocente, grupoNombre }: Props) {
               </View>
             </TouchableOpacity>
 
-            {/* Cancelar */}
             <TouchableOpacity
               onPress={() => setModalVisible(false)}
               style={styles.cancel}
