@@ -452,17 +452,21 @@ export const CuotasTable: React.FC<Props> = ({
 
                                 if (response.success && response.data?.data) {
                                   const pagos = response.data.data;
-                                  
-                                  // Log para ver estructura real
-                                  if (__DEV__) console.log('Primer pago:', JSON.stringify(pagos[0], null, 2));
 
                                   const pagoMatch = pagos.find((p: any) => {
-                                    const cuotasArr = p.cuotas ?? p.Cuotas ?? [];
-                                    
-                                    if (Array.isArray(cuotasArr) && cuotasArr.length > 0) {
+                                    const cuotasArr =
+                                      p.cuotas ?? p.Cuotas ?? [];
+
+                                    if (
+                                      Array.isArray(cuotasArr) &&
+                                      cuotasArr.length > 0
+                                    ) {
                                       return cuotasArr.some((c: any) => {
                                         // Si es objeto
-                                        if (typeof c === 'object' && c !== null) {
+                                        if (
+                                          typeof c === "object" &&
+                                          c !== null
+                                        ) {
                                           return (
                                             c.idCuota === cuota.idCuota ||
                                             c.id === cuota.idCuota ||
@@ -477,7 +481,10 @@ export const CuotasTable: React.FC<Props> = ({
                                   });
 
                                   if (pagoMatch) {
-                                    idPago = pagoMatch.id ?? pagoMatch.idPago ?? pagoMatch.id_pago;
+                                    idPago =
+                                      pagoMatch.id ??
+                                      pagoMatch.idPago ??
+                                      pagoMatch.id_pago;
                                   }
                                 }
                               }
@@ -489,7 +496,10 @@ export const CuotasTable: React.FC<Props> = ({
                                 alert("El recibo aún no está disponible.");
                               }
                             } catch (error) {
-                              console.error("Error al buscar el recibo:", error);
+                              console.error(
+                                "Error al buscar el recibo:",
+                                error,
+                              );
                               alert("Error al buscar el recibo.");
                             }
                           }}
@@ -542,7 +552,7 @@ export const CuotasTable: React.FC<Props> = ({
         idUsuario={selectedStudentId}
         onClose={() => {
           setModalVisible(false);
-          setCuotasDirectas(null); 
+          setCuotasDirectas(null);
         }}
         onPaymentSuccess={handlePaymentSuccess}
       />

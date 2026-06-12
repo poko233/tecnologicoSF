@@ -45,22 +45,13 @@ function base62ToBytes(str: string): Uint8Array {
  */
 export function decryptQrData(qrData: string): number | null {
   try {
-    console.log("🔐 [CRYPTO_DEBUG] Iniciando desencriptación...");
-    console.log(
-      `🔐 [CRYPTO_DEBUG] QR Original (Longitud: ${qrData.length}): ${qrData}`,
-    );
-
     // 1. Decodificar Base62 → ciphertext puro
     const ciphertextBytes = base62ToBytes(qrData);
-    console.log(
-      `🔐 [CRYPTO_DEBUG] Ciphertext (${ciphertextBytes.length} bytes)`,
-    );
 
     // 2. IV fijo: primeros 16 bytes de la clave
     const keyHex = QR_KEY;
     const ivHex = keyHex.substring(0, 32); // 16 bytes = 32 hex chars
     const iv = CryptoJS.enc.Hex.parse(ivHex);
-    console.log(`🔐 [CRYPTO_DEBUG] IV (Hex): ${ivHex}`);
 
     // 3. Clave AES y ciphertext como WordArray
     const keyWordArray = CryptoJS.enc.Hex.parse(keyHex);
@@ -73,26 +64,14 @@ export function decryptQrData(qrData: string): number | null {
       { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 },
     );
 
-    const resultHex = decrypted.toString();
-    console.log(
-      `🔐 [CRYPTO_DEBUG] Resultado Crudo Desencriptado (Hex): ${resultHex}`,
-    );
-
     const jsonString = decrypted.toString(CryptoJS.enc.Utf8);
     if (!jsonString) {
       console.error("🔐 [CRYPTO_DEBUG] No se pudo convertir a UTF-8");
       return null;
     }
 
-    console.log(
-      `🔐 [CRYPTO_DEBUG] Payload descifrado como texto: ${jsonString}`,
-    );
-
     const payload = JSON.parse(jsonString);
     if (payload.user_id && typeof payload.user_id === "number") {
-      console.log(
-        `✅ [CRYPTO_DEBUG] Desencriptación exitosa. User ID: ${payload.user_id}`,
-      );
       return payload.user_id;
     }
     return null;

@@ -6,8 +6,6 @@
  * @returns "Ciudad, Región, País" o fallback si falla.
  */
 export async function getLocationString(): Promise<string> {
-  console.log("📍 Obteniendo ubicación por IP...");
-
   try {
     const response = await fetch(
       "https://ip-api.com/json/?fields=city,country,lat,lon,isp,query",
@@ -16,7 +14,6 @@ export async function getLocationString(): Promise<string> {
       throw new Error("Servicio de geolocalización no disponible");
 
     const data = await response.json();
-    console.log("📍 Respuesta de ip-api:", data);
 
     if (data && data.city) {
       const parts = [
@@ -28,7 +25,6 @@ export async function getLocationString(): Promise<string> {
         data.query,
       ].filter(Boolean);
       const location = parts.join(", ");
-      console.log("📍 Ubicación por IP:", location);
       return location;
     }
   } catch (error) {
