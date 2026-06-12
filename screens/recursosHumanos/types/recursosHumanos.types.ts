@@ -45,6 +45,7 @@ export type UsuarioRRHH = {
   foto?: string | null;
   fotoUrl?: string | null;
   estado?: EstadoUsuarioRRHH | string | null;
+  observacionPromociones?: string | null;
 
   roles?: RolRRHH[];
 

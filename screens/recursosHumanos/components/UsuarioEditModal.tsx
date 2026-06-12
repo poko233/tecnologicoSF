@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystemNS from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -151,45 +153,45 @@ export default function UsuarioEditModal({
     referenciaNumero: "",
   });
 
- useEffect(() => {
-  if (!usuario) return;
+  useEffect(() => {
+    if (!usuario) return;
 
-  const referenciaRaw =
-    usuario.numeroReferencias ?? usuario.numero_referencias;
+    const referenciaRaw =
+      usuario.numeroReferencias ?? usuario.numero_referencias;
 
-  const referencia = Array.isArray(referenciaRaw)
-    ? referenciaRaw[0]
-    : referenciaRaw;
+    const referencia = Array.isArray(referenciaRaw)
+      ? referenciaRaw[0]
+      : referenciaRaw;
 
-  setTab("datos");
-  setFotoLocal(null);
+    setTab("datos");
+    setFotoLocal(null);
 
-  setForm({
-    usuario: usuario.usuario || "",
-    ci: usuario.ci || "",
-    nombres: usuario.nombres || "",
-    apellidoPaterno: usuario.apellidoPaterno || "",
-    apellidoMaterno: usuario.apellidoMaterno || "",
-    genero:
-      usuario.genero === "FEMENINO" || usuario.genero === "MASCULINO"
-        ? usuario.genero
-        : "MASCULINO",
-    fecha_nac: usuario.fecha_nac || "",
-    email: usuario.email || "",
-    telefono: usuario.telefono || "",
-    celular: usuario.celular || "",
-    direccion: usuario.direccion || "",
-    expedido: usuario.expedido || "CBBA",
-    estado:
-      usuario.estado === "INACTIVO" || usuario.estado === "ACTIVO"
-        ? usuario.estado
-        : "ACTIVO",
+    setForm({
+      usuario: usuario.usuario || "",
+      ci: usuario.ci || "",
+      nombres: usuario.nombres || "",
+      apellidoPaterno: usuario.apellidoPaterno || "",
+      apellidoMaterno: usuario.apellidoMaterno || "",
+      genero:
+        usuario.genero === "FEMENINO" || usuario.genero === "MASCULINO"
+          ? usuario.genero
+          : "MASCULINO",
+      fecha_nac: usuario.fecha_nac || "",
+      email: usuario.email || "",
+      telefono: usuario.telefono || "",
+      celular: usuario.celular || "",
+      direccion: usuario.direccion || "",
+      expedido: usuario.expedido || "CBBA",
+      estado:
+        usuario.estado === "INACTIVO" || usuario.estado === "ACTIVO"
+          ? usuario.estado
+          : "ACTIVO",
 
-    referenciaNombre: referencia?.nombreContactoReferencia || "",
-    referenciaParentesco: referencia?.parentesco || "",
-    referenciaNumero: referencia?.numeroReferencia || "",
-  });
-}, [usuario]);
+      referenciaNombre: referencia?.nombreContactoReferencia || "",
+      referenciaParentesco: referencia?.parentesco || "",
+      referenciaNumero: referencia?.numeroReferencia || "",
+    });
+  }, [usuario]);
 
   const setValue = <K extends keyof UsuarioFormRRHH>(
     key: K,
@@ -337,6 +339,67 @@ export default function UsuarioEditModal({
 
     if (puedeAbrir) {
       Linking.openURL(url);
+    }
+  };
+
+  const descargarQr = async () => {
+    if (!usuario?.qrUrl) {
+      Toast.show({
+        type: "error",
+        text1: "Sin QR",
+        text2: "Este usuario no tiene un código QR.",
+      });
+      return;
+    }
+
+    try {
+      if (Platform.OS === "web") {
+        const link = document.createElement("a");
+
+        link.href = usuario.qrUrl;
+        link.download = `qr-${usuario.ci || usuario.id}.png`;
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        return;
+      }
+
+      const FileSystem = FileSystemNS as any;
+
+      const base64Data = usuario.qrUrl.includes(",")
+        ? usuario.qrUrl.split(",")[1]
+        : usuario.qrUrl;
+
+      const fileUri =
+        FileSystem.cacheDirectory + `qr-${usuario.ci || usuario.id}.png`;
+
+      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: "image/png",
+          dialogTitle: "Descargar QR",
+          UTI: "public.png",
+        });
+      } else {
+        Toast.show({
+          type: "success",
+          text1: "QR generado",
+          text2: fileUri,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo descargar el QR.",
+      });
     }
   };
 
@@ -774,10 +837,7 @@ export default function UsuarioEditModal({
                           />
                         </View>
 
-                        <Pressable
-                          style={styles.openBtn}
-                          onPress={() => abrirUrl(usuario.qrUrl)}
-                        >
+                        <Pressable style={styles.openBtn} onPress={descargarQr}>
                           <Ionicons
                             name="download-outline"
                             size={18}
@@ -785,7 +845,7 @@ export default function UsuarioEditModal({
                           />
 
                           <ThemedText style={styles.openText}>
-                            Descargar / abrir QR
+                            Descargar QR
                           </ThemedText>
                         </Pressable>
                       </>

@@ -63,6 +63,7 @@ type EstudianteContinuar = {
   email: string;
   direccion: string;
   celular: string;
+  observacionPromociones?: string | null;
   numero_referencias?: ReferenciaEstudiante[];
   numeroReferencias?: ReferenciaEstudiante[];
 };
@@ -279,6 +280,10 @@ export default function InscripcionScreen() {
     updateField("email", estudiante.email ?? "");
     updateField("celular", estudiante.celular ?? "");
     updateField("direccion", estudiante.direccion ?? "");
+    updateField(
+      "observacionPromociones",
+      estudiante.observacionPromociones ?? ""
+    );
 
     updateField(
       "fechaNacimiento",
@@ -347,11 +352,15 @@ export default function InscripcionScreen() {
       nuevosErrores.carnet = "Carnet inválido";
     }
 
-    if (!form.email.trim()) {
-      nuevosErrores.email = "Ingrese el correo electrónico";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      nuevosErrores.email = "Correo electrónico inválido";
-    }
+  if (
+  form.email.trim() &&
+  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    form.email
+  )
+) {
+  nuevosErrores.email =
+    "Correo electrónico inválido";
+}
 
     if (!form.fechaNacimiento.trim()) {
       nuevosErrores.fechaNacimiento = "Seleccione una fecha";
@@ -436,9 +445,13 @@ export default function InscripcionScreen() {
         apellidoMaterno: form.apellidoMaterno?.trim() ?? "",
         nombres: form.nombres.trim(),
         carnet: form.carnet.replace(/\D/g, ""),
-        email: form.email.trim().toLowerCase(),
+        email:
+  form.email.trim() !== ""
+    ? form.email.trim().toLowerCase()
+    : null,
         celular: form.celular.replace(/\D/g, "").replace(/^591/, ""),
         direccion: form.direccion.trim(),
+        observacionPromociones: form.observacionPromociones?.trim() || null,
         referenciaNombre: form.referenciaNombre.trim(),
         referenciaParentesco: form.referenciaParentesco.trim(),
         referenciaNumero: form.referenciaNumero.replace(/\D/g, ""),
@@ -565,9 +578,21 @@ export default function InscripcionScreen() {
   }, [form.carnet, idEstudiante]);
 
   useEffect(() => {
-    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      return;
-    }
+  if (!form.email.trim()) {
+  setErrors((prev) => ({
+    ...prev,
+    email: undefined,
+  }));
+  return;
+}
+
+if (
+  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    form.email
+  )
+) {
+  return;
+}
 
     if (timeoutCorreo.current) {
       clearTimeout(timeoutCorreo.current);
@@ -879,7 +904,6 @@ export default function InscripcionScreen() {
               }}
             >
               <FormInput
-                required
                 label="CORREO ELECTRÓNICO"
                 placeholder="correo@gmail.com"
                 value={form.email}
@@ -934,6 +958,58 @@ export default function InscripcionScreen() {
                 updateFieldWithValidation("celular", text)
               }
             />
+
+          <View>
+  <ThemedText
+    style={{
+      fontSize: 12,
+      fontWeight: "900",
+      color: colorSecundario,
+      marginBottom: 7,
+      textTransform: "uppercase",
+    }}
+  >
+    REGALOS O PROMOCIONES ENTREGADAS
+  </ThemedText>
+
+  <TextInput
+    value={form.observacionPromociones}
+    placeholder="Ej: Mochila, polera, descuento, beca, promoción..."
+    placeholderTextColor={colorSecundario}
+    multiline
+    numberOfLines={4}
+    textAlignVertical="top"
+    onChangeText={(text) =>
+      updateFieldWithValidation("observacionPromociones", text)
+    }
+    style={{
+      minHeight: 110,
+      backgroundColor: theme.colors.background,
+      color: theme.colors.text,
+      borderWidth: 1,
+      borderColor: errors.observacionPromociones
+        ? "#EF4444"
+        : theme.colors.border,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      outlineStyle: "none" as any,
+    }}
+  />
+
+  {errors.observacionPromociones && (
+    <ThemedText
+      style={{
+        color: "#EF4444",
+        fontSize: 12,
+        marginTop: 6,
+        fontWeight: "700",
+      }}
+    >
+      {errors.observacionPromociones}
+    </ThemedText>
+  )}
+</View>
 
             <ReferenceSection
               isMobile={isMobile}
