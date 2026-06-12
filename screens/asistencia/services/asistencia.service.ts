@@ -1,4 +1,3 @@
-// screens/asistencia/services/asistencia.service.ts
 import { httpClient } from "@/http/httpClient";
 import {
   AsistenciaBody,
@@ -41,20 +40,25 @@ export const batchRegistrarAsistencia = (body: BatchAsistenciaBody) =>
   
 export const descargarReporteAsistencia = async (
   idGrupoMateriaDocente: number,
-  formato: "csv" | "pdf",
+  formato: "xlsx" | "pdf",
 ): Promise<{ blob: Blob; filename: string }> => {
-  // httpClient ya maneja el token internamente
+  const endpoint = formato === "pdf" ? "pdf" : "excel";
+  const mime =
+    formato === "pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
   const res = await (httpClient as any)._rawFetch(
-    `/api/docente/grupos-asignados/${idGrupoMateriaDocente}/reporte/${formato}`,
-    formato === "pdf" ? "application/pdf" : "text/csv",
+    `/api/docente/grupos-asignados/${idGrupoMateriaDocente}/reporte/${endpoint}`,
+    mime,
   );
 
   const blob = await res.blob();
   const disposition = res.headers.get("content-disposition") ?? "";
   const match = disposition.match(/filename[^;=\n]*=["']?([^"';\n]+)/i);
+  const ext = formato === "pdf" ? "pdf" : "xlsx";
   const filename =
     match?.[1]?.trim() ??
-    `asistencia_grupo${idGrupoMateriaDocente}.${formato}`;
-
+    `asistencia_grupo${idGrupoMateriaDocente}.${ext}`;
   return { blob, filename };
 };

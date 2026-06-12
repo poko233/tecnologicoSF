@@ -1,4 +1,3 @@
-// screens/asistencia/hooks/useReporteAsistencia.ts
 import { useState } from "react";
 import { Platform } from "react-native";
 import Toast from "react-native-toast-message";
@@ -8,11 +7,11 @@ export function useReporteAsistencia() {
   const [loadingCsv, setLoadingCsv] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
 
-  const descargar = async (
+    const descargar = async (
     idGrupoMateriaDocente: number,
-    formato: "csv" | "pdf",
+    formato: "xlsx" | "pdf",
   ) => {
-    const setLoading = formato === "csv" ? setLoadingCsv : setLoadingPdf;
+    const setLoading = formato === "xlsx" ? setLoadingCsv : setLoadingPdf;
     setLoading(true);
 
     try {
@@ -36,14 +35,15 @@ export function useReporteAsistencia() {
           text1: `Reporte ${formato.toUpperCase()} descargado`,
         });
       } else {
-        // expo-file-system v2: usar .default para acceder a la API
         const FileSystem = await import("expo-file-system");
         const Sharing = await import("expo-sharing");
 
         const fs = (FileSystem as any).default ?? FileSystem;
-        const mimeType = formato === "pdf" ? "application/pdf" : "text/csv";
+        const mimeType =
+          formato === "pdf"
+            ? "application/pdf"
+            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-        // Blob → base64
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => {
@@ -64,7 +64,7 @@ export function useReporteAsistencia() {
           UTI:
             formato === "pdf"
               ? "com.adobe.pdf"
-              : "public.comma-separated-values-text",
+              : "org.openxmlformats.spreadsheetml.sheet",
         });
 
         Toast.show({
@@ -84,7 +84,7 @@ export function useReporteAsistencia() {
   };
 
   return {
-    descargarCsv: (id: number) => descargar(id, "csv"),
+    descargarCsv: (id: number) => descargar(id, "xlsx"),
     descargarPdf: (id: number) => descargar(id, "pdf"),
     loadingCsv,
     loadingPdf,

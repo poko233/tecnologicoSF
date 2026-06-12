@@ -34,7 +34,6 @@ export function SummaryCard({ metric, index, onPrint }: Props) {
       ]}
     >
       <MotiView
-        // Animación en línea para evitar conflictos de tipos
         from={{ opacity: 0, translateY: 24, scale: 0.96 }}
         animate={{ opacity: 1, translateY: 0, scale: 1 }}
         transition={{

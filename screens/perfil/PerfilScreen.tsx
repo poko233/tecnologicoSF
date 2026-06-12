@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../theme/useTheme";
+import { ChangePasswordModal } from "./components/ChangePasswordModal";
 import { InformacionPersonal } from "./components/InformacionPersonal";
 import { PerfilHeader } from "./components/PerfilHeader";
 import { QrProfileCard } from "./components/QrProfileCard";
@@ -11,6 +12,7 @@ export default function PerfilScreen() {
   const { theme } = useTheme();
   const { isDesktop } = useResponsive();
   const styles = getStyles(theme, isDesktop);
+  const [changePasswordVisible, setChangePasswordVisible] = useState(false);
 
   return (
     <ScrollView
@@ -19,17 +21,16 @@ export default function PerfilScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.container}>
-        {/* Header con portada, avatar y chips */}
-        <PerfilHeader />
+        {/* Header con portada, avatar y chips, ahora incluye botón de cambio de contraseña */}
+        <PerfilHeader
+          onChangePasswordPress={() => setChangePasswordVisible(true)}
+        />
 
         {/* Bento grid: en escritorio 2 columnas (info + QR), en móvil columna */}
         <View style={styles.bentoGrid}>
-          {/* Información personal */}
           <View style={styles.infoColumn}>
             <InformacionPersonal />
           </View>
-
-          {/* QR (Identidad Digital) */}
           <View style={styles.qrColumn}>
             <QrProfileCard />
           </View>
@@ -38,6 +39,11 @@ export default function PerfilScreen() {
         {/* Selector de temas (siempre full width abajo) */}
         <ThemeSelectorCard />
       </View>
+
+      <ChangePasswordModal
+        visible={changePasswordVisible}
+        onClose={() => setChangePasswordVisible(false)}
+      />
     </ScrollView>
   );
 }

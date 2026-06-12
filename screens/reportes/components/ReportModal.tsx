@@ -28,18 +28,15 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [format, setFormat] = useState<"pdf" | "excel">("excel");
 
-  // ── Centralizador ──────────────────────────────────────
   const [filtrosCal, setFiltrosCal] = useState<any>(null);
   const [idCarrera, setIdCarrera] = useState<number | null>(null);
   const [gestion, setGestion] = useState("");
   const [turno, setTurno] = useState("");
 
-  // ── Inscritos por Carrera ──────────────────────────────
   const [carreras, setCarreras] = useState<any[]>([]);
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
 
-  // ── Lista por Grupo ────────────────────────────────────
   const [grupos, setGrupos] = useState<any[]>([]);
   const [idGrupo, setIdGrupo] = useState<number | null>(null);
 
@@ -47,7 +44,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
   const isInscritos = reportType === "carrera";
   const isListaGrupo = reportType === "lista-grupo";
 
-  // Cargar datos según tipo
   useEffect(() => {
     if (!visible) return;
     setLoading(true);
@@ -85,7 +81,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
     : isListaGrupo ? "Lista Oficial por Grupo"
     : "Parámetros del Reporte";
 
-  // ── Chip Select ────────────────────────────────────────
   const renderChipSelect = (
     label: string,
     opciones: { label: string; value: string | number | null }[],
@@ -94,7 +89,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
   ) => (
     <View style={styles.field}>
       <Text style={[styles.label, { color: c.textSecondary }]}>{label}</Text>
-      {/* <ScrollView horizontal showsHorizontalScrollIndicator={false}> */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {opciones.map((opt) => {
             const isSelected = String(opt.value) === String(selected);
@@ -114,7 +108,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
             );
           })}
         </View>
-      {/* </ScrollView> */}
     </View>
   );
 
@@ -147,7 +140,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                 <ActivityIndicator color={c.primary} style={{ marginVertical: 30 }} />
               ) : (
                 <>
-                  {/* ── CENTRALIZADOR ────────────────────────── */}
                   {isCentralizador && filtrosCal && (
                     <>
                       {renderChipSelect("Carrera", [
@@ -165,7 +157,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                     </>
                   )}
 
-                  {/* ── INSCRITOS POR CARRERA ────────────────── */}
                   {isInscritos && (
                     <>
                       {renderChipSelect("Carrera", [
@@ -183,7 +174,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                     </>
                   )}
 
-                  {/* ── LISTA POR GRUPO ──────────────────────── */}
                   {isListaGrupo && (
                     <>
                       {renderChipSelect("Grupo / Materia / Docente", [
@@ -198,7 +188,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                 </>
               )}
 
-              {/* Formato */}
               <View style={styles.field}>
                 <Text style={[styles.label, { color: c.textSecondary }]}>Formato</Text>
                 <View style={styles.formatRow}>

@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { LogOut } from "lucide-react-native";
+import { Lock, LogOut } from "lucide-react-native";
 import { MotiView } from "moti";
 import React, { useState } from "react";
 import {
@@ -18,9 +18,13 @@ import { useModulesStore } from "../../../store/modulesStore";
 import { useTheme } from "../../../theme/useTheme";
 import { usePerfilData } from "../hooks/usePerfilData";
 
-export const PerfilHeader = () => {
+interface PerfilHeaderProps {
+  onChangePasswordPress: () => void;
+}
+
+export const PerfilHeader = ({ onChangePasswordPress }: PerfilHeaderProps) => {
   const { theme } = useTheme();
-  const { isDesktop, isMobile } = useResponsive();
+  const { isDesktop, isMobile, isTablet } = useResponsive();
   const { nombreCompleto, roles, foto } = usePerfilData();
   const { logout } = useAuth();
   const router = useRouter();
@@ -47,16 +51,6 @@ export const PerfilHeader = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleEditProfile = () => {
-    // Placeholder: funcionalidad en desarrollo
-    Toast.show({
-      type: "info",
-      text1: "Editar perfil",
-      text2: "Funcionalidad en desarrollo.",
-      visibilityTime: 2000,
-    });
   };
 
   return (
@@ -135,31 +129,28 @@ export const PerfilHeader = () => {
           </View>
         </View>
 
-        {/* Botones de acción (visible solo en móvil el de logout) */}
+        {/* Botones de acción */}
         <View style={styles.actions}>
-          {/* Cerrar sesión solo en móvil */}
-          {isMobile && (
+          {/* Botón "Cerrar sesión" visible solo en móvil/tablet */}
+          {(isMobile || isTablet) && (
             <Pressable
               onPress={handleLogout}
               disabled={loading}
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor:
-                  pressed || loading
-                    ? theme.colors.destructive
-                    : theme.colors.border,
-                backgroundColor:
-                  pressed || loading
-                    ? theme.colors.destructive + "12"
-                    : "transparent",
-                opacity: loading ? 0.6 : 1,
-              })}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.logoutButton,
+                {
+                  backgroundColor:
+                    pressed || loading
+                      ? theme.colors.destructive + "12"
+                      : "transparent",
+                  borderColor:
+                    pressed || loading
+                      ? theme.colors.destructive
+                      : theme.colors.border,
+                  opacity: loading ? 0.6 : 1,
+                },
+              ]}
             >
               {loading ? (
                 <ActivityIndicator
@@ -170,11 +161,10 @@ export const PerfilHeader = () => {
                 <>
                   <LogOut size={16} color={theme.colors.destructive} />
                   <Text
-                    style={{
-                      color: theme.colors.destructive,
-                      fontSize: 13,
-                      fontWeight: "600",
-                    }}
+                    style={[
+                      styles.actionButtonText,
+                      { color: theme.colors.destructive },
+                    ]}
                   >
                     Cerrar Sesión
                   </Text>
@@ -182,6 +172,29 @@ export const PerfilHeader = () => {
               )}
             </Pressable>
           )}
+
+          {/* Botón "Cambiar Contraseña" siempre visible */}
+          <Pressable
+            onPress={onChangePasswordPress}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.changePasswordButton,
+              {
+                backgroundColor: theme.colors.primary,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Lock size={16} color={theme.colors.primaryForeground} />
+            <Text
+              style={[
+                styles.actionButtonText,
+                { color: theme.colors.primaryForeground },
+              ]}
+            >
+              Cambiar Contraseña
+            </Text>
+          </Pressable>
         </View>
       </View>
     </MotiView>
@@ -278,8 +291,34 @@ const getStyles = (theme: any, isDesktop: boolean) =>
     },
     actions: {
       flexDirection: "row",
-      gap: 8,
+      gap: 12,
       marginTop: isDesktop ? 0 : 16,
+      width: isDesktop ? undefined : "100%",
+    },
+    actionButton: {
+      flexDirection: "row",
       alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      flex: isDesktop ? 0 : 1,
+    },
+    logoutButton: {
+      borderWidth: 1,
+      borderColor: "transparent", // se sobrescribe en el estilo dinámico
+    },
+    changePasswordButton: {
+      minWidth: isDesktop ? 200 : undefined, // ancho mínimo cómodo para desktop
+      elevation: 2, // sutil sombra como en HTML
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    actionButtonText: {
+      fontSize: 13,
+      fontWeight: "600",
     },
   });
