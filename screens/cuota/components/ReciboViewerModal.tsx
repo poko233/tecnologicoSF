@@ -2,18 +2,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Modal,
-    Platform,
-    Pressable,
-    Share,
-    Text,
-    View,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Modal,
+  Platform,
+  Pressable,
+  Share,
+  Text,
+  View,
 } from "react-native";
 import { WebView } from "react-native-webview";
-import { BASE_URL } from "../../../http/httpClient";
+import { BASE_URL, httpClient } from "../../../http/httpClient";
 import { getToken } from "../../../storage/secureStorage";
 import { useTheme } from "../../../theme/useTheme";
 
@@ -35,20 +35,18 @@ export const ReciboViewerModal: React.FC<ReciboViewerModalProps> = ({
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const { height } = Dimensions.get("window");
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
-  // URL del recibo (inline, no descarga)
   const reciboUrl = idPago
     ? `${BASE_URL}/api/pagos/${idPago}/recibo`
     : null;
 
-  // Cargar token al abrir
   useEffect(() => {
     if (visible) {
       getToken().then(setToken);
     }
   }, [visible]);
 
-  // Animación de entrada/salida
   useEffect(() => {
     if (visible) {
       setLoading(true);
@@ -81,6 +79,38 @@ export const ReciboViewerModal: React.FC<ReciboViewerModalProps> = ({
       ]).start();
     }
   }, [visible]);
+  useEffect(() => {
+    if (!visible || Platform.OS !== "web" || !idPago) return;
+
+    let revoked = false;
+    let currentBlobUrl: string | null = null;
+
+    setLoading(true);
+    setError(false);
+    setBlobUrl(null);
+
+    httpClient
+      ._rawFetch(`/api/pagos/${idPago}/recibo`, "application/pdf")
+      .then((res) => res.blob())
+      .then((blob) => {
+        if (revoked) return;
+        currentBlobUrl = URL.createObjectURL(blob);
+        setBlobUrl(currentBlobUrl);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error cargando recibo:", err);
+        if (!revoked) {
+          setLoading(false);
+          setError(true);
+        }
+      });
+
+    return () => {
+      revoked = true;
+      if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    };
+  }, [visible, idPago, error]);
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -314,17 +344,14 @@ export const ReciboViewerModal: React.FC<ReciboViewerModalProps> = ({
                 )}
 
                 {Platform.OS === "web" ? (
-                <iframe
-                    src={`${reciboUrl}?token=${token}`}
-                    style={{
-                    flex: 1,
-                    width: "100%",
-                    height: "100%",
-                    border: "none",
-                    } as any}
-                    onLoad={() => setLoading(false)}
-                    onError={() => { setLoading(false); setError(true); }}
-                />
+                  blobUrl && (
+                    <iframe
+                        src={blobUrl}
+                        style={{ flex: 1, width: "100%", height: "100%", border: "none" } as any}
+                        onLoad={() => setLoading(false)}
+                        onError={() => { setLoading(false); setError(true); }}
+                    />
+                  )
                 ) : (
                 <WebView
                     key={`recibo-${idPago}-${error}`}

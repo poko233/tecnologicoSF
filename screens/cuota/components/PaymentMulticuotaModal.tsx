@@ -6,7 +6,6 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -15,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { useResponsive } from "../../../hooks/useResponsive";
-import { BASE_URL } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 import { pagoService } from "../services/pago.service";
 import { Cuota } from "../types/cuota.types";
@@ -26,7 +24,8 @@ interface Props {
   cuotas: Cuota[];
   idUsuario: number;
   onClose: () => void;
-  onPaymentSuccess: () => void;
+  /** Se llama tras un registro exitoso. Si el backend devuelve el id del pago, se pasa aquí. */
+  onPaymentSuccess: (idPago?: number) => void;
 }
 
 // Icono y etiqueta por método de pago
@@ -75,14 +74,8 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
       }
 
       const idPago = (response?.data as any)?.id || (response?.data as any)?.idPago;
-      if (idPago) {
-        const reciboUrl = `${BASE_URL}/api/pagos/${idPago}/recibo`;
-        Linking.openURL(reciboUrl).catch(() => {
-          console.warn("No se pudo abrir el recibo");
-        });
-      }
 
-      onPaymentSuccess();
+      onPaymentSuccess(idPago);
       onClose();
     } catch (_) {
       // Manejado por capas superiores

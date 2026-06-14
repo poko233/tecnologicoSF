@@ -1,3 +1,4 @@
+import { DatePickerField } from "@/screens/auth/components/DatePickerField";
 import { useTheme } from "@/theme/useTheme";
 import * as Haptics from "expo-haptics";
 import { X } from "lucide-react-native";
@@ -8,9 +9,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { reportesService } from "../services/reportes.service";
 
@@ -165,11 +165,19 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                       ], idCarrera, setIdCarrera)}
                       <View style={styles.field}>
                         <Text style={[styles.label, { color: c.textSecondary }]}>Fecha Inicio</Text>
-                        <TextInput style={[styles.input, { borderColor: c.border, color: c.text }]} placeholder="AAAA-MM-DD" value={fechaInicio} onChangeText={setFechaInicio} />
+                        <DatePickerField
+                          label="Fecha Inicio"
+                          value={fechaInicio || null}
+                          onChange={setFechaInicio}
+                        />
                       </View>
                       <View style={styles.field}>
                         <Text style={[styles.label, { color: c.textSecondary }]}>Fecha Fin</Text>
-                        <TextInput style={[styles.input, { borderColor: c.border, color: c.text }]} placeholder="AAAA-MM-DD" value={fechaFin} onChangeText={setFechaFin} />
+                        <DatePickerField
+                          label="Fecha Fin"
+                          value={fechaFin || null}
+                          onChange={setFechaFin}
+                        />
                       </View>
                     </>
                   )}
