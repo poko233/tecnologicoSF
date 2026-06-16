@@ -1,38 +1,39 @@
+import { useEmpresa as useEmpresaContexto } from '@/contexts/EmpresaContext';
 import { useTheme } from '@theme';
 import {
-    Building2,
-    Globe2,
-    Image as ImageIcon,
-    Layers,
-    Mail,
-    MapPin,
-    Phone,
-    Smartphone,
-    Store,
-    User,
+  Building2,
+  Globe2,
+  Image as ImageIcon,
+  Layers,
+  Mail,
+  MapPin,
+  Phone,
+  Smartphone,
+  Store,
+  User,
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    useWindowDimensions,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import {
-    CampoTextoEmpresa,
-    EstadoErrorEmpresa,
-    SeccionEmpresa,
-    SelectorImagenEmpresa,
+  CampoTextoEmpresa,
+  EstadoErrorEmpresa,
+  SeccionEmpresa,
+  SelectorImagenEmpresa,
 } from '../components';
 import {
-    useActualizarEmpresa,
-    useEmpresa,
-    useSeleccionarImagenEmpresa,
+  useActualizarEmpresa,
+  useEmpresa,
+  useSeleccionarImagenEmpresa,
 } from '../hooks';
 import { Empresa, EmpresaFormData } from '../types/empresa.types';
 
@@ -70,6 +71,8 @@ export function EmpresaScreen() {
   const esAncho = width >= 768;
 
   const { empresa, cargando, error, refrescar } = useEmpresa();
+  const { refrescar: refrescarContexto } = useEmpresaContexto();
+
   const {
     actualizar,
     guardando,
@@ -105,6 +108,7 @@ export function EmpresaScreen() {
       }
       setSeccionGuardando(null);
       refrescar();
+      refrescarContexto();
     }
   }, [exito]);
 

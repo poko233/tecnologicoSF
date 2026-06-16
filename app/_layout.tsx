@@ -1,5 +1,6 @@
 // app/_layout.tsx
 import { injectGlobalScrollbar } from "@/components/globalScrollbar";
+import { EmpresaProvider } from '@/contexts/EmpresaContext';
 import { Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
@@ -46,7 +47,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <ThemeProvider>
-          <AppContent />
+          <EmpresaProvider> 
+            <AppContent />
+          </EmpresaProvider> 
         </ThemeProvider>
       </AuthProvider>
     </GestureHandlerRootView>

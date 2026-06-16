@@ -1,9 +1,11 @@
 // screens/auth/LoginScreen.tsx
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import React from "react";
 import { Platform, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { useEmpresa } from "../../contexts/EmpresaContext";
 import { useTheme } from "../../theme/useTheme";
 import { AuthInput } from "./components/AuthInputAntiguo";
 import { SubmitButton } from "./components/SubmitButtonAntiguo";
@@ -11,7 +13,8 @@ import { useLoginForm } from "./hooks/useLoginForm";
 
 export default function LoginScreen() {
   const { theme } = useTheme();
-
+  const { empresa } = useEmpresa();
+  console.log("BANER:", empresa?.BANER_INICIO);
   const {
     form,
     errors,
@@ -34,6 +37,22 @@ export default function LoginScreen() {
         style={{ backgroundColor: theme.colors.background }}
         className="flex-1 justify-center items-center px-6 py-10"
       >
+        {/* ── Banner institucional de fondo ── */}
+        {empresa?.BANER_INICIO && (
+          <Image
+            source={{ uri: empresa.BANER_INICIO }}
+            style={{
+              position: "absolute",
+              width: "70%",
+              height: "80%",
+              opacity: 0.12,
+            }}
+            contentFit="contain"
+            blurRadius={2}
+          />
+        )}
+
+        {/* ── Formulario ── */}
         <View
           className="w-full max-w-md rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700"
           style={{
@@ -122,7 +141,6 @@ export default function LoginScreen() {
             <Text style={{ color: theme.colors.muted }}>
               ¿No tienes cuenta?{"   "}
             </Text>
-
             <Text
               style={{ color: theme.colors.primary }}
               className="font-bold"
@@ -131,6 +149,7 @@ export default function LoginScreen() {
               Regístrate
             </Text>*/}
           </Animated.View>
+
           <Animated.View
             entering={FadeInUp.delay(500).duration(400).springify()}
             style={{

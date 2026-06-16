@@ -1,9 +1,11 @@
+import { useEmpresa } from '@/contexts/EmpresaContext';
 import { getIonicon } from "@/screens/modulos/types/modulo.types";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, usePathname, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   LayoutAnimation,
   Platform,
   Pressable,
@@ -237,6 +239,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   const { theme } = useTheme();
+  const { empresa } = useEmpresa();
   const c = theme.colors;
   const { modulos, loading, error, fetchModulos } = useModulesStore();
   const { user } = useAuth();
@@ -282,11 +285,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
           style={[styles.logoRow, { borderBottomColor: c.border }]}
           accessibilityLabel="Ir a inicio"
         >
-          <View style={[styles.logoIcon, { backgroundColor: c.primary }]}>
-            <Ionicons name="business" size={16} color={c.primaryForeground} />
+          <View
+            style={[
+              styles.logoIcon,
+              { backgroundColor: empresa?.LOGO_CUADRADO ? 'transparent' : c.primary },
+            ]}
+          >
+            {empresa?.LOGO_CUADRADO ? (
+              <Image
+                source={{ uri: empresa.LOGO_CUADRADO }}
+                style={styles.logoImagen}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons name="business" size={16} color={c.primaryForeground} />
+            )}
           </View>
           <Text style={[styles.logoText, { color: c.text }]} numberOfLines={1}>
-            TECNOLOGICOSF
+            {empresa?.SIGLA ?? 'TECNOLOGICOSF'}
           </Text>
         </Pressable>
       </Animated.View>
@@ -371,8 +387,9 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden', 
   },
   logoText: {
     fontSize: 14,
@@ -409,6 +426,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 4,
     gap: 1,
+  },
+  logoImagen: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   subItem: {
     flexDirection: "row",
