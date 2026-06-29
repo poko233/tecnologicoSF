@@ -1,5 +1,5 @@
 import { useTheme } from '@theme'
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useEffect, useRef } from 'react'
 import {
   KeyboardAvoidingView,
   Modal,
@@ -18,12 +18,22 @@ interface Props {
   title: string
   onClose: () => void
   children: ReactNode
+  saveError?: string | null
 }
 
-export function AdminModal({ visible, title, onClose, children }: Props) {
+export function AdminModal({ visible, title, onClose, children, saveError}: Props) {
   const { theme } = useTheme()
   const { width } = useWindowDimensions()
   const isDesktop = width >= 768
+  const scrollRef = useRef<ScrollView>(null)
+
+  useEffect(() => {
+    if (saveError) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: 0, animated: true })
+      }, 100)
+    }
+  }, [saveError])
 
   if (isDesktop) {
     return (
@@ -39,7 +49,7 @@ export function AdminModal({ visible, title, onClose, children }: Props) {
                 <Text style={[styles.closeBtnText, { color: theme.colors.border }]}>✕</Text>
               </Pressable>
             </View>
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <ScrollView ref={scrollRef} style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {children}
             </ScrollView>
           </Pressable>

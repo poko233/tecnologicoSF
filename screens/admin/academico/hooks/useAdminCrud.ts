@@ -12,7 +12,8 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const [saving, setSaving] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<T | null>(null) // 👈 nuevo
+  const [itemToDelete, setItemToDelete] = useState<T | null>(null) 
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const filteredData = useMemo(() => {
     if (!searchText.trim()) return data
@@ -44,17 +45,20 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
 
   const openCreate = () => {
     setSelectedItem(null)
+    setSaveError(null)
     setModalVisible(true)
   }
 
   const openEdit = (item: T) => {
     setSelectedItem(item)
+    setSaveError(null)
     setModalVisible(true)
   }
 
   const closeModal = () => {
     setModalVisible(false)
     setSelectedItem(null)
+    setSaveError(null)
   }
 
   // Solo guarda qué item se quiere borrar — el modal lo muestra la UI
@@ -77,11 +81,11 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
     }
   }
 
-  // Lo llama el botón "Cancelar" del modal de confirmación
   const cancelDelete = () => setItemToDelete(null)
 
   const handleSave = async (formData: Partial<T>) => {
     setSaving(true)
+    setSaveError(null)       
     try {
       if (selectedItem) {
         await update(selectedItem[idField] as number, formData)
@@ -93,7 +97,35 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
       closeModal()
       refresh()
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'Error', text2: e?.message || 'No se pudo guardar' })
+      let msg = 'No se pudo guardar'
+
+      const errors = e?.response?.data?.errors
+      if (errors && typeof errors === 'object') {
+        const fieldMap: Record<string, string> = {
+          codigo: 'Código',
+          nombreMateria: 'Nombre',
+          nombreCarrera: 'Nombre',
+          semestre: 'Semestre',
+          estado: 'Estado',
+          sigla: 'Sigla',
+        }
+
+        const messages: string[] = []
+        for (const [field, fieldErrors] of Object.entries(errors)) {
+          const label = fieldMap[field] ?? field
+          const errList = fieldErrors as string[]
+          errList.forEach(err => {
+            messages.push(`• ${label}: ${err.replace(field, label).replace(/the /gi, '')}`)
+          })
+        }
+        msg = messages.join('\n')
+      } else if (e?.response?.data?.message) {
+        msg = e.response.data.message
+      } else if (e?.message) {
+        msg = e.message
+      }
+
+      setSaveError(msg)
     } finally {
       setSaving(false)
     }
@@ -102,6 +134,7 @@ export function useAdminCrud<T extends Record<string, any>>(config: CrudConfig<T
   return {
     data,
     loading,
+    saveError,  
     error,
     searchText,
     setSearchText,

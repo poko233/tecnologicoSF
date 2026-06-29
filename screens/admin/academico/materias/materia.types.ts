@@ -7,4 +7,5 @@ export interface Materia {
   estado: 'activo' | 'inactivo'
   idPrerequisito?: number
   prerequisito?: { idMateria: number; nombreMateria: string }
+  carreras?: { idCarrera: number; nombreCarrera: string }[]   
 }
