@@ -92,7 +92,7 @@ export function CreateECModal({
                     color: c.text,
                   },
                 ]}
-                placeholder="Ej: Examen Parcial"
+                placeholder="Ej: Nota Primer Parcial"
                 placeholderTextColor={c.textMuted}
                 value={nombre}
                 onChangeText={setNombre}

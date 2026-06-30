@@ -113,11 +113,11 @@ export function AsistenciaScreen() {
     }
   }, [submitBatch, handleBackToGroups]);
 
-  const selectedGroupName =
-    grupos.find(
-      (g) =>
-        g.id_grupo_materia_docente === estudiantesData?.lista_asistencia?.id,
-    )?.grupo ?? "";
+  const selectedGroup = grupos.find(
+    (g) => g.id_grupo_materia_docente === selectedGrupoId,
+  );
+  const selectedGroupName = selectedGroup?.grupo ?? "";
+  const selectedMateria = selectedGroup?.materia ?? "";
 
   const localAttendanceState: LocalAttendanceState = localChanges;
 
@@ -169,7 +169,14 @@ export function AsistenciaScreen() {
                 "Registre la asistencia de los estudiantes."}
             </Text>
           </View>
-          <View style={{ flexDirection: "row", gap: 8, marginTop: isMobile ? 12 : 0, alignItems: "center" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 8,
+              marginTop: isMobile ? 12 : 0,
+              alignItems: "center",
+            }}
+          >
             {estudiantesData && (
               <ReporteButton
                 idGrupoMateriaDocente={selectedGrupoId!}
@@ -241,6 +248,7 @@ export function AsistenciaScreen() {
               estudiantesData && (
                 <ScheduleSelector
                   groupName={selectedGroupName}
+                  materia={selectedMateria}
                   horarios={estudiantesData.horarios}
                   onBack={handleBackToGroups}
                   onSelect={handleSelectSchedule}

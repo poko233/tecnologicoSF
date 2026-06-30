@@ -34,4 +34,5 @@ export interface GenericAdminScreenProps {
   itemToDelete?: any | null       
   onConfirmDelete?: () => void 
   onCancelDelete?: () => void 
+  saveError?: string | null
 }

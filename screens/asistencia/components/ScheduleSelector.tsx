@@ -15,6 +15,7 @@ import { Horario } from "../types/asistencia.types";
 
 interface Props {
   groupName: string;
+  materia?: string;
   horarios: Horario[];
   onBack: () => void;
   onSelect: (id: number) => void;
@@ -22,6 +23,7 @@ interface Props {
 
 export function ScheduleSelector({
   groupName,
+  materia,
   horarios,
   onBack,
   onSelect,
@@ -55,7 +57,11 @@ export function ScheduleSelector({
           <ArrowLeft size={24} color={c.primary} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: c.text }]}>
-          Seleccione el Horario para{" "}
+          Seleccione el horario de{" "}
+          <Text style={{ color: c.primary, fontWeight: "700" }}>
+            {materia || "Materia desconocida"}
+          </Text>{" "}
+          para el grupo{" "}
           <Text style={{ color: c.primary, fontWeight: "700" }}>
             {groupName}
           </Text>

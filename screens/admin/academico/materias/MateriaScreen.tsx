@@ -1,4 +1,5 @@
 import React from 'react'
+import { Text } from 'react-native'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAdminCrud } from '../hooks/useAdminCrud'
@@ -11,6 +12,21 @@ const columns: ColumnDef[] = [
   { key: 'codigo', header: 'Código', width: 90 },
   { key: 'nombreMateria', header: 'Materia', flex: 2 },
   { key: 'semestre', header: 'Semestre', width: 90 },
+  {
+    key: 'carreras',
+    header: 'Carrera',
+    width: 180,
+    render: (val: any) => {
+      if (!val || !Array.isArray(val) || val.length === 0) {
+        return <Text style={{ color: '#999', fontSize: 13, fontStyle: 'italic' }}>Sin carrera</Text>
+      }
+      return (
+        <Text style={{ fontSize: 13 }} numberOfLines={1} ellipsizeMode="tail">
+          {val.map((c: any) => c.nombreCarrera).join(', ')}
+        </Text>
+      )
+    },
+  },
   { key: 'estado', header: 'Estado', width: 110, render: (val) => <StatusBadge status={val} /> },
 ]
 
@@ -32,6 +48,7 @@ export function MateriaScreen() {
       loading={crud.loading}
       onSearch={crud.setSearchText}
       onAdd={crud.openCreate}
+      saveError={crud.saveError}
       onEdit={crud.openEdit}
       onDelete={crud.handleDelete}
       modalVisible={crud.modalVisible}
