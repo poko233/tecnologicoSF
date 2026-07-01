@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Linking,
   RefreshControl,
@@ -12,17 +12,28 @@ import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../components/ThemedText";
 import { BASE_URL } from "../../http/httpClient";
+import { getToken } from "../../storage/secureStorage";
 import { useTheme } from "../../theme/useTheme";
 
 import EstudiantesTable from "./components/EstudianteTable";
 import InscribirModal from "./components/InscribirModal";
 
 import { useAsignaciones } from "./hooks/useAsignaciones";
-import { Estudiante } from "./types/asignaciones.types";
+import {
+  Estudiante,
+  TurnoInscripcion,
+} from "./types/asignaciones.types";
+
+type CarreraFiltro = {
+  idCarrera: number;
+  nombreCarrera: string;
+  codigo?: string | null;
+};
 
 export default function AsignacionesScreen() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
+
   const isMobile = width < 850;
 
   const {
@@ -47,32 +58,143 @@ export default function AsignacionesScreen() {
 
   const [inscribirVisible, setInscribirVisible] = useState(false);
 
+  const [carreras, setCarreras] = useState<CarreraFiltro[]>([]);
+  const [loadingCarreras, setLoadingCarreras] = useState(false);
+  const [carreraSeleccionadaId, setCarreraSeleccionadaId] = useState<
+    number | null
+  >(null);
+
   const isDark =
     theme.colors.background.toLowerCase().includes("0") ||
     theme.colors.card.toLowerCase().includes("1");
 
   const strongText = isDark ? "#F8FAFC" : theme.colors.text;
   const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
-  const heroBg = isDark ? "rgba(15,23,42,0.72)" : "rgba(248,250,252,0.9)";
+
+  const heroBg = isDark
+    ? "rgba(15,23,42,0.72)"
+    : "rgba(248,250,252,0.9)";
+
   const heroBorder = isDark
     ? "rgba(255,255,255,0.10)"
     : "rgba(15,23,42,0.10)";
+
   const iconBg = isDark ? "rgba(59,130,246,0.18)" : "#DBEAFE";
 
+  const cargarCarreras = useCallback(async () => {
+    try {
+      setLoadingCarreras(true);
+
+      const token = await getToken();
+
+      const response = await fetch(`${BASE_URL}/api/asignaciones/carreras`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {}),
+        },
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | CarreraFiltro[]
+        | {
+            carreras?: CarreraFiltro[];
+            data?: CarreraFiltro[];
+            message?: string;
+          }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          !Array.isArray(data)
+            ? data?.message || "No se pudieron cargar las carreras."
+            : "No se pudieron cargar las carreras.",
+        );
+      }
+
+      const lista = Array.isArray(data)
+        ? data
+        : data?.carreras ?? data?.data ?? [];
+
+      setCarreras(
+        lista
+          .map((carrera) => ({
+            idCarrera: Number(carrera.idCarrera),
+            nombreCarrera: carrera.nombreCarrera,
+            codigo: carrera.codigo ?? null,
+          }))
+          .filter(
+            (carrera) =>
+              Number.isFinite(carrera.idCarrera) &&
+              carrera.idCarrera > 0 &&
+              Boolean(carrera.nombreCarrera),
+          ),
+      );
+    } catch (error) {
+      console.error("Error al cargar carreras:", error);
+
+      Toast.show({
+        type: "error",
+        text1: "No se pudieron cargar las carreras",
+        text2:
+          error instanceof Error
+            ? error.message
+            : "Verifica la conexión con el servidor.",
+      });
+    } finally {
+      setLoadingCarreras(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void cargarCarreras();
+  }, [cargarCarreras]);
+
+  const seleccionarCarreraTabla = async (idCarrera: number) => {
+    if (!idCarrera) {
+      return;
+    }
+
+    limpiarSeleccion(false);
+    setEstudianteSeleccionado(null);
+    setCarreraSeleccionadaId(idCarrera);
+
+    await cargarEstudiantes(idCarrera);
+  };
+
+  const refrescarDatos = async () => {
+    await cargarCarreras();
+
+    if (carreraSeleccionadaId) {
+      await cargarEstudiantes(carreraSeleccionadaId);
+    }
+  };
+
   const abrirInscribir = async (estudiante: Estudiante) => {
-    limpiarSeleccion(true);
+    limpiarSeleccion(false);
+
     setEstudianteSeleccionado(estudiante);
     setInscribirVisible(true);
 
-    await Promise.all([
-      cargarDetalle(estudiante.id),
-      cargarMaterias(estudiante.id),
-    ]);
+    await cargarDetalle(estudiante.id);
+  };
+
+  const seleccionarCarrera = async (idCarrera: number) => {
+    if (!estudianteSeleccionado) {
+      return;
+    }
+
+    await cargarMaterias(estudianteSeleccionado.id, idCarrera);
   };
 
   const abrirPdfEstudiante = async (estudiante: Estudiante) => {
     try {
       const url = `${BASE_URL}/api/inscripcion/formulario-registro/${estudiante.id}/pdf`;
+
       await Linking.openURL(url);
     } catch (error) {
       console.error(error);
@@ -91,16 +213,33 @@ export default function AsignacionesScreen() {
     limpiarSeleccion(false);
   };
 
-  const confirmarInscripcion = async () => {
-    if (!estudianteSeleccionado) return;
+  const confirmarInscripcion = async (
+    idCarrera: number,
+    turno: TurnoInscripcion,
+  ) => {
+    if (!estudianteSeleccionado) {
+      return;
+    }
 
-    const idCarrera = detalle?.carreras?.[0]?.idCarrera;
-    const response = await inscribir(estudianteSeleccionado.id, idCarrera);
+    const response = await inscribir(
+      estudianteSeleccionado.id,
+      idCarrera,
+      turno,
+    );
 
     if (response) {
       cerrarInscribir();
+
+      if (carreraSeleccionadaId) {
+        await cargarEstudiantes(carreraSeleccionadaId);
+      }
     }
   };
+
+  const textoContador =
+    carreraSeleccionadaId === null
+      ? "Selecciona una carrera"
+      : `${estudiantes.length} estudiantes`;
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
@@ -111,8 +250,8 @@ export default function AsignacionesScreen() {
         ]}
         refreshControl={
           <RefreshControl
-            refreshing={loading}
-            onRefresh={cargarEstudiantes}
+            refreshing={loading || loadingCarreras}
+            onRefresh={refrescarDatos}
             tintColor={theme.colors.primary}
             colors={[theme.colors.primary]}
           />
@@ -150,8 +289,8 @@ export default function AsignacionesScreen() {
                 </ThemedText>
 
                 <ThemedText style={[styles.subtitle, { color: mutedText }]}>
-                  Inscripción automática de materias del semestre 1 y formulario
-                  de registro de estudiantes.
+                  Selecciona una carrera para consultar estudiantes, revisar
+                  materias e inscribirlo.
                 </ThemedText>
               </View>
             </View>
@@ -183,7 +322,7 @@ export default function AsignacionesScreen() {
                   },
                 ]}
               >
-                {estudiantes.length} estudiantes
+                {textoContador}
               </ThemedText>
             </View>
           </View>
@@ -191,20 +330,26 @@ export default function AsignacionesScreen() {
 
         <EstudiantesTable
           estudiantes={estudiantes}
+          carreras={carreras}
+          carreraSeleccionadaId={carreraSeleccionadaId}
           loading={loading}
+          loadingCarreras={loadingCarreras}
+          onSeleccionarCarrera={seleccionarCarreraTabla}
           onInscribir={abrirInscribir}
           onVerPdf={abrirPdfEstudiante}
         />
       </ScrollView>
 
       <InscribirModal
-        key={`inscribir-${estudianteSeleccionado?.id ?? "empty"}`}
         visible={inscribirVisible}
         estudiante={estudianteSeleccionado}
+        carreras={detalle?.carreras ?? []}
         materias={materias}
-        loading={loadingDetalle || loadingMaterias}
+        loading={loadingDetalle}
+        loadingMaterias={loadingMaterias}
         inscribiendo={inscribiendo}
         onClose={cerrarInscribir}
+        onSelectCarrera={seleccionarCarrera}
         onConfirm={confirmarInscripcion}
       />
     </View>

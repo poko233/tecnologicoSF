@@ -137,8 +137,9 @@ export default function InscripcionScreen() {
       }>("/api/estudiantes/siguiente-matricula");
 
       setMatriculaPreview(response.matricula ?? "");
+
       setFechaInscripcion(
-        response.fechaInscripcionTexto ?? response.fechaInscripcion ?? ""
+        response.fechaInscripcionTexto ?? response.fechaInscripcion ?? "",
       );
     } catch (error: any) {
       console.error(error);
@@ -166,12 +167,12 @@ export default function InscripcionScreen() {
     setDocumentosLocales({});
     setBusquedaContinuar("");
     setEstudiantesContinuar([]);
-    cargarSiguienteMatricula();
+    void cargarSiguienteMatricula();
   };
 
   const updateFieldWithValidation = (
     field: keyof typeof form,
-    value: any
+    value: any,
   ) => {
     updateField(field, value);
 
@@ -182,18 +183,24 @@ export default function InscripcionScreen() {
   };
 
   const fechaBackendAFrontend = (fecha?: string | null) => {
-    if (!fecha) return "";
+    if (!fecha) {
+      return "";
+    }
 
     const limpia = fecha.split("T")[0];
     const [year, month, day] = limpia.split("-");
 
-    if (!year || !month || !day) return "";
+    if (!year || !month || !day) {
+      return "";
+    }
 
     return `${day}/${month}/${year}`;
   };
 
   const normalizarArchivoUrl = (ubicacionArchivo: string | null) => {
-    if (!ubicacionArchivo) return null;
+    if (!ubicacionArchivo) {
+      return null;
+    }
 
     if (ubicacionArchivo.startsWith("http")) {
       return ubicacionArchivo;
@@ -220,7 +227,9 @@ export default function InscripcionScreen() {
         const archivo = doc.ubicacionArchivo ?? null;
         const archivoNombre = archivo ? archivo.split("/").pop() ?? null : null;
 
-        if (!doc.nombreDocumento) return;
+        if (!doc.nombreDocumento) {
+          return;
+        }
 
         documentosMap[doc.nombreDocumento] = {
           nombreDocumento: doc.nombreDocumento,
@@ -261,7 +270,7 @@ export default function InscripcionScreen() {
   };
 
   const seleccionarEstudianteContinuar = async (
-    estudiante: EstudianteContinuar
+    estudiante: EstudianteContinuar,
   ) => {
     const referencias =
       estudiante.numeroReferencias ??
@@ -280,30 +289,30 @@ export default function InscripcionScreen() {
     updateField("email", estudiante.email ?? "");
     updateField("celular", estudiante.celular ?? "");
     updateField("direccion", estudiante.direccion ?? "");
+
     updateField(
       "observacionPromociones",
-      estudiante.observacionPromociones ?? ""
+      estudiante.observacionPromociones ?? "",
     );
 
     updateField(
       "fechaNacimiento",
-      fechaBackendAFrontend(estudiante.fecha_nac)
+      fechaBackendAFrontend(estudiante.fecha_nac),
     );
 
     updateField(
       "expedidoEn",
-      expedidoReverse[estudiante.expedido] ?? "Cochabamba"
+      expedidoReverse[estudiante.expedido] ?? "Cochabamba",
     );
 
     updateField("genero", generoReverse[estudiante.genero] ?? "Masculino");
 
     updateField(
       "referenciaNombre",
-      referencia?.nombreContactoReferencia ?? ""
+      referencia?.nombreContactoReferencia ?? "",
     );
 
     updateField("referenciaParentesco", referencia?.parentesco ?? "");
-
     updateField("referenciaNumero", referencia?.numeroReferencia ?? "");
 
     setIdEstudiante(estudiante.id);
@@ -325,7 +334,10 @@ export default function InscripcionScreen() {
 
   const estudiantesFiltrados = useMemo(() => {
     const textoBusqueda = busquedaContinuar.trim().toLowerCase();
-    if (!textoBusqueda) return estudiantesContinuar;
+
+    if (!textoBusqueda) {
+      return estudiantesContinuar;
+    }
 
     return estudiantesContinuar.filter((estudiante) => {
       const texto =
@@ -352,18 +364,16 @@ export default function InscripcionScreen() {
       nuevosErrores.carnet = "Carnet inválido";
     }
 
-  if (
-  form.email.trim() &&
-  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    form.email
-  )
-) {
-  nuevosErrores.email =
-    "Correo electrónico inválido";
-}
+    if (
+      form.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+    ) {
+      nuevosErrores.email = "Correo electrónico inválido";
+    }
 
-    if (!form.fechaNacimiento.trim()) {
-      nuevosErrores.fechaNacimiento = "Seleccione una fecha";
+    if (!form.fechaNacimiento?.trim()) {
+      nuevosErrores.fechaNacimiento =
+        "La fecha de nacimiento es obligatoria";
     }
 
     if (!form.direccion.trim()) {
@@ -446,12 +456,13 @@ export default function InscripcionScreen() {
         nombres: form.nombres.trim(),
         carnet: form.carnet.replace(/\D/g, ""),
         email:
-  form.email.trim() !== ""
-    ? form.email.trim().toLowerCase()
-    : null,
+          form.email.trim() !== ""
+            ? form.email.trim().toLowerCase()
+            : null,
         celular: form.celular.replace(/\D/g, "").replace(/^591/, ""),
         direccion: form.direccion.trim(),
-        observacionPromociones: form.observacionPromociones?.trim() || null,
+        observacionPromociones:
+          form.observacionPromociones?.trim() || null,
         referenciaNombre: form.referenciaNombre.trim(),
         referenciaParentesco: form.referenciaParentesco.trim(),
         referenciaNumero: form.referenciaNumero.replace(/\D/g, ""),
@@ -534,7 +545,7 @@ export default function InscripcionScreen() {
   };
 
   useEffect(() => {
-    cargarSiguienteMatricula();
+    void cargarSiguienteMatricula();
   }, []);
 
   useEffect(() => {
@@ -578,21 +589,18 @@ export default function InscripcionScreen() {
   }, [form.carnet, idEstudiante]);
 
   useEffect(() => {
-  if (!form.email.trim()) {
-  setErrors((prev) => ({
-    ...prev,
-    email: undefined,
-  }));
-  return;
-}
+    if (!form.email.trim()) {
+      setErrors((prev) => ({
+        ...prev,
+        email: undefined,
+      }));
 
-if (
-  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    form.email
-  )
-) {
-  return;
-}
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      return;
+    }
 
     if (timeoutCorreo.current) {
       clearTimeout(timeoutCorreo.current);
@@ -708,6 +716,7 @@ if (
                 size={18}
                 color="#FFFFFF"
               />
+
               <ThemedText
                 style={{
                   color: "#FFFFFF",
@@ -925,13 +934,19 @@ if (
                 }
               />
 
+              <View style={{ flex: 1 }}>
               <FormDateInput
-                label="FECHA DE NACIMIENTO"
-                value={form.fechaNacimiento}
-                onChangeText={(text) =>
-                  updateFieldWithValidation("fechaNacimiento", text)
-                }
-              />
+  required
+  label="FECHA DE NACIMIENTO"
+  value={form.fechaNacimiento}
+  error={errors.fechaNacimiento}
+  onChangeText={(text) =>
+    updateFieldWithValidation("fechaNacimiento", text)
+  }
+/>
+
+               
+              </View>
             </View>
 
             <FormInput
@@ -959,57 +974,57 @@ if (
               }
             />
 
-          <View>
-  <ThemedText
-    style={{
-      fontSize: 12,
-      fontWeight: "900",
-      color: colorSecundario,
-      marginBottom: 7,
-      textTransform: "uppercase",
-    }}
-  >
-    REGALOS O PROMOCIONES ENTREGADAS
-  </ThemedText>
+            <View>
+              <ThemedText
+                style={{
+                  fontSize: 12,
+                  fontWeight: "900",
+                  color: colorSecundario,
+                  marginBottom: 7,
+                  textTransform: "uppercase",
+                }}
+              >
+                REGALOS O PROMOCIONES ENTREGADAS
+              </ThemedText>
 
-  <TextInput
-    value={form.observacionPromociones}
-    placeholder="Ej: Mochila, polera, descuento, beca, promoción..."
-    placeholderTextColor={colorSecundario}
-    multiline
-    numberOfLines={4}
-    textAlignVertical="top"
-    onChangeText={(text) =>
-      updateFieldWithValidation("observacionPromociones", text)
-    }
-    style={{
-      minHeight: 110,
-      backgroundColor: theme.colors.background,
-      color: theme.colors.text,
-      borderWidth: 1,
-      borderColor: errors.observacionPromociones
-        ? "#EF4444"
-        : theme.colors.border,
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 13,
-      outlineStyle: "none" as any,
-    }}
-  />
+              <TextInput
+                value={form.observacionPromociones}
+                placeholder="Ej: Mochila, polera, descuento, beca, promoción..."
+                placeholderTextColor={colorSecundario}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                onChangeText={(text) =>
+                  updateFieldWithValidation("observacionPromociones", text)
+                }
+                style={{
+                  minHeight: 110,
+                  backgroundColor: theme.colors.background,
+                  color: theme.colors.text,
+                  borderWidth: 1,
+                  borderColor: errors.observacionPromociones
+                    ? "#EF4444"
+                    : theme.colors.border,
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  paddingVertical: 13,
+                  outlineStyle: "none" as any,
+                }}
+              />
 
-  {errors.observacionPromociones && (
-    <ThemedText
-      style={{
-        color: "#EF4444",
-        fontSize: 12,
-        marginTop: 6,
-        fontWeight: "700",
-      }}
-    >
-      {errors.observacionPromociones}
-    </ThemedText>
-  )}
-</View>
+              {errors.observacionPromociones && (
+                <ThemedText
+                  style={{
+                    color: "#EF4444",
+                    fontSize: 12,
+                    marginTop: 6,
+                    fontWeight: "700",
+                  }}
+                >
+                  {errors.observacionPromociones}
+                </ThemedText>
+              )}
+            </View>
 
             <ReferenceSection
               isMobile={isMobile}
@@ -1018,7 +1033,10 @@ if (
               updateField={updateFieldWithValidation}
             />
 
-            <NavigationButtons onNext={guardarEstudiante} loading={guardando} />
+            <NavigationButtons
+              onNext={guardarEstudiante}
+              loading={guardando}
+            />
           </View>
         </View>
       )}
@@ -1199,7 +1217,7 @@ if (
                     <Pressable
                       key={estudiante.id}
                       onPress={() =>
-                        seleccionarEstudianteContinuar(estudiante)
+                        void seleccionarEstudianteContinuar(estudiante)
                       }
                       style={{
                         padding: 16,

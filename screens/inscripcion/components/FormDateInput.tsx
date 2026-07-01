@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -17,7 +17,11 @@ type Props = {
   placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
+  error?: string;
+  required?: boolean;
 };
+
+const COLOR_ERROR = "#EF4444";
 
 const meses = [
   "Enero",
@@ -46,13 +50,18 @@ function formatDate(date: Date) {
 
 function parseDate(value: string) {
   const parts = value.split("/");
-  if (parts.length !== 3) return null;
+
+  if (parts.length !== 3) {
+    return null;
+  }
 
   const day = Number(parts[0]);
   const month = Number(parts[1]) - 1;
   const year = Number(parts[2]);
 
-  if (!day || month < 0 || !year) return null;
+  if (!day || month < 0 || !year) {
+    return null;
+  }
 
   const date = new Date(year, month, day);
 
@@ -85,7 +94,9 @@ function calculateAge(date: Date) {
     (today.getMonth() === date.getMonth() &&
       today.getDate() >= date.getDate());
 
-  if (!passed) age--;
+  if (!passed) {
+    age--;
+  }
 
   return age;
 }
@@ -99,19 +110,29 @@ export default function FormDateInput({
   placeholder = "dd/mm/aaaa",
   value,
   onChangeText,
+  error,
+  required = false,
 }: Props) {
   const { theme } = useTheme();
   const { width, height } = useWindowDimensions();
 
   const isMobile = width < 560;
   const isSmallHeight = height < 760;
+  const tieneError = Boolean(error);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const fecha = new Date();
+
+    fecha.setHours(0, 0, 0, 0);
+
+    return fecha;
+  }, []);
 
   const currentYear = today.getFullYear();
-  const parsedValue = parseDate(value);
-  const initialDate = parsedValue ?? today;
+
+  const initialDate = useMemo(() => {
+    return parseDate(value) ?? today;
+  }, [value, today]);
 
   const [open, setOpen] = useState(false);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
@@ -119,11 +140,27 @@ export default function FormDateInput({
 
   const [viewMonth, setViewMonth] = useState(initialDate.getMonth());
   const [viewYear, setViewYear] = useState(initialDate.getFullYear());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(parsedValue);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(
+    parseDate(value),
+  );
+
+  useEffect(() => {
+    const fecha = parseDate(value);
+
+    setSelectedDate(fecha);
+
+    const fechaParaVista = fecha ?? today;
+
+    setViewMonth(fechaParaVista.getMonth());
+    setViewYear(fechaParaVista.getFullYear());
+  }, [value, today]);
 
   const activeTextColor = isWhite(theme.colors.primary)
     ? "#111827"
     : "#FFFFFF";
+
+  const colorBorde = tieneError ? COLOR_ERROR : theme.colors.border;
+  const colorEtiqueta = tieneError ? COLOR_ERROR : theme.colors.text;
 
   const age = selectedDate ? calculateAge(selectedDate) : null;
 
@@ -166,6 +203,20 @@ export default function FormDateInput({
     setYearPickerOpen(false);
   };
 
+  const abrirCalendario = () => {
+    const fechaActual = parseDate(value);
+
+    setSelectedDate(fechaActual);
+
+    const fechaParaVista = fechaActual ?? today;
+
+    setViewMonth(fechaParaVista.getMonth());
+    setViewYear(fechaParaVista.getFullYear());
+
+    closePickers();
+    setOpen(true);
+  };
+
   const handleSelectYear = (year: number) => {
     setViewYear(year);
     setYearPickerOpen(false);
@@ -182,9 +233,10 @@ export default function FormDateInput({
     if (viewMonth === 0) {
       setViewMonth(11);
       setViewYear(viewYear - 1);
-    } else {
-      setViewMonth(viewMonth - 1);
+      return;
     }
+
+    setViewMonth(viewMonth - 1);
   };
 
   const nextMonth = () => {
@@ -193,13 +245,16 @@ export default function FormDateInput({
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear(viewYear + 1);
-    } else {
-      setViewMonth(viewMonth + 1);
+      return;
     }
+
+    setViewMonth(viewMonth + 1);
   };
 
   const handleApply = () => {
-    if (!selectedDate) return;
+    if (!selectedDate) {
+      return;
+    }
 
     onChangeText(formatDate(selectedDate));
     setOpen(false);
@@ -215,19 +270,20 @@ export default function FormDateInput({
           fontSize: 12,
           marginBottom: 8,
           fontWeight: "900",
-          color: theme.colors.text,
+          color: colorEtiqueta,
         }}
       >
         {label}
+        {required ? " *" : ""}
       </ThemedText>
 
-      <Pressable onPress={() => setOpen(true)}>
+      <Pressable onPress={abrirCalendario}>
         <View
           style={{
             height: 54,
             borderRadius: 16,
             borderWidth: 1,
-            borderColor: theme.colors.border,
+            borderColor: colorBorde,
             backgroundColor: theme.colors.background,
             flexDirection: "row",
             alignItems: "center",
@@ -257,19 +313,36 @@ export default function FormDateInput({
               borderRadius: 12,
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: theme.colors.card,
+              backgroundColor: tieneError
+                ? "rgba(239,68,68,0.12)"
+                : theme.colors.card,
               borderWidth: 1,
-              borderColor: theme.colors.border,
+              borderColor: tieneError
+                ? "rgba(239,68,68,0.65)"
+                : theme.colors.border,
             }}
           >
             <Ionicons
               name="calendar-outline"
               size={18}
-              color={theme.colors.text}
+              color={tieneError ? COLOR_ERROR : theme.colors.text}
             />
           </View>
         </View>
       </Pressable>
+
+      {tieneError && (
+        <ThemedText
+          style={{
+            color: COLOR_ERROR,
+            fontSize: 12,
+            marginTop: 6,
+            fontWeight: "800",
+          }}
+        >
+          {error}
+        </ThemedText>
+      )}
 
       <Modal
         transparent

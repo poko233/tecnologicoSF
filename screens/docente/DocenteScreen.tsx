@@ -1,10 +1,11 @@
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  LayoutChangeEvent,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../components/ThemedText";
@@ -18,12 +19,21 @@ import DocenteStats from "./components/DocenteStats";
 import { useDocentes } from "./hooks/useDocentes";
 import { Docente } from "./types/docente.types";
 
+const ESPACIO_ENTRE_TARJETAS = 14;
+const COLUMNAS_DESKTOP = 3;
+const COLUMNAS_MOVIL = 1;
+
 export default function DocenteScreen() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
+
   const isMobile = width < 750;
+  const columnasPorFila = isMobile
+    ? COLUMNAS_MOVIL
+    : COLUMNAS_DESKTOP;
 
   const [confirmDocente, setConfirmDocente] = useState<Docente | null>(null);
+  const [anchoGrid, setAnchoGrid] = useState(0);
 
   const {
     docentes,
@@ -62,12 +72,40 @@ export default function DocenteScreen() {
     setConfirmDocente(null);
   };
 
+  const manejarLayoutGrid = (event: LayoutChangeEvent) => {
+    const nuevoAncho = Math.floor(event.nativeEvent.layout.width);
+
+    setAnchoGrid((anchoAnterior) => {
+      if (anchoAnterior === nuevoAncho) {
+        return anchoAnterior;
+      }
+
+      return nuevoAncho;
+    });
+  };
+
+  const anchoTarjeta =
+    anchoGrid > 0
+      ? Math.floor(
+          (anchoGrid -
+            ESPACIO_ENTRE_TARJETAS * (columnasPorFila - 1)) /
+            columnasPorFila,
+        )
+      : 0;
+
   if (loading) {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.colors.background }]}>
+      <View
+        style={[
+          styles.loading,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
         <ActivityIndicator color={theme.colors.primary} size="large" />
 
-        <ThemedText style={[styles.loadingText, { color: theme.colors.text }]}>
+        <ThemedText
+          style={[styles.loadingText, { color: theme.colors.text }]}
+        >
           Cargando docentes...
         </ThemedText>
       </View>
@@ -77,7 +115,10 @@ export default function DocenteScreen() {
   return (
     <>
       <ScrollView
-        style={[styles.screen, { backgroundColor: theme.colors.background }]}
+        style={[
+          styles.screen,
+          { backgroundColor: theme.colors.background },
+        ]}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -90,16 +131,49 @@ export default function DocenteScreen() {
 
         <DocenteStats docentes={docentes} isMobile={isMobile} />
 
-        <View style={styles.grid}>
+        <View
+          style={styles.grid}
+          onLayout={manejarLayoutGrid}
+        >
           {docentesFiltrados.map((docente) => (
-            <DocenteCard
+            <View
               key={docente.idDocente}
-              docente={docente}
-              loadingEstado={estadoLoadingId === docente.idDocente}
-              onEdit={() => abrirEditar(docente)}
-              onToggleEstado={() => setConfirmDocente(docente)}
-            />
+              style={[
+                styles.tarjetaContainer,
+                anchoTarjeta > 0
+                  ? { width: anchoTarjeta }
+                  : styles.tarjetaContainerInicial,
+              ]}
+            >
+              <DocenteCard
+                docente={docente}
+                loadingEstado={estadoLoadingId === docente.idDocente}
+                onEdit={() => abrirEditar(docente)}
+                onToggleEstado={() => setConfirmDocente(docente)}
+              />
+            </View>
           ))}
+
+          {docentesFiltrados.length === 0 && (
+            <View
+              style={[
+                styles.emptyBox,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.emptyText,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                No se encontraron docentes.
+              </ThemedText>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -116,7 +190,10 @@ export default function DocenteScreen() {
       <ConfirmEstadoDocenteModal
         visible={!!confirmDocente}
         docente={confirmDocente}
-        loading={!!confirmDocente && estadoLoadingId === confirmDocente.idDocente}
+        loading={
+          !!confirmDocente &&
+          estadoLoadingId === confirmDocente.idDocente
+        }
         onClose={() => setConfirmDocente(null)}
         onConfirm={confirmarCambioEstado}
       />
@@ -128,23 +205,53 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+
   content: {
     padding: 22,
     gap: 16,
   },
+
   loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
   },
+
   loadingText: {
     fontSize: 15,
     fontWeight: "800",
   },
+
   grid: {
+    width: "100%",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 14,
+    gap: ESPACIO_ENTRE_TARJETAS,
+    paddingBottom: 12,
+  },
+
+  tarjetaContainer: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+
+  tarjetaContainerInicial: {
+    width: "100%",
+  },
+
+  emptyBox: {
+    width: "100%",
+    minHeight: 150,
+    borderWidth: 1,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    fontWeight: "800",
   },
 });

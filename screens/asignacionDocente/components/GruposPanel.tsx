@@ -1,17 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View,
+  LayoutChangeEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { Grupo } from "../types/asignacionDocente.types";
 import GrupoChip from "./GrupoChip";
+
+const COLUMNAS_POR_FILA = 4;
+const ESPACIO_ENTRE_GRUPOS = 12;
 
 type Props = {
   grupos: Grupo[];
@@ -25,7 +29,9 @@ function getGrupoNombre(grupo: Grupo) {
 
 function getHorariosSearch(grupo: Grupo) {
   return (grupo.horarios ?? [])
-    .map((h) => `${h.dia} ${h.horaInicio} ${h.horaFin}`)
+    .map((horario) => {
+      return `${horario.dia} ${horario.horaInicio} ${horario.horaFin}`;
+    })
     .join(" ")
     .toLowerCase();
 }
@@ -38,9 +44,10 @@ export default function GruposPanel({
   const { theme } = useTheme();
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"todos" | "seleccionados" | "libres">(
-    "todos"
-  );
+  const [filter, setFilter] = useState<
+    "todos" | "seleccionados" | "libres"
+  >("todos");
+  const [anchoGrid, setAnchoGrid] = useState(0);
 
   const gruposFiltrados = useMemo(() => {
     const text = search.trim().toLowerCase();
@@ -48,8 +55,13 @@ export default function GruposPanel({
     return grupos.filter((grupo) => {
       const selected = gruposSeleccionados.includes(grupo.idGrupo);
 
-      if (filter === "seleccionados" && !selected) return false;
-      if (filter === "libres" && selected) return false;
+      if (filter === "seleccionados" && !selected) {
+        return false;
+      }
+
+      if (filter === "libres" && selected) {
+        return false;
+      }
 
       const nombre = getGrupoNombre(grupo).toLowerCase();
       const turno = grupo.turno?.toLowerCase() ?? "";
@@ -71,6 +83,27 @@ export default function GruposPanel({
     { key: "libres", label: "Sin seleccionar" },
   ] as const;
 
+  const anchoGrupo =
+    anchoGrid > 0
+      ? Math.floor(
+          (anchoGrid -
+            ESPACIO_ENTRE_GRUPOS * (COLUMNAS_POR_FILA - 1)) /
+            COLUMNAS_POR_FILA,
+        )
+      : 0;
+
+  const handleGridLayout = (event: LayoutChangeEvent) => {
+    const nuevoAncho = Math.floor(event.nativeEvent.layout.width);
+
+    setAnchoGrid((anchoAnterior) => {
+      if (anchoAnterior === nuevoAncho) {
+        return anchoAnterior;
+      }
+
+      return nuevoAncho;
+    });
+  };
+
   return (
     <View
       style={[
@@ -82,7 +115,7 @@ export default function GruposPanel({
       ]}
     >
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
+        <View style={styles.headerInfo}>
           <ThemedText style={[styles.title, { color: theme.colors.text }]}>
             Grupos
           </ThemedText>
@@ -90,8 +123,8 @@ export default function GruposPanel({
           <ThemedText
             style={[styles.subtitle, { color: theme.colors.textSecondary }]}
           >
-            Busca, filtra y marca los grupos que dictará el docente. Los horarios
-            salen debajo de cada grupo.
+            Busca, filtra y marca los grupos que dictará el docente. Los
+            horarios salen debajo de cada grupo.
           </ThemedText>
         </View>
 
@@ -104,7 +137,9 @@ export default function GruposPanel({
             },
           ]}
         >
-          <ThemedText style={[styles.counterText, { color: theme.colors.primary }]}>
+          <ThemedText
+            style={[styles.counterText, { color: theme.colors.primary }]}
+          >
             {gruposSeleccionados.length}
           </ThemedText>
         </View>
@@ -176,14 +211,26 @@ export default function GruposPanel({
         showsVerticalScrollIndicator
         persistentScrollbar
       >
-        <View style={styles.gruposGrid}>
+        <View
+          onLayout={handleGridLayout}
+          style={styles.gruposGrid}
+        >
           {gruposFiltrados.map((grupo) => (
-            <GrupoChip
+            <View
               key={grupo.idGrupo}
-              grupo={grupo}
-              selected={gruposSeleccionados.includes(grupo.idGrupo)}
-              onPress={() => onToggleGrupo(grupo.idGrupo)}
-            />
+              style={[
+                styles.grupoItem,
+                anchoGrupo > 0
+                  ? { width: anchoGrupo }
+                  : styles.grupoItemInicial,
+              ]}
+            >
+              <GrupoChip
+                grupo={grupo}
+                selected={gruposSeleccionados.includes(grupo.idGrupo)}
+                onPress={() => onToggleGrupo(grupo.idGrupo)}
+              />
+            </View>
           ))}
 
           {gruposFiltrados.length === 0 && (
@@ -203,7 +250,10 @@ export default function GruposPanel({
               />
 
               <ThemedText
-                style={[styles.emptyText, { color: theme.colors.textSecondary }]}
+                style={[
+                  styles.emptyText,
+                  { color: theme.colors.textSecondary },
+                ]}
               >
                 No se encontraron grupos.
               </ThemedText>
@@ -222,19 +272,28 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 16,
   },
+
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
   },
+
+  headerInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+
   title: {
     fontSize: 22,
     fontWeight: "900",
   },
+
   subtitle: {
     fontSize: 13,
     marginTop: 3,
   },
+
   counter: {
     minWidth: 42,
     height: 42,
@@ -243,13 +302,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   counterText: {
     fontSize: 16,
     fontWeight: "900",
   },
+
   tools: {
     gap: 10,
   },
+
   searchBox: {
     height: 48,
     borderWidth: 1,
@@ -259,34 +321,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 9,
   },
+
   input: {
     flex: 1,
+    minWidth: 0,
     fontSize: 14,
     outlineStyle: "none" as any,
   },
+
   filters: {
     flexDirection: "row",
     gap: 8,
   },
+
   filterChip: {
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
+
   filterText: {
     fontSize: 12,
     fontWeight: "900",
   },
+
   gruposScroll: {
     maxHeight: 430,
   },
+
   gruposGrid: {
+    width: "100%",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: ESPACIO_ENTRE_GRUPOS,
     paddingBottom: 10,
   },
+
+  grupoItem: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+
+  grupoItemInicial: {
+    width: "23.5%",
+  },
+
   emptyBox: {
     width: "100%",
     minHeight: 120,
@@ -296,6 +376,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
+
   emptyText: {
     fontSize: 13,
     fontWeight: "800",

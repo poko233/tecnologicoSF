@@ -42,6 +42,7 @@ type Props = {
 export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
+
   const isMobile = width < 800;
 
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
 
   const [carreras, setCarreras] = useState<Carrera[]>([]);
   const [carrera, setCarrera] = useState<Carrera | null>(null);
+  const [carreraBloqueada, setCarreraBloqueada] = useState(false);
 
   const [montoMatricula, setMontoMatricula] = useState("");
   const [fechaMatricula, setFechaMatricula] = useState("");
@@ -63,36 +65,28 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
   const totalCarreraFijo = Number(carrera?.costo ?? 0);
   const matriculaNumber = Number(montoMatricula || 0);
 
-  const totalCuotasDebe = useMemo(() => {
-    return cuotas.reduce((sum, cuota) => {
-      if (cuota.estadoCuota === "Condonado") return sum;
-      return sum + Number(cuota.monto || 0);
-    }, 0);
-  }, [cuotas]);
-
   const totalCondonado = useMemo(() => {
     return cuotas.reduce((sum, cuota) => {
-      if (cuota.estadoCuota !== "Condonado") return sum;
+      if (cuota.estadoCuota !== "Condonado") {
+        return sum;
+      }
+
       return sum + Number(cuota.monto || 0);
     }, 0);
   }, [cuotas]);
 
-  const hoy = () => new Date().toISOString().slice(0, 10);
+  const fechaActual = () => {
+    const fecha = new Date();
+
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const dia = String(fecha.getDate()).padStart(2, "0");
+
+    return `${anio}-${mes}-${dia}`;
+  };
 
   const limpiarNumero = (value: string) => {
     return value.replace(/[^0-9.]/g, "");
-  };
-
-  const fechaActual = () => new Date().toISOString().slice(0, 10);
-
-  const primerDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
-    const base = fechaBase || fechaActual();
-    const [year, month] = base.split("-").map(Number);
-
-    const date = new Date(year, month - 1, 1);
-    date.setMonth(date.getMonth() + mesesAdelante);
-
-    return date.toISOString().slice(0, 10);
   };
 
   const redondear2 = (value: number) => {
@@ -103,12 +97,60 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
     return `Bs ${redondear2(value).toFixed(2)}`;
   };
 
+  /**
+   * Devuelve el día 10 del mes indicado.
+   *
+   * Ejemplo:
+   * fechaBase: 2026-07-25
+   * mesesAdelante: 1
+   * resultado: 2026-08-10
+   */
+  const decimoDiaDelMes = (fechaBase: string, mesesAdelante: number) => {
+    const base = fechaBase || fechaActual();
+    const [year, month] = base.slice(0, 10).split("-").map(Number);
+
+    if (!year || !month) {
+      return decimoDiaDelMes(fechaActual(), mesesAdelante);
+    }
+
+    const fecha = new Date(year, month - 1 + mesesAdelante, 10);
+
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+
+    return `${anio}-${mes}-10`;
+  };
+
+  /**
+   * Regla de fechas:
+   *
+   * Cuota 1: fecha actual.
+   * Cuota 2: día 10 del siguiente mes.
+   * Cuota 3: día 10 del siguiente mes.
+   *
+   * Ejemplo si hoy es 2026-07-25:
+   * Cuota 1: 2026-07-25
+   * Cuota 2: 2026-08-10
+   * Cuota 3: 2026-09-10
+   * Cuota 4: 2026-10-10
+   */
+  const fechaVencimientoPorIndice = (
+    fechaBase: string,
+    index: number,
+  ): string => {
+    if (index === 0) {
+      return fechaActual();
+    }
+
+    return decimoDiaDelMes(fechaBase, index);
+  };
+
   const repartirMontoEnCuotas = (
     total: number,
-    cuotasActuales: CuotaEditable[]
+    cuotasActuales: CuotaEditable[],
   ) => {
     const cuotasDebe = cuotasActuales.filter(
-      (cuota) => cuota.estadoCuota !== "Condonado"
+      (cuota) => cuota.estadoCuota !== "Condonado",
     );
 
     if (cuotasDebe.length === 0) {
@@ -123,10 +165,10 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
         return cuota;
       }
 
-      const esUltimaDebe =
+      const esUltimaCuotaDebe =
         cuota.numeroCuota === cuotasDebe[cuotasDebe.length - 1].numeroCuota;
 
-      const monto = esUltimaDebe
+      const monto = esUltimaCuotaDebe
         ? redondear2(total - acumulado)
         : montoBase;
 
@@ -143,7 +185,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
     cantidad: number,
     totalACobrar: number,
     fechaBase: string,
-    cuotasPrevias: CuotaEditable[] = []
+    cuotasPrevias: CuotaEditable[] = [],
   ): CuotaEditable[] => {
     const cantidadFinal = Math.max(Number(cantidad || 1), 1);
     const montoBase = redondear2(totalACobrar / cantidadFinal);
@@ -154,55 +196,46 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
       return {
         numeroCuota: index + 1,
         monto: montoBase.toFixed(2),
+
+        /*
+         * La cuota 1 siempre será la fecha actual.
+         * Las demás conservan su fecha previa si existían.
+         * Si son nuevas, se crean con vencimiento el día 10.
+         */
         fecha_vencimiento:
-          cuotaPrevia?.fecha_vencimiento ||
-          (index === 0
-            ? fechaBase || fechaActual()
-            : primerDiaDelMes(fechaBase, index)),
+          index === 0
+            ? fechaActual()
+            : cuotaPrevia?.fecha_vencimiento ||
+              fechaVencimientoPorIndice(fechaBase, index),
+
         estadoCuota: cuotaPrevia?.estadoCuota ?? "Debe",
       };
     });
 
     const sumaActual = nuevasCuotas.reduce(
       (sum, cuota) => sum + Number(cuota.monto || 0),
-      0
+      0,
     );
 
     const diferencia = redondear2(totalACobrar - sumaActual);
 
     if (nuevasCuotas.length > 0) {
-      const ultima = nuevasCuotas.length - 1;
+      const ultimaPosicion = nuevasCuotas.length - 1;
 
-      nuevasCuotas[ultima].monto = redondear2(
-        Number(nuevasCuotas[ultima].monto || 0) + diferencia
+      nuevasCuotas[ultimaPosicion].monto = redondear2(
+        Number(nuevasCuotas[ultimaPosicion].monto || 0) + diferencia,
       ).toFixed(2);
     }
 
     return nuevasCuotas;
   };
 
-  const cargarCarreras = async () => {
-    try {
-      setLoading(true);
-
-      const response = await httpClient.getAuth<any>("/api/carreras");
-
-      const data = Array.isArray(response)
-        ? response
-        : response.carreras ?? response.data ?? response.resultado ?? [];
-
-      setCarreras(data);
-    } catch (error) {
-      console.error(error);
-
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "No se pudieron cargar las carreras.",
-      });
-    } finally {
-      setLoading(false);
+  const normalizarCarreras = (response: any): Carrera[] => {
+    if (Array.isArray(response)) {
+      return response;
     }
+
+    return response?.carreras ?? response?.data ?? response?.resultado ?? [];
   };
 
   const cargarCuotasExistentes = async (idCarrera: number) => {
@@ -210,43 +243,57 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
       setCargandoCuotas(true);
 
       const response = await httpClient.getAuth<any[]>(
-        `/api/estudiantes/${idEstudiante}/carreras/${idCarrera}/cuotas`
+        `/api/estudiantes/${idEstudiante}/carreras/${idCarrera}/cuotas`,
       );
 
       const data = Array.isArray(response) ? response : [];
 
       const matricula = data.find(
-        (item) => String(item.tipo).toUpperCase() === "MATRICULA"
+        (item) => String(item.tipo).toUpperCase() === "MATRICULA",
       );
 
       const mensuales = data
         .filter((item) => String(item.tipo).toUpperCase() === "MENSUAL")
         .sort((a, b) => Number(a.numeroCuota) - Number(b.numeroCuota));
 
+      const fechaBaseCuotas = String(
+        matricula?.fecha_vencimiento ?? fechaActual(),
+      ).slice(0, 10);
+
       if (matricula) {
         setMontoMatricula(String(matricula.monto ?? "0"));
-        setFechaMatricula(
-          String(matricula.fecha_vencimiento ?? hoy()).slice(0, 10)
-        );
+        setFechaMatricula(fechaBaseCuotas);
       }
 
       if (mensuales.length > 0) {
-        const cuotasExistentes = mensuales.map((item, index) => ({
-          numeroCuota: index + 1,
-          monto: Number(item.monto ?? 0).toFixed(2),
-          fecha_vencimiento: String(item.fecha_vencimiento ?? hoy()).slice(
-            0,
-            10
-          ),
-          estadoCuota:
-            item.estadoCuota === "Condonado" ? "Condonado" : "Debe",
-        })) as CuotaEditable[];
+        const cuotasExistentes: CuotaEditable[] = mensuales.map(
+          (item, index) => ({
+            numeroCuota: index + 1,
+            monto: Number(item.monto ?? 0).toFixed(2),
+
+            /*
+             * Al cargar:
+             * cuota 1 = fecha de hoy
+             * cuota 2 en adelante = día 10
+             */
+            fecha_vencimiento: fechaVencimientoPorIndice(
+              fechaBaseCuotas,
+              index,
+            ),
+
+            estadoCuota:
+              item.estadoCuota === "Condonado" ? "Condonado" : "Debe",
+          }),
+        );
 
         setCantidadCuotas(String(cuotasExistentes.length));
         setCuotas(cuotasExistentes);
 
         const totalExistente = cuotasExistentes.reduce((sum, cuota) => {
-          if (cuota.estadoCuota === "Condonado") return sum;
+          if (cuota.estadoCuota === "Condonado") {
+            return sum;
+          }
+
           return sum + Number(cuota.monto || 0);
         }, 0);
 
@@ -263,30 +310,91 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
     setCarrera(item);
 
     const total = Number(item.costo ?? 0);
-    const matricula = Number(item.costo_matricula ?? item.costoMatricula ?? 0);
+
+    const matricula = Number(
+      item.costo_matricula ?? item.costoMatricula ?? 0,
+    );
+
     const numeroCuotas = Math.max(
       Number(item.numeroCuotas ?? item.cuotas_por_anio ?? 1),
-      1
+      1,
     );
-    const fecha = hoy();
+
+    const fechaHoy = fechaActual();
+
     const totalACobrar = redondear2(Math.max(total - matricula, 0));
 
     setMontoMatricula(String(matricula));
-    setFechaMatricula(fecha);
+    setFechaMatricula(fechaHoy);
     setCantidadCuotas(String(numeroCuotas));
     setTotalCuotasEditable(totalACobrar.toFixed(2));
     setMontoTodasCuotas("");
 
-    setCuotas(generarCuotasRepartidas(numeroCuotas, totalACobrar, fecha));
+    setCuotas(
+      generarCuotasRepartidas(numeroCuotas, totalACobrar, fechaHoy),
+    );
 
     await cargarCuotasExistentes(item.idCarrera);
+  };
+
+  const cargarCarreras = async () => {
+    try {
+      setLoading(true);
+      setCarrera(null);
+      setCarreras([]);
+      setCarreraBloqueada(false);
+
+      const respuestaCarreraActual = await httpClient.getAuth<any>(
+        `/api/estudiantes/${idEstudiante}/carreras`,
+      );
+
+      const carrerasActuales = normalizarCarreras(respuestaCarreraActual);
+
+      if (carrerasActuales.length > 0) {
+        const carreraActual = carrerasActuales[0];
+
+        if (carrerasActuales.length > 1) {
+          Toast.show({
+            type: "error",
+            text1: "Datos inconsistentes",
+            text2:
+              "El estudiante tiene más de una carrera registrada. Se cargará la primera, pero debes corregir los duplicados en la base de datos.",
+          });
+        }
+
+        setCarreras([carreraActual]);
+        setCarreraBloqueada(true);
+
+        await seleccionarCarrera(carreraActual);
+
+        return;
+      }
+
+      const response = await httpClient.getAuth<any>("/api/carreras");
+
+      const data = normalizarCarreras(response);
+
+      setCarreras(data);
+      setCarreraBloqueada(false);
+    } catch (error: any) {
+      console.error(error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: error?.message ?? "No se pudieron cargar las carreras.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const cambiarMatricula = (value: string) => {
     const limpio = limpiarNumero(value);
     const nuevaMatricula = Number(limpio || 0);
+
     const totalACobrar = redondear2(
-      Math.max(totalCarreraFijo - nuevaMatricula, 0)
+      Math.max(totalCarreraFijo - nuevaMatricula, 0),
     );
 
     setMontoMatricula(limpio);
@@ -309,15 +417,24 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
 
     setMontoTodasCuotas(limpio);
 
-    setCuotas((prev) =>
-      prev.map((cuota) => ({
+    setCuotas((prev) => {
+      const nuevasCuotas = prev.map((cuota) => ({
         ...cuota,
         monto: limpio || "0",
-      }))
-    );
+      }));
 
-    const nuevoTotal = redondear2(Number(limpio || 0) * cuotas.length);
-    setTotalCuotasEditable(nuevoTotal.toFixed(2));
+      const nuevoTotalDebe = nuevasCuotas.reduce((sum, cuota) => {
+        if (cuota.estadoCuota === "Condonado") {
+          return sum;
+        }
+
+        return sum + Number(cuota.monto || 0);
+      }, 0);
+
+      setTotalCuotasEditable(nuevoTotalDebe.toFixed(2));
+
+      return nuevasCuotas;
+    });
   };
 
   const cambiarFechaMatricula = (value: string) => {
@@ -326,9 +443,13 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
     setCuotas((prev) =>
       prev.map((cuota, index) => ({
         ...cuota,
-        fecha_vencimiento:
-          index === 0 ? value : primerDiaDelMes(value, index),
-      }))
+
+        /*
+         * La primera cuota conserva siempre la fecha de hoy.
+         * Las demás se recalculan al día 10.
+         */
+        fecha_vencimiento: fechaVencimientoPorIndice(value, index),
+      })),
     );
   };
 
@@ -340,7 +461,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
     setCantidadCuotas(String(cantidad));
 
     setCuotas((prev) =>
-      generarCuotasRepartidas(cantidad, total, fechaMatricula, prev)
+      generarCuotasRepartidas(cantidad, total, fechaMatricula, prev),
     );
   };
 
@@ -350,7 +471,10 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
 
   const restarCuota = () => {
     const actual = Number(cantidadCuotas || 1);
-    if (actual <= 1) return;
+
+    if (actual <= 1) {
+      return;
+    }
 
     cambiarCantidadCuotas(String(actual - 1));
   };
@@ -358,28 +482,31 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
   const actualizarCuota = (
     index: number,
     field: keyof CuotaEditable,
-    value: string
+    value: string,
   ) => {
     const finalValue = field === "monto" ? limpiarNumero(value) : value;
 
     setCuotas((prev) => {
-      const nuevas = prev.map((cuota, i) =>
-        i === index
+      const nuevasCuotas = prev.map((cuota, posicion) =>
+        posicion === index
           ? {
               ...cuota,
               [field]: finalValue,
             }
-          : cuota
+          : cuota,
       );
 
-      const totalDebe = nuevas.reduce((sum, cuota) => {
-        if (cuota.estadoCuota === "Condonado") return sum;
+      const totalDebe = nuevasCuotas.reduce((sum, cuota) => {
+        if (cuota.estadoCuota === "Condonado") {
+          return sum;
+        }
+
         return sum + Number(cuota.monto || 0);
       }, 0);
 
       setTotalCuotasEditable(totalDebe.toFixed(2));
 
-      return nuevas;
+      return nuevasCuotas;
     });
   };
 
@@ -389,6 +516,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
         type: "error",
         text1: "Selecciona una carrera",
       });
+
       return false;
     }
 
@@ -398,6 +526,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
         text1: "Fecha requerida",
         text2: "Ingresa la fecha de matrícula.",
       });
+
       return false;
     }
 
@@ -407,65 +536,103 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
         text1: "Fechas incompletas",
         text2: "Todas las cuotas deben tener fecha.",
       });
+
       return false;
     }
 
     return true;
   };
 
-  const guardarCuotas = async () => {
-    if (!validar()) return;
+ const guardarCuotas = async () => {
+  if (!validar()) {
+    return;
+  }
 
-    try {
-      setGuardando(true);
+  /*
+   * TypeScript necesita esta validación directa.
+   * Aunque validar() ya lo verifica, no puede inferirlo.
+   */
+  const carreraSeleccionada = carrera;
 
-      const response = await httpClient.postAuth<any>(
-        "/api/inscripcion/pago-cuotas",
-        {
-          idUsuario: idEstudiante,
-          idCarrera: carrera?.idCarrera,
-          matricula: {
-            monto: Number(montoMatricula || 0),
-            descuento: 0,
-            fecha_vencimiento: fechaMatricula,
-          },
-          cuotas: cuotas.map((cuota) => ({
-            numeroCuota: cuota.numeroCuota,
-            monto: Number(cuota.monto || 0),
-            descuento: 0,
-            fecha_vencimiento: cuota.fecha_vencimiento,
-            estadoCuota: cuota.estadoCuota,
-          })),
-        }
-      );
+  if (!carreraSeleccionada) {
+    Toast.show({
+      type: "error",
+      text1: "Selecciona una carrera",
+      text2: "No se puede guardar el plan de cuotas sin una carrera.",
+    });
 
-      if (!response?.guardado) {
-        Toast.show({
-          type: "error",
-          text1: "No se guardaron las cuotas",
-          text2: response?.message ?? "El backend no confirmó el guardado.",
-        });
+    return;
+  }
 
-        return;
-      }
+  try {
+    setGuardando(true);
 
-      onFinish?.();
-    } catch (error: any) {
-      console.error(error);
+    const response = await httpClient.postAuth<any>(
+      "/api/inscripcion/pago-cuotas",
+      {
+        idUsuario: idEstudiante,
+        idCarrera: carreraSeleccionada.idCarrera,
+        matricula: {
+          monto: Number(montoMatricula || 0),
+          descuento: 0,
+          fecha_vencimiento: fechaMatricula,
+        },
+        cuotas: cuotas.map((cuota, index) => ({
+          numeroCuota: cuota.numeroCuota,
+          monto: Number(cuota.monto || 0),
+          descuento: 0,
 
+          /*
+           * La primera cuota se guarda con la fecha de hoy.
+           * Las demás conservan su fecha, normalmente el día 10.
+           */
+          fecha_vencimiento:
+            index === 0 ? fechaActual() : cuota.fecha_vencimiento,
+
+          estadoCuota: cuota.estadoCuota,
+        })),
+      },
+    );
+
+    if (!response?.guardado) {
       Toast.show({
         type: "error",
-        text1: "Error",
-        text2: error?.message ?? "No se pudo guardar el plan de cuotas.",
+        text1: "No se guardaron las cuotas",
+        text2:
+          response?.message ??
+          "El backend no confirmó el guardado del plan de cuotas.",
       });
-    } finally {
-      setGuardando(false);
+
+      return;
     }
-  };
+
+    Toast.show({
+      type: "success",
+      text1: response.actualizado
+        ? "Cuotas actualizadas"
+        : "Cuotas guardadas",
+      text2: response.message,
+    });
+
+    onFinish?.();
+  } catch (error: any) {
+    console.error(error);
+
+    Toast.show({
+      type: "error",
+      text1: "Error",
+      text2:
+        error?.message ??
+        "No se pudo guardar el plan de cuotas.",
+    });
+  } finally {
+    setGuardando(false);
+  }
+};
 
   useEffect(() => {
-    cargarCarreras();
-  }, []);
+    void cargarCarreras();
+  }, [idEstudiante]);
 
   if (loading) {
     return (
@@ -479,7 +646,13 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
         ]}
       >
         <ActivityIndicator color={theme.colors.primary} />
-        <ThemedText style={{ color: theme.colors.muted, fontWeight: "800" }}>
+
+        <ThemedText
+          style={{
+            color: theme.colors.muted,
+            fontWeight: "800",
+          }}
+        >
           Cargando carreras...
         </ThemedText>
       </View>
@@ -502,7 +675,9 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
         </ThemedText>
 
         <ThemedText style={[styles.subtitle, { color: theme.colors.muted }]}>
-          Elige la carrera y edita las cuotas.
+          {carreraBloqueada
+            ? "Carrera ya asignada. Puedes editar únicamente su plan de cuotas."
+            : "Elige la carrera y configura las cuotas."}
         </ThemedText>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -513,7 +688,12 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
               return (
                 <Pressable
                   key={item.idCarrera}
-                  onPress={() => seleccionarCarrera(item)}
+                  disabled={carreraBloqueada}
+                  onPress={() => {
+                    if (!carreraBloqueada) {
+                      void seleccionarCarrera(item);
+                    }
+                  }}
                   style={[
                     styles.carreraButton,
                     {
@@ -523,13 +703,14 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
                       borderColor: active
                         ? theme.colors.primary
                         : theme.colors.border,
+                      opacity: carreraBloqueada ? 0.9 : 1,
                     },
                   ]}
                 >
                   <ThemedText
                     numberOfLines={1}
                     style={{
-                      color: active ? "#fff" : theme.colors.text,
+                      color: active ? "#FFFFFF" : theme.colors.text,
                       fontWeight: "900",
                     }}
                   >
@@ -560,7 +741,10 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
               color={theme.colors.primary}
             />
 
-            <MiniTotal label="Matrícula" value={formatoBs(matriculaNumber)} />
+            <MiniTotal
+              label="Matrícula"
+              value={formatoBs(matriculaNumber)}
+            />
 
             <View style={styles.miniTotal}>
               <Input
@@ -590,6 +774,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
             {cargandoCuotas && (
               <View style={styles.loadingInline}>
                 <ActivityIndicator color={theme.colors.primary} />
+
                 <ThemedText
                   style={{
                     color: theme.colors.muted,
@@ -622,15 +807,13 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
               />
             </View>
 
-            <View>
-              <Input
-                label="Monto para todas las cuotas"
-                value={montoTodasCuotas}
-                onChangeText={cambiarMontoTodasCuotas}
-                keyboardType="numeric"
-                placeholder="Ej: 1000"
-              />
-            </View>
+            <Input
+              label="Monto para todas las cuotas"
+              value={montoTodasCuotas}
+              onChangeText={cambiarMontoTodasCuotas}
+              keyboardType="numeric"
+              placeholder="Ej: 1000"
+            />
 
             <View
               style={[
@@ -683,7 +866,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
                 >
                   <ThemedText
                     style={{
-                      color: "#fff",
+                      color: "#FFFFFF",
                       fontWeight: "900",
                       fontSize: 18,
                     }}
@@ -707,8 +890,10 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
                         backgroundColor: condonado
                           ? "#16A34A22"
                           : theme.colors.background,
-                        borderColor: condonado ? "#16A34A" : theme.colors.border,
-                        shadowColor: condonado ? "#16A34A" : "#000",
+                        borderColor: condonado
+                          ? "#16A34A"
+                          : theme.colors.border,
+                        shadowColor: condonado ? "#16A34A" : "#000000",
                       },
                     ]}
                   >
@@ -727,7 +912,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
                     >
                       <ThemedText
                         style={{
-                          color: condonado ? "#fff" : theme.colors.text,
+                          color: condonado ? "#FFFFFF" : theme.colors.text,
                           fontWeight: "900",
                         }}
                       >
@@ -786,7 +971,7 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
                           >
                             <ThemedText
                               style={{
-                                color: active ? "#fff" : theme.colors.text,
+                                color: active ? "#FFFFFF" : theme.colors.text,
                                 fontWeight: "900",
                                 fontSize: 12,
                               }}
@@ -815,11 +1000,15 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
             >
               <ThemedText
                 style={{
-                  color: "#fff",
+                  color: "#FFFFFF",
                   fontWeight: "900",
                 }}
               >
-                {guardando ? "Guardando..." : "Guardar cuotas y continuar"}
+                {guardando
+                  ? "Guardando..."
+                  : carreraBloqueada
+                    ? "Guardar cambios en cuotas y continuar"
+                    : "Guardar cuotas y continuar"}
               </ThemedText>
             </Pressable>
           </View>
