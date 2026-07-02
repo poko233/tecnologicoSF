@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import Toast from "react-native-toast-message";
-import { httpClient } from "../http/httpClient";
+import { BASE_URL, httpClient } from "../http/httpClient";
 import { clearSession, saveToken } from "../storage/secureStorage";
 import { useModulesStore } from "../store/modulesStore";
 import { getTabsForRoles } from "../utils/roleBasedTabs";
@@ -72,7 +72,7 @@ function mapBackendUserToUsuario(data: any): Usuario {
     correo: data.email || "",
     telefono: data.celular || data.telefono || "",
     roles: data.roles || [],
-    foto: data.foto || null,
+    foto: data.foto ? `${BASE_URL}/${data.foto}` : null, 
     direccion: data.direccion || "",
     codigoQr: data.codigo_qr || null,
   };
