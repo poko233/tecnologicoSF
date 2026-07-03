@@ -15,7 +15,11 @@ type Props = {
 };
 
 function getMateriaNombre(materia: Materia) {
-  return materia.nombreMateria ?? materia.nombre ?? `Materia ${materia.idMateria}`;
+  return (
+    materia.nombreMateria ??
+    materia.nombre ??
+    `Materia ${materia.idMateria}`
+  );
 }
 
 function getMateriaCodigo(materia: Materia) {
@@ -37,8 +41,12 @@ export default function MateriaCard({
       style={[
         styles.card,
         {
-          backgroundColor: active ? theme.colors.primarySubtle : theme.colors.input,
-          borderColor: active ? theme.colors.primary : theme.colors.border,
+          backgroundColor: active
+            ? theme.colors.primarySubtle
+            : theme.colors.input,
+          borderColor: active
+            ? theme.colors.primary
+            : theme.colors.border,
         },
       ]}
     >
@@ -56,28 +64,51 @@ export default function MateriaCard({
           <Ionicons
             name="book-outline"
             size={22}
-            color={active ? theme.colors.primaryForeground : theme.colors.primary}
+            color={
+              active
+                ? theme.colors.primaryForeground
+                : theme.colors.primary
+            }
           />
         </View>
 
-        <View style={{ flex: 1 }}>
+        <View style={styles.materiaInfo}>
           <ThemedText
             numberOfLines={2}
-            style={[styles.name, { color: theme.colors.text }]}
+            style={[
+              styles.name,
+              { color: theme.colors.text },
+            ]}
           >
             {getMateriaNombre(materia)}
           </ThemedText>
 
-          <ThemedText style={[styles.meta, { color: theme.colors.textSecondary }]}>
+          <ThemedText
+            numberOfLines={1}
+            style={[
+              styles.meta,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             {getMateriaCodigo(materia)}
-            {materia.semestre ? ` · Semestre ${materia.semestre}` : ""}
+            {materia.semestre
+              ? ` · Semestre ${materia.semestre}`
+              : ""}
           </ThemedText>
         </View>
 
         {totalGruposAsignados > 0 && (
-          <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: theme.colors.primary },
+            ]}
+          >
             <ThemedText
-              style={[styles.badgeText, { color: theme.colors.primaryForeground }]}
+              style={[
+                styles.badgeText,
+                { color: theme.colors.primaryForeground },
+              ]}
             >
               {totalGruposAsignados}
             </ThemedText>
@@ -86,8 +117,14 @@ export default function MateriaCard({
       </View>
 
       <View style={styles.infoRow}>
-        <ThemedText style={[styles.infoText, { color: theme.colors.textSecondary }]}>
-          {totalDocentesAsignados} docente(s) · {totalGruposAsignados} grupo(s)
+        <ThemedText
+          style={[
+            styles.infoText,
+            { color: theme.colors.textSecondary },
+          ]}
+        >
+          {totalDocentesAsignados} docente(s) ·{" "}
+          {totalGruposAsignados} grupo(s)
         </ThemedText>
       </View>
 
@@ -102,8 +139,19 @@ export default function MateriaCard({
             },
           ]}
         >
-          <Ionicons name="people-outline" size={17} color={theme.colors.text} />
-          <ThemedText style={[styles.buttonText, { color: theme.colors.text }]}>
+          <Ionicons
+            name="people-outline"
+            size={16}
+            color={theme.colors.text}
+          />
+
+          <ThemedText
+            numberOfLines={1}
+            style={[
+              styles.buttonText,
+              { color: theme.colors.text },
+            ]}
+          >
             Ver docentes
           </ThemedText>
         </Pressable>
@@ -120,11 +168,16 @@ export default function MateriaCard({
         >
           <Ionicons
             name="person-add-outline"
-            size={17}
+            size={16}
             color={theme.colors.primaryForeground}
           />
+
           <ThemedText
-            style={[styles.buttonText, { color: theme.colors.primaryForeground }]}
+            numberOfLines={1}
+            style={[
+              styles.buttonText,
+              { color: theme.colors.primaryForeground },
+            ]}
           >
             Asignar
           </ThemedText>
@@ -136,18 +189,20 @@ export default function MateriaCard({
 
 const styles = StyleSheet.create({
   card: {
-    width: 330,
-    minHeight: 150,
+    width: "100%",
+    minHeight: 172,
     borderWidth: 1,
     borderRadius: 20,
     padding: 15,
     gap: 12,
   },
+
   top: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
+
   iconBox: {
     width: 52,
     height: 52,
@@ -155,16 +210,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
+  materiaInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+
   name: {
     fontSize: 15,
     fontWeight: "900",
     lineHeight: 20,
   },
+
   meta: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 4,
     fontWeight: "600",
   },
+
   badge: {
     minWidth: 32,
     height: 32,
@@ -173,33 +236,41 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 8,
   },
+
   badgeText: {
     fontSize: 12,
     fontWeight: "900",
   },
+
   infoRow: {
     marginTop: 2,
   },
+
   infoText: {
     fontSize: 12,
     fontWeight: "800",
   },
+
   actions: {
     flexDirection: "row",
     gap: 8,
   },
+
   button: {
     flex: 1,
     minHeight: 40,
     borderWidth: 1,
     borderRadius: 13,
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 6,
+    gap: 5,
   },
+
   buttonText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "900",
+    flexShrink: 1,
   },
 });

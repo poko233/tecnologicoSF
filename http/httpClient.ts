@@ -166,4 +166,39 @@ export const httpClient = {
     }
     return res;
   },
+
+  async patchFormData<T>(url: string, formData: FormData): Promise<T> {
+    const token = await getToken();
+  
+    formData.append("_method", "PATCH");
+  
+    const response = await fetch(`${BASE_URL}${url}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+      body: formData,
+    });
+  
+    const text = await response.text();
+  
+    let data: any = null;
+  
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+  
+    if (!response.ok) {
+      throw {
+        status: response.status,
+        message: data?.message || "Error al guardar datos",
+        errors: data?.errors,
+      };
+    }
+  
+    return data;
+  },
 };

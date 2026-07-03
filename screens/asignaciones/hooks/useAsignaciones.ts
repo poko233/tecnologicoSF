@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Toast from "react-native-toast-message";
 
 import {
@@ -14,15 +14,24 @@ import {
   Estudiante,
   EstudianteForm,
   MateriaSemestreUno,
+  TurnoInscripcion,
 } from "../types/asignaciones.types";
 
 export function useAsignaciones() {
-  const [loading, setLoading] = useState(true);
+  /*
+   * Ya no inicia en true porque los estudiantes no deben cargarse
+   * hasta que el usuario elija una carrera en la tabla.
+   */
+  const [loading, setLoading] = useState(false);
+
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
+
   const [estudianteSeleccionado, setEstudianteSeleccionado] =
     useState<Estudiante | null>(null);
 
-  const [detalle, setDetalle] = useState<DetalleEstudianteResponse | null>(null);
+  const [detalle, setDetalle] =
+    useState<DetalleEstudianteResponse | null>(null);
+
   const [materias, setMaterias] = useState<MateriaSemestreUno[]>([]);
 
   const [loadingDetalle, setLoadingDetalle] = useState(false);
@@ -30,27 +39,59 @@ export function useAsignaciones() {
   const [inscribiendo, setInscribiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
- const limpiarSeleccion = useCallback((conLoading = false) => {
-  setDetalle(null);
-  setMaterias([]);
-  setLoadingDetalle(conLoading);
-  setLoadingMaterias(conLoading);
-}, []);
+  /*
+   * Guarda la carrera que se está mostrando actualmente en la tabla.
+   * Esto permite refrescar correctamente después de inscribir o editar,
+   * sin volver a cargar estudiantes de todas las carreras.
+   */
+  const carreraActualRef = useRef<number | null>(null);
 
-  const cargarEstudiantes = useCallback(async () => {
+  const limpiarSeleccion = useCallback((conLoading = false) => {
+    setDetalle(null);
+    setMaterias([]);
+    setLoadingDetalle(conLoading);
+    setLoadingMaterias(conLoading);
+  }, []);
+
+  /*
+   * Ahora idCarrera es obligatorio.
+   * La tabla solamente cargará estudiantes pertenecientes a la carrera
+   * que el usuario haya seleccionado.
+   */
+  const cargarEstudiantes = useCallback(async (idCarrera: number) => {
+    if (!idCarrera || Number(idCarrera) <= 0) {
+      carreraActualRef.current = null;
+      setEstudiantes([]);
+      return [];
+    }
+
     try {
       setLoading(true);
 
-      const data = await getEstudiantesAsignaciones();
-      setEstudiantes(data);
+      carreraActualRef.current = Number(idCarrera);
+
+      /*
+       * IMPORTANTE:
+       * getEstudiantesAsignaciones debe recibir idCarrera y enviarlo
+       * al endpoint como query parameter.
+       */
+      const data = await getEstudiantesAsignaciones(Number(idCarrera));
+
+      setEstudiantes(Array.isArray(data) ? data : []);
+
+      return Array.isArray(data) ? data : [];
     } catch (error: any) {
+      setEstudiantes([]);
+
       Toast.show({
         type: "error",
         text1: "Error",
         text2:
           error?.response?.data?.message ??
-          "No se pudieron cargar estudiantes.",
+          "No se pudieron cargar los estudiantes de esta carrera.",
       });
+
+      return [];
     } finally {
       setLoading(false);
     }
@@ -62,6 +103,7 @@ export function useAsignaciones() {
       setDetalle(null);
 
       const data = await getDetalleEstudiante(idUsuario);
+
       setDetalle(data);
 
       return data;
@@ -72,7 +114,8 @@ export function useAsignaciones() {
         type: "error",
         text1: "Error",
         text2:
-          error?.response?.data?.message ?? "No se pudo cargar el detalle.",
+          error?.response?.data?.message ??
+          "No se pudo cargar el detalle del estudiante.",
       });
 
       return null;
@@ -82,15 +125,19 @@ export function useAsignaciones() {
   }, []);
 
   const cargarMaterias = useCallback(
-    async (idUsuario: number, idCarrera?: number) => {
+    async (idUsuario: number, idCarrera?: number | null) => {
       try {
         setLoadingMaterias(true);
         setMaterias([]);
 
-        const data = await getMateriasSemestreUno(idUsuario, idCarrera);
-        setMaterias(data);
+        const data = await getMateriasSemestreUno(
+          idUsuario,
+          idCarrera ?? undefined,
+        );
 
-        return data;
+        setMaterias(Array.isArray(data) ? data : []);
+
+        return Array.isArray(data) ? data : [];
       } catch (error: any) {
         setMaterias([]);
 
@@ -99,7 +146,7 @@ export function useAsignaciones() {
           text1: "Error",
           text2:
             error?.response?.data?.message ??
-            "No se pudieron cargar materias.",
+            "No se pudieron cargar las materias.",
         });
 
         return [];
@@ -107,33 +154,64 @@ export function useAsignaciones() {
         setLoadingMaterias(false);
       }
     },
-    []
+    [],
   );
 
   const inscribir = useCallback(
-    async (idUsuario: number, idCarrera?: number) => {
+    async (
+      idUsuario: number,
+      idCarrera: number | null | undefined,
+      turno: TurnoInscripcion,
+    ) => {
+      if (!idCarrera || Number(idCarrera) <= 0) {
+        Toast.show({
+          type: "error",
+          text1: "Carrera requerida",
+          text2: "Debes seleccionar una carrera antes de inscribir.",
+        });
+
+        return null;
+      }
+
       try {
         setInscribiendo(true);
 
-        const data = await inscribirSemestreUno(idUsuario, idCarrera);
+        const data = await inscribirSemestreUno(
+          idUsuario,
+          Number(idCarrera),
+          turno,
+        );
 
         Toast.show({
           type: "success",
-          text1: "Correcto",
-          text2: data.message,
+          text1: "Inscripción realizada",
+          text2:
+            data?.message ??
+            "El estudiante fue inscrito correctamente en las materias.",
         });
 
-        await cargarDetalle(idUsuario);
-        await cargarMaterias(idUsuario, idCarrera);
+        /*
+         * Se vuelve a cargar la carrera que estaba visible en la tabla.
+         * Así el alumno aparecerá inmediatamente resaltado en verde,
+         * porque el backend debe devolver yaInscrito: true.
+         */
+        const carreraParaRecargar =
+          carreraActualRef.current ?? Number(idCarrera);
+
+        await Promise.all([
+          cargarEstudiantes(carreraParaRecargar),
+          cargarDetalle(idUsuario),
+          cargarMaterias(idUsuario, Number(idCarrera)),
+        ]);
 
         return data;
       } catch (error: any) {
         Toast.show({
           type: "error",
-          text1: "Error",
+          text1: "No se pudo inscribir",
           text2:
             error?.response?.data?.message ??
-            "No se pudo realizar la inscripción automática.",
+            "Verifique los cupos disponibles y el turno seleccionado.",
         });
 
         return null;
@@ -141,7 +219,7 @@ export function useAsignaciones() {
         setInscribiendo(false);
       }
     },
-    [cargarDetalle, cargarMaterias]
+    [cargarDetalle, cargarEstudiantes, cargarMaterias],
   );
 
   const actualizarEstudiante = useCallback(
@@ -157,8 +235,17 @@ export function useAsignaciones() {
           text2: "Estudiante actualizado correctamente.",
         });
 
-        await cargarEstudiantes();
-        await cargarDetalle(idUsuario);
+        /*
+         * Solo recarga la tabla si ya existe una carrera seleccionada.
+         * No debe cargar todos los estudiantes automáticamente.
+         */
+        const tareas: Promise<unknown>[] = [cargarDetalle(idUsuario)];
+
+        if (carreraActualRef.current) {
+          tareas.push(cargarEstudiantes(carreraActualRef.current));
+        }
+
+        await Promise.all(tareas);
 
         return true;
       } catch (error: any) {
@@ -175,16 +262,22 @@ export function useAsignaciones() {
         setGuardando(false);
       }
     },
-    [cargarDetalle, cargarEstudiantes]
+    [cargarDetalle, cargarEstudiantes],
   );
 
-  useEffect(() => {
-    cargarEstudiantes();
-  }, [cargarEstudiantes]);
+  /*
+   * Ya no usamos useEffect para cargar estudiantes al abrir esta pantalla.
+   * La carga se ejecuta recién al llamar:
+   *
+   * cargarEstudiantes(idCarrera)
+   *
+   * desde el selector de carrera.
+   */
 
   return {
     loading,
     estudiantes,
+
     estudianteSeleccionado,
     setEstudianteSeleccionado,
 

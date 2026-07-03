@@ -1,3 +1,5 @@
+export type TurnoInscripcion = "Mañana" | "Tarde" | "Noche";
+
 export type Estudiante = {
   id: number;
   usuario?: string | null;
@@ -12,18 +14,18 @@ export type Estudiante = {
   celular?: string | null;
   direccion?: string | null;
   matricula?: string | null;
-fechaInscripcion?: string | null;
+  fechaInscripcion?: string | null;
   expedido?: string | null;
   estado?: string | null;
 };
 
-export type GrupoSeleccionado = {
+export type GrupoDisponible = {
   idGrupo: number;
   nombreGrupo: string;
   codigoGrupo: string;
   paralelo: string;
-  turno: string;
-  gestion: string;
+  turno: TurnoInscripcion;
+  gestion: string | number;
   cupos: number;
 };
 
@@ -35,20 +37,19 @@ export type MateriaSemestreUno = {
   idCarrera: number;
   nombreCarrera: string;
   yaInscrito: boolean;
-  grupoSeleccionado: GrupoSeleccionado;
+
+  grupoSeleccionado: GrupoDisponible | null;
+  gruposDisponibles: GrupoDisponible[];
 };
 
 export type DocumentoEstudiante = {
   idDocumentoEstudiante: number;
   idUsuario: number;
-
   nombreDocumento: string;
   estadoDocumento: string;
-
-  ubicacionArchivo?: string;
-
-  created_at?: string;
-  updated_at?: string;
+  ubicacionArchivo?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type InscripcionDetalle = {
@@ -58,7 +59,7 @@ export type InscripcionDetalle = {
   codigoGrupo: string;
   paralelo: string;
   turno: string;
-  gestion: string;
+  gestion: string | number;
   idMateria: number;
   nombreMateria: string;
   codigoMateria: string;
@@ -78,19 +79,25 @@ export type CarreraEstudiante = {
 export type DetalleEstudianteResponse = {
   estudiante: Estudiante;
   carreras: CarreraEstudiante[];
-
   documentos: DocumentoEstudiante[];
-
   documentosPendientes: string[];
   debeDocumentos: boolean;
-
   inscripciones: InscripcionDetalle[];
+};
+
+export type InscripcionRealizada = {
+  materia: string;
+  idGrupo: number;
+  turno: TurnoInscripcion;
 };
 
 export type InscribirResponse = {
   message: string;
-  inscritas: string[];
+  turno: TurnoInscripcion;
+  inscritas: InscripcionRealizada[];
   omitidas: string[];
+  sinCupos?: string[];
+  cuposDescontados?: number;
 };
 
 export type EstudianteForm = {

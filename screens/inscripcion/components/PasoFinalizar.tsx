@@ -22,7 +22,7 @@ type Props = {
 
 type CuotaResumen = {
   idCuota?: number;
-  numeroCuota?: number;
+  numeroCuota?: number | string;
   monto: number | string;
   descuento?: number | string;
   fecha_vencimiento?: string;
@@ -104,7 +104,7 @@ export default function PasoFinalizar({
       setLoading(true);
 
       const response = await httpClient.getAuth<ResumenFinal>(
-        `/api/inscripcion/resumen/${idUsuario}`
+        `/api/inscripcion/resumen/${idUsuario}`,
       );
 
       setResumen(response);
@@ -186,12 +186,37 @@ export default function PasoFinalizar({
   const documentosResumen = resumen?.documentos ?? [];
   const gruposResumen = resumen?.grupos ?? [];
   const planPago = resumen?.planPago;
-  const cuotasMensuales = planPago?.cuotasMensuales ?? [];
+
+  /*
+   * La base de datos puede devolver numeroCuota como string:
+   * "1", "10", "11", "2"...
+   *
+   * Por eso se convierte a Number para ordenar de forma numérica:
+   * 1, 2, 3, ..., 10, 11, 12.
+   *
+   * Nunca se modifica el array original recibido desde la API.
+   */
+  const cuotasMensualesOrdenadas = useMemo(() => {
+    const cuotas = planPago?.cuotasMensuales ?? [];
+
+    return [...cuotas].sort((a, b) => {
+      const numeroA = Number(a.numeroCuota ?? 0);
+      const numeroB = Number(b.numeroCuota ?? 0);
+
+      return numeroA - numeroB;
+    });
+  }, [planPago?.cuotasMensuales]);
 
   const nombreCompleto = useMemo(() => {
     if (!resumen) return "";
 
-    return `${resumen.usuario.nombres} ${resumen.usuario.apellidoPaterno} ${resumen.usuario.apellidoMaterno}`;
+    return [
+      resumen.usuario.nombres,
+      resumen.usuario.apellidoPaterno,
+      resumen.usuario.apellidoMaterno,
+    ]
+      .filter(Boolean)
+      .join(" ");
   }, [resumen]);
 
   const formatoBs = (value: number | string | undefined | null) => {
@@ -200,6 +225,7 @@ export default function PasoFinalizar({
 
   const formatoFecha = (fecha?: string) => {
     if (!fecha) return "-";
+
     return String(fecha).slice(0, 10);
   };
 
@@ -567,7 +593,10 @@ export default function PasoFinalizar({
               <StatBox
                 icon="calendar-number-outline"
                 label="Cantidad cuotas"
-                value={planPago?.cantidadCuotas ?? cuotasMensuales.length}
+                value={
+                  planPago?.cantidadCuotas ??
+                  cuotasMensualesOrdenadas.length
+                }
               />
 
               <StatBox
@@ -813,11 +842,11 @@ export default function PasoFinalizar({
                 fontWeight: "900",
               }}
             >
-              {cuotasMensuales.length} cuota(s)
+              {cuotasMensualesOrdenadas.length} cuota(s)
             </ThemedText>
           </View>
 
-          {cuotasMensuales.length === 0 ? (
+          {cuotasMensualesOrdenadas.length === 0 ? (
             <ThemedText
               style={{
                 color: theme.colors.muted,
@@ -828,12 +857,12 @@ export default function PasoFinalizar({
             </ThemedText>
           ) : (
             <View style={{ gap: 10 }}>
-              {cuotasMensuales.map((cuota, index) => {
+              {cuotasMensualesOrdenadas.map((cuota, index) => {
                 const condonado = cuota.estadoCuota === "Condonado";
 
                 return (
                   <View
-                    key={`${cuota.numeroCuota}-${index}`}
+                    key={`cuota-${cuota.idCuota ?? cuota.numeroCuota}-${index}`}
                     style={{
                       borderWidth: 1,
                       borderColor: condonado ? "#16A34A" : theme.colors.border,

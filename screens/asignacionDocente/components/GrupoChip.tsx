@@ -17,16 +17,21 @@ function getGrupoNombre(grupo: Grupo) {
 
 function formatearHora(value?: string) {
   if (!value) return "";
+
   return value.substring(0, 5);
 }
 
 function getHorarioTexto(horario: Horario) {
   return `${horario.dia} ${formatearHora(horario.horaInicio)} - ${formatearHora(
-    horario.horaFin
+    horario.horaFin,
   )}`;
 }
 
-export default function GrupoChip({ grupo, selected, onPress }: Props) {
+export default function GrupoChip({
+  grupo,
+  selected,
+  onPress,
+}: Props) {
   const { theme } = useTheme();
   const horarios = grupo.horarios ?? [];
 
@@ -39,7 +44,9 @@ export default function GrupoChip({ grupo, selected, onPress }: Props) {
           backgroundColor: selected
             ? theme.colors.primarySubtle
             : theme.colors.input,
-          borderColor: selected ? theme.colors.primary : theme.colors.border,
+          borderColor: selected
+            ? theme.colors.primary
+            : theme.colors.border,
         },
       ]}
     >
@@ -47,8 +54,12 @@ export default function GrupoChip({ grupo, selected, onPress }: Props) {
         style={[
           styles.check,
           {
-            backgroundColor: selected ? theme.colors.primary : "transparent",
-            borderColor: selected ? theme.colors.primary : theme.colors.borderHover,
+            backgroundColor: selected
+              ? theme.colors.primary
+              : "transparent",
+            borderColor: selected
+              ? theme.colors.primary
+              : theme.colors.borderHover,
           },
         ]}
       >
@@ -63,13 +74,16 @@ export default function GrupoChip({ grupo, selected, onPress }: Props) {
 
       <View style={styles.info}>
         <ThemedText
-          numberOfLines={1}
+          numberOfLines={2}
           style={[styles.name, { color: theme.colors.text }]}
         >
           {getGrupoNombre(grupo)}
         </ThemedText>
 
-        <ThemedText style={[styles.meta, { color: theme.colors.textSecondary }]}>
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.meta, { color: theme.colors.textSecondary }]}
+        >
           ID: {grupo.idGrupo}
           {grupo.turno ? ` · ${grupo.turno}` : ""}
         </ThemedText>
@@ -92,7 +106,11 @@ export default function GrupoChip({ grupo, selected, onPress }: Props) {
                 <Ionicons
                   name="time-outline"
                   size={13}
-                  color={selected ? theme.colors.primary : theme.colors.textSecondary}
+                  color={
+                    selected
+                      ? theme.colors.primary
+                      : theme.colors.textSecondary
+                  }
                 />
 
                 <ThemedText
@@ -127,7 +145,11 @@ export default function GrupoChip({ grupo, selected, onPress }: Props) {
               />
 
               <ThemedText
-                style={[styles.horarioText, { color: theme.colors.textTertiary }]}
+                numberOfLines={1}
+                style={[
+                  styles.horarioText,
+                  { color: theme.colors.textTertiary },
+                ]}
               >
                 Sin horario asignado
               </ThemedText>
@@ -141,8 +163,9 @@ export default function GrupoChip({ grupo, selected, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    width: 330,
-    minHeight: 132,
+    width: "100%",
+    minWidth: 0,
+    minHeight: 150,
     borderWidth: 1,
     borderRadius: 20,
     padding: 14,
@@ -150,6 +173,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
   },
+
   check: {
     width: 38,
     height: 38,
@@ -159,22 +183,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 4,
   },
+
   info: {
     flex: 1,
+    minWidth: 0,
     gap: 5,
   },
+
   name: {
     fontSize: 15,
+    lineHeight: 20,
     fontWeight: "900",
   },
+
   meta: {
     fontSize: 13,
     fontWeight: "700",
   },
+
   horariosContainer: {
     marginTop: 6,
     gap: 6,
   },
+
   horarioChip: {
     alignSelf: "flex-start",
     maxWidth: "100%",
@@ -186,8 +217,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+
   horarioText: {
     fontSize: 11,
     fontWeight: "800",
+    flexShrink: 1,
   },
 });

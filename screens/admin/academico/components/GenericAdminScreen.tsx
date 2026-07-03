@@ -35,6 +35,7 @@ export function GenericAdminScreen({
   itemToDelete,        
   onConfirmDelete,     
   onCancelDelete, 
+  saveError,
 }: GenericAdminScreenProps) {
   const { theme } = useTheme()
   const { width } = useWindowDimensions()
@@ -123,7 +124,20 @@ export function GenericAdminScreen({
         visible={modalVisible}
         title={modalTitle}
         onClose={onCloseModal}
+        saveError={saveError} 
       >
+        {!!saveError && (
+          <View style={{
+            backgroundColor: '#FEE2E2',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 12,
+          }}>
+            <Text style={{ color: '#DC2626', fontSize: 13, fontWeight: '600' }}>
+              {saveError}
+            </Text>
+          </View>
+        )}
         {renderForm()}
       </AdminModal>
       <Modal

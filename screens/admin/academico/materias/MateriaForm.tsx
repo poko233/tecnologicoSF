@@ -17,6 +17,7 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
   const [carreras, setCarreras] = useState<Carrera[]>([])
   const [materias, setMaterias] = useState<Materia[]>([])
   const [saving, setSaving] = useState(false)
+  const [showPrereqs, setShowPrereqs] = useState(false)
   const [form, setForm] = useState({
     nombreMateria: '', codigo: '', semestre: '1',
     idPrerequisito: '', idCarrera: '', activo: true,
@@ -78,19 +79,66 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
         ))}
       </View>
 
-      <Text style={lbl}>Prerrequisito (opcional)</Text>
-      <View style={styles.chipRow}>
-        <Pressable onPress={() => setForm(f => ({ ...f, idPrerequisito: '' }))}
-          style={[styles.chip, { backgroundColor: !form.idPrerequisito ? theme.colors.primary : theme.colors.secondary, borderColor: theme.colors.border }]}>
-          <Text style={{ color: !form.idPrerequisito ? theme.colors.primaryForeground : theme.colors.text, fontSize: 12 }}>Sin prerrequisito</Text>
-        </Pressable>
-        {materias.filter(m => m.idMateria !== initialData?.idMateria).map(m => (
-          <Pressable key={m.idMateria} onPress={() => setForm(f => ({ ...f, idPrerequisito: String(m.idMateria) }))}
-            style={[styles.chip, { backgroundColor: form.idPrerequisito === String(m.idMateria) ? theme.colors.primary : theme.colors.secondary, borderColor: theme.colors.border }]}>
-            <Text style={{ color: form.idPrerequisito === String(m.idMateria) ? theme.colors.primaryForeground : theme.colors.text, fontSize: 12 }}>{m.nombreMateria}</Text>
+      {/* Prerrequisito - acordeón */}
+      <Pressable
+        onPress={() => setShowPrereqs(v => !v)}
+        style={{
+          marginTop: 14,
+          marginBottom: 6,
+          backgroundColor: theme.colors.secondary,
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+        }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 13 }}>
+            Prerrequisito
+          </Text>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 16 }}>
+            {showPrereqs ? '▲' : '▼'}
+          </Text>
+        </View>
+        <Text style={{ color: theme.colors.textMuted, fontSize: 11, marginTop: 4 }}>
+          Materia que el estudiante debe aprobar antes de inscribirse en esta.
+        </Text>
+        <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600', marginTop: 6 }}>
+          {form.idPrerequisito
+            ? `✓ ${materias.find(m => String(m.idMateria) === form.idPrerequisito)?.nombreMateria ?? '—'}`
+            : 'Ninguno (opcional)'}
+        </Text>
+      </Pressable>
+
+      {showPrereqs && (
+        <View style={styles.chipRow}>
+          <Pressable
+            onPress={() => { setForm(f => ({ ...f, idPrerequisito: '' })); setShowPrereqs(false) }}
+            style={[styles.chip, {
+              backgroundColor: !form.idPrerequisito ? theme.colors.primary : theme.colors.secondary,
+              borderColor: theme.colors.border,
+            }]}
+          >
+            <Text style={{ color: !form.idPrerequisito ? theme.colors.primaryForeground : theme.colors.text, fontSize: 12 }}>
+              Sin prerrequisito
+            </Text>
           </Pressable>
-        ))}
-      </View>
+          {materias.filter(m => m.idMateria !== initialData?.idMateria).map(m => (
+            <Pressable
+              key={m.idMateria}
+              onPress={() => { setForm(f => ({ ...f, idPrerequisito: String(m.idMateria) })); setShowPrereqs(false) }}
+              style={[styles.chip, {
+                backgroundColor: form.idPrerequisito === String(m.idMateria) ? theme.colors.primary : theme.colors.secondary,
+                borderColor: theme.colors.border,
+              }]}
+            >
+              <Text style={{ color: form.idPrerequisito === String(m.idMateria) ? theme.colors.primaryForeground : theme.colors.text, fontSize: 12 }}>
+                {m.nombreMateria}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       <View style={styles.switchRow}>
         <Text style={[lbl, { marginBottom: 0, marginTop: 0 }]}>Estado activo</Text>
