@@ -72,7 +72,7 @@ function mapBackendUserToUsuario(data: any): Usuario {
     correo: data.email || "",
     telefono: data.celular || data.telefono || "",
     roles: data.roles || [],
-    foto: data.foto || null,
+    foto: "https://tecnologico.metasoft-bolivia.com/" + (data.foto || null),
     direccion: data.direccion || "",
     codigoQr: data.codigo_qr || null,
   };

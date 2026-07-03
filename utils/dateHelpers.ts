@@ -51,3 +51,49 @@ export function formatDisplayDate(
   const [year, month, day] = datePart.split("-");
   return `${day}/${month}/${year}`;
 }
+
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("es-BO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+export const formatDateTime = formatDateTimeToDD_MM_YYYY_HH_MM;
+/**
+ * Formatea una fecha con hora en el formato "2 jul 2026 14:12"
+ * Acepta ISO string con o sin hora.
+ */
+export function formatDateTimeNatural(
+  isoString: string | null | undefined,
+): string {
+  if (!isoString) return "—";
+
+  const [datePart, timePart] = isoString.split("T");
+  const [year, month, day] = datePart.split("-");
+
+  const meses = [
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sep",
+    "oct",
+    "nov",
+    "dic",
+  ];
+  const mesAbreviado = meses[parseInt(month, 10) - 1] ?? month;
+
+  if (!timePart) return `${parseInt(day, 10)} ${mesAbreviado} ${year}`;
+
+  // Extraer solo HH:MM (ignora segundos, milisegundos y zona)
+  const timeClean = timePart.split(".")[0].replace("Z", "");
+  const [hours, minutes] = timeClean.split(":");
+
+  return `${parseInt(day, 10)} ${mesAbreviado} ${year} ${hours}:${minutes}`;
+}
