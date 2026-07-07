@@ -81,11 +81,15 @@ export function AsistenciaScreen() {
   }, [resetToGroupSelection]);
 
   const handleBackToSchedule = useCallback(() => {
-    setStep("schedule");
-    setSelectedHorarioId(null);
-    setSearchQuery("");
-  }, [setSelectedHorarioId]);
-
+    // Si no hay horarios, volver directamente a grupos
+    if (estudiantesData && estudiantesData.horarios.length === 0) {
+      handleBackToGroups();
+    } else {
+      setStep("schedule");
+      setSelectedHorarioId(null);
+      setSearchQuery("");
+    }
+  }, [estudiantesData, handleBackToGroups, setSelectedHorarioId]);
   const handleOpenConfirm = useCallback(() => {
     setShowConfirmModal(true);
   }, []);

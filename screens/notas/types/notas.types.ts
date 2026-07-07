@@ -7,6 +7,7 @@ export interface GrupoMateriaDocente {
   turno: string;
   gestion: string;
   materia: string;
+  carreras: string[];
   inscritos: number;
 }
 
