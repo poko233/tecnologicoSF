@@ -16,6 +16,8 @@ import DocenteCard from "./components/DocenteCard";
 import DocenteFormModal from "./components/DocenteFormModal";
 import DocenteSearchBar from "./components/DocenteSearchBar";
 import DocenteStats from "./components/DocenteStats";
+import DocenteTipoRegistroModal from "./components/DocenteTipoRegistroModal";
+import UsuarioExistenteDocenteModal from "./components/UsuarioExistenteDocenteModal";
 import { useDocentes } from "./hooks/useDocentes";
 import { Docente } from "./types/docente.types";
 
@@ -28,12 +30,21 @@ export default function DocenteScreen() {
   const { width } = useWindowDimensions();
 
   const isMobile = width < 750;
+
   const columnasPorFila = isMobile
     ? COLUMNAS_MOVIL
     : COLUMNAS_DESKTOP;
 
-  const [confirmDocente, setConfirmDocente] = useState<Docente | null>(null);
+  const [confirmDocente, setConfirmDocente] =
+    useState<Docente | null>(null);
+
   const [anchoGrid, setAnchoGrid] = useState(0);
+
+  const [modalTipoRegistroVisible, setModalTipoRegistroVisible] =
+    useState(false);
+
+  const [modalUsuarioExistenteVisible, setModalUsuarioExistenteVisible] =
+    useState(false);
 
   const {
     docentes,
@@ -53,15 +64,26 @@ export default function DocenteScreen() {
     serverErrors,
     clearServerError,
 
+    usuariosDisponibles,
+    paginacionUsuarios,
+    cargandoUsuariosDisponibles,
+    mensajeUsuarioExistente,
+
     abrirCrear,
     abrirEditar,
     guardarDocente,
     desactivarDocente,
     activarDocente,
+
+    cargarUsuariosDisponibles,
+    asignarUsuarioExistente,
+    limpiarMensajeUsuarioExistente,
   } = useDocentes();
 
   const confirmarCambioEstado = async () => {
-    if (!confirmDocente) return;
+    if (!confirmDocente) {
+      return;
+    }
 
     if (confirmDocente.estadoDocente === "activo") {
       await desactivarDocente(confirmDocente);
@@ -70,6 +92,28 @@ export default function DocenteScreen() {
     }
 
     setConfirmDocente(null);
+  };
+
+  const abrirOpcionesRegistro = () => {
+    setModalTipoRegistroVisible(true);
+  };
+
+  const abrirNuevoDocente = () => {
+    setModalTipoRegistroVisible(false);
+
+    // Abre tu DocenteFormModal.tsx actual.
+    abrirCrear();
+  };
+
+  const abrirUsuarioExistente = () => {
+    setModalTipoRegistroVisible(false);
+    limpiarMensajeUsuarioExistente();
+    setModalUsuarioExistenteVisible(true);
+  };
+
+  const cerrarUsuarioExistente = () => {
+    limpiarMensajeUsuarioExistente();
+    setModalUsuarioExistenteVisible(false);
   };
 
   const manejarLayoutGrid = (event: LayoutChangeEvent) => {
@@ -101,10 +145,16 @@ export default function DocenteScreen() {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <ActivityIndicator
+          color={theme.colors.primary}
+          size="large"
+        />
 
         <ThemedText
-          style={[styles.loadingText, { color: theme.colors.text }]}
+          style={[
+            styles.loadingText,
+            { color: theme.colors.text },
+          ]}
         >
           Cargando docentes...
         </ThemedText>
@@ -125,11 +175,14 @@ export default function DocenteScreen() {
         <DocenteSearchBar
           search={search}
           onSearchChange={setSearch}
-          onAdd={abrirCrear}
+          onAdd={abrirOpcionesRegistro}
           isMobile={isMobile}
         />
 
-        <DocenteStats docentes={docentes} isMobile={isMobile} />
+        <DocenteStats
+          docentes={docentes}
+          isMobile={isMobile}
+        />
 
         <View
           style={styles.grid}
@@ -176,6 +229,27 @@ export default function DocenteScreen() {
           )}
         </View>
       </ScrollView>
+
+      <DocenteTipoRegistroModal
+        visible={modalTipoRegistroVisible}
+        onClose={() => setModalTipoRegistroVisible(false)}
+        onNuevoDocente={abrirNuevoDocente}
+        onUsuarioExistente={abrirUsuarioExistente}
+      />
+
+      <UsuarioExistenteDocenteModal
+        visible={modalUsuarioExistenteVisible}
+        isMobile={isMobile}
+        usuarios={usuariosDisponibles}
+        paginacion={paginacionUsuarios}
+        loadingUsuarios={cargandoUsuariosDisponibles}
+        saving={saving}
+        errorMessage={mensajeUsuarioExistente}
+        onClose={cerrarUsuarioExistente}
+        onClearError={limpiarMensajeUsuarioExistente}
+        onBuscarUsuarios={cargarUsuariosDisponibles}
+        onAsignarUsuario={asignarUsuarioExistente}
+      />
 
       <DocenteFormModal
         visible={modalVisible}

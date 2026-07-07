@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -29,6 +29,51 @@ function normalizarTexto(valor: unknown) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function textoParaOrden(valor: unknown) {
+  return String(valor ?? "").trim();
+}
+
+function compararTextoEspanol(a: unknown, b: unknown) {
+  return textoParaOrden(a).localeCompare(textoParaOrden(b), "es", {
+    sensitivity: "base",
+    numeric: true,
+  });
+}
+
+function compararDocentesPorApellido(a: Docente, b: Docente) {
+  const usuarioA = a.usuario;
+  const usuarioB = b.usuario;
+
+  const comparacionApellidoPaterno = compararTextoEspanol(
+    usuarioA?.apellidoPaterno,
+    usuarioB?.apellidoPaterno,
+  );
+
+  if (comparacionApellidoPaterno !== 0) {
+    return comparacionApellidoPaterno;
+  }
+
+  const comparacionApellidoMaterno = compararTextoEspanol(
+    usuarioA?.apellidoMaterno,
+    usuarioB?.apellidoMaterno,
+  );
+
+  if (comparacionApellidoMaterno !== 0) {
+    return comparacionApellidoMaterno;
+  }
+
+  const comparacionNombres = compararTextoEspanol(
+    usuarioA?.nombres,
+    usuarioB?.nombres,
+  );
+
+  if (comparacionNombres !== 0) {
+    return comparacionNombres;
+  }
+
+  return a.idDocente - b.idDocente;
 }
 
 function getNombreCompleto(docente: Docente) {
@@ -64,6 +109,8 @@ export default function DocenteSelectorModal({
 }: Props) {
   const { theme } = useTheme();
 
+  const listaDocentesRef = useRef<ScrollView>(null);
+
   const [busqueda, setBusqueda] = useState("");
   const [paginaActual, setPaginaActual] = useState(1);
 
@@ -87,7 +134,9 @@ export default function DocenteSelectorModal({
           normalizarTexto(docente.estadoDocente) === "activo",
       )
       .filter((docente) => {
-        if (!termino) return true;
+        if (!termino) {
+          return true;
+        }
 
         const textoBusqueda = normalizarTexto(
           [
@@ -104,11 +153,7 @@ export default function DocenteSelectorModal({
 
         return textoBusqueda.includes(termino);
       })
-      .sort((a, b) =>
-        getNombreCompleto(a).localeCompare(getNombreCompleto(b), "es", {
-          sensitivity: "base",
-        }),
-      );
+      .sort(compararDocentesPorApellido);
   }, [docentes, busqueda]);
 
   const totalPaginas = Math.max(
@@ -130,6 +175,36 @@ export default function DocenteSelectorModal({
     indiceFin,
   );
 
+  /*
+  |--------------------------------------------------------------------------
+  | REINICIAR EL SCROLL DE LA LISTA
+  |--------------------------------------------------------------------------
+  | Se ejecuta al abrir el modal, cambiar de página o realizar una búsqueda.
+  | requestAnimationFrame espera a que React termine de renderizar los
+  | nuevos docentes antes de volver al inicio del ScrollView.
+  */
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      listaDocentesRef.current?.scrollTo({
+        y: 0,
+        animated: false,
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [
+    visible,
+    paginaActual,
+    busqueda,
+    docentesActivosFiltrados.length,
+  ]);
+
   const paginasVisibles = useMemo(() => {
     const paginas: number[] = [];
 
@@ -144,7 +219,27 @@ export default function DocenteSelectorModal({
   }, [paginaActual, totalPaginas]);
 
   const cambiarPagina = (pagina: number) => {
-    if (pagina < 1 || pagina > totalPaginas) return;
+    if (pagina < 1 || pagina > totalPaginas) {
+      return;
+    }
+
+    if (pagina === paginaActual) {
+      listaDocentesRef.current?.scrollTo({
+        y: 0,
+        animated: false,
+      });
+
+      return;
+    }
+
+    /*
+    | Reinicio inmediato para que no conserve la posición anterior
+    | mientras React renderiza los docentes de la nueva página.
+    */
+    listaDocentesRef.current?.scrollTo({
+      y: 0,
+      animated: false,
+    });
 
     setPaginaActual(pagina);
   };
@@ -229,7 +324,7 @@ export default function DocenteSelectorModal({
             <TextInput
               value={busqueda}
               onChangeText={setBusqueda}
-              placeholder="Buscar por nombre, CI o profesión..."
+              placeholder="Buscar por nombre, apellido, CI o profesión..."
               placeholderTextColor={theme.colors.textTertiary}
               style={[
                 styles.searchInput,
@@ -278,6 +373,7 @@ export default function DocenteSelectorModal({
           </View>
 
           <ScrollView
+            ref={listaDocentesRef}
             showsVerticalScrollIndicator
             persistentScrollbar
             style={styles.list}

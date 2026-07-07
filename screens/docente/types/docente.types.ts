@@ -16,6 +16,13 @@ export type Expedido =
   | "QR"
   | "EXT";
 
+export type RolUsuario = {
+  id?: number;
+  idRol?: number;
+  rol: string;
+  descripcion?: string | null;
+};
+
 export type UsuarioDocente = {
   id: number;
   usuario: string;
@@ -30,6 +37,29 @@ export type UsuarioDocente = {
   direccion?: string | null;
   expedido: Expedido;
   estado: EstadoUsuario;
+  roles?: RolUsuario[];
+};
+
+export type UsuarioDisponibleDocente = {
+  id: number;
+  usuario: string;
+  ci: string;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno?: string | null;
+  email?: string | null;
+  celular?: string | null;
+  estado: EstadoUsuario;
+  roles?: RolUsuario[];
+};
+
+export type PaginacionUsuarios = {
+  paginaActual: number;
+  ultimaPagina: number;
+  porPagina: number;
+  total: number;
+  desde: number;
+  hasta: number;
 };
 
 export type Docente = {
@@ -59,8 +89,19 @@ export type DocenteForm = {
   estadoDocente: EstadoDocente;
 };
 
+export type AsignarUsuarioExistentePayload = {
+  idUsuario: number;
+  profesion: string;
+  abreviaturaProfesional?: string | null;
+};
+
 export type DocentesResponse = {
   docentes: Docente[];
+};
+
+export type UsuariosDisponiblesResponse = {
+  usuarios: UsuarioDisponibleDocente[];
+  paginacion: PaginacionUsuarios;
 };
 
 export const EXPEDIDOS: { label: string; value: Expedido }[] = [
