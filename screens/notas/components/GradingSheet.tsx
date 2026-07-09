@@ -163,9 +163,7 @@ export function GradingSheet({
       const ec = planilla?.ecs.find((e) => e.id === ecId);
       if (!ec) return;
       const localEvScores = evScores?.[estId]?.[ecId] ?? {};
-      const evValues = ec.evs
-        .map((ev) => localEvScores[ev.id])
-        .filter((v): v is number => v !== null && v !== undefined);
+      const evValues = ec.evs.map((ev) => localEvScores[ev.id] ?? 0);
       if (evValues.length === 0) return;
       const sumaEV = evValues.reduce((a, b) => a + b, 0);
       const nuevaNota = Math.min(
@@ -254,9 +252,7 @@ export function GradingSheet({
     (estId: number) => {
       const ecs = planilla?.ecs ?? [];
       const scores = ecScores[estId] ?? {};
-      const validScores = ecs
-        .map((ec) => scores[ec.id])
-        .filter((s): s is number => s !== null && s !== undefined);
+      const validScores = ecs.map((ec) => scores[ec.id] ?? 0);
       if (validScores.length === 0) return 0;
       const promedio =
         validScores.reduce((a, b) => a + b, 0) / validScores.length;
@@ -520,9 +516,7 @@ export function GradingSheet({
                 renderItem={({ item }) => {
                   const currentEvScores =
                     evScores?.[item.id_inscripcion]?.[ecActual.id] ?? {};
-                  const evValues = evs
-                    .map((ev) => currentEvScores[ev.id])
-                    .filter((v): v is number => v !== null && v !== undefined);
+                  const evValues = evs.map((ev) => currentEvScores[ev.id] ?? 0);
                   const sumaEV = evValues.reduce((a, b) => a + b, 0);
                   const notaEcCalculada = Math.min(
                     Math.round(
@@ -559,39 +553,46 @@ export function GradingSheet({
                           {item.nombre_completo}
                         </Text>
                       </View>
-                      {evs.map((ev) => (
-                        <View
-                          key={ev.id}
-                          style={[
-                            styles.cell,
-                            {
-                              width: COL_EV,
-                              borderRightWidth: 1,
-                              borderRightColor: c.border + "100",
-                            },
-                          ]}
-                        >
-                          <TextInput
-                            style={[styles.input, { color: c.text }]}
-                            keyboardType="decimal-pad"
-                            value={(currentEvScores[ev.id] ?? 0).toString()}
-                            onChangeText={(text) => {
-                              const filtered = text.replace(/[^0-9.]/g, "");
-                              const val =
-                                filtered === "" ? 0 : Number(filtered);
-                              if (isNaN(val) || val < 0 || val > 100) return;
-                              onUpdateEVScores?.(
-                                item.id_inscripcion,
-                                ecActual.id,
-                                ev.id,
-                                val,
-                              );
-                            }}
-                            selectTextOnFocus
-                            maxLength={6}
-                          />
-                        </View>
-                      ))}
+                      {evs.map((ev) => {
+                        const currentVal = currentEvScores[ev.id] ?? 0;
+                        return (
+                          <View
+                            key={ev.id}
+                            style={[
+                              styles.cell,
+                              {
+                                width: COL_EV,
+                                borderRightWidth: 1,
+                                borderRightColor: c.border + "100",
+                                backgroundColor:
+                                  currentVal < notaAprobacionState
+                                    ? c.destructive + "20"
+                                    : "transparent",
+                              },
+                            ]}
+                          >
+                            <TextInput
+                              style={[styles.input, { color: c.text }]}
+                              keyboardType="decimal-pad"
+                              value={(currentEvScores[ev.id] ?? 0).toString()}
+                              onChangeText={(text) => {
+                                const filtered = text.replace(/[^0-9.]/g, "");
+                                const val =
+                                  filtered === "" ? 0 : Number(filtered);
+                                if (isNaN(val) || val < 0 || val > 100) return;
+                                onUpdateEVScores?.(
+                                  item.id_inscripcion,
+                                  ecActual.id,
+                                  ev.id,
+                                  val,
+                                );
+                              }}
+                              selectTextOnFocus
+                              maxLength={6}
+                            />
+                          </View>
+                        );
+                      })}
                       <View
                         style={[
                           styles.cell,
@@ -913,7 +914,7 @@ export function GradingSheet({
                               borderRightColor: c.border + "100",
                               borderRightWidth: 1,
                               backgroundColor:
-                                score !== null && score < notaAprobacionState
+                                (score ?? 0) < notaAprobacionState
                                   ? c.destructive + "20"
                                   : "transparent",
                             },
