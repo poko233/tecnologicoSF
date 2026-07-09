@@ -2,7 +2,7 @@
 import { useTheme } from "@/theme/useTheme";
 import { Check, Search, X } from "lucide-react-native";
 import { MotiView } from "moti";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   DimensionValue,
   FlatList,
@@ -37,7 +37,6 @@ export function GroupList({ grupos, onSelect }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  // Estados de filtros
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({
     gestion: null as string | null,
@@ -48,82 +47,77 @@ export function GroupList({ grupos, onSelect }: Props) {
     carrera: null as string | null,
   });
 
-  // Control del modal buscador de filtros
   const [activeFilterModal, setActiveFilterModal] = useState<FilterType | null>(
     null,
   );
   const [filterSearchQuery, setFilterSearchQuery] = useState("");
   const [containerWidth, setContainerWidth] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  // Extracción de opciones únicas
-  const opcionesUnicas = useMemo(() => {
-    const extract = (arr: (string | null)[]) =>
-      Array.from(
-        new Set(arr.filter((v): v is string => v !== null && v !== undefined)),
-      ).sort();
+  // Devuelve las opciones disponibles para un tipo de filtro, teniendo en cuenta
+  // todos los demás filtros activos y la búsqueda textual.
+  const getAvailableOptionsFor = useCallback(
+    (type: FilterType): string[] => {
+      const otherFilters = Object.entries(filters).filter(
+        ([key, val]) => key !== type && val !== null,
+      ) as [FilterType, string][];
 
-    return {
-      gestion: extract(grupos.map((g) => g.gestion)),
-      grupo: extract(grupos.map((g) => g.grupo)),
-      paralelo: extract(grupos.map((g) => g.paralelo)),
-      turno: extract(grupos.map((g) => g.turno)),
-      materia: extract(grupos.map((g) => g.materia)),
-      carrera: Array.from(
-        new Set(grupos.flatMap((g) => g.carreras ?? []).filter(Boolean)),
-      ).sort() as string[],
-    };
-  }, [grupos]);
+      const subset = grupos.filter((g) => {
+        if (query.trim()) {
+          const lower = query.toLowerCase();
+          const matchMain =
+            g.grupo.toLowerCase().includes(lower) ||
+            g.materia.toLowerCase().includes(lower) ||
+            (g.paralelo && g.paralelo.toLowerCase().includes(lower)) ||
+            (g.turno && g.turno.toLowerCase().includes(lower));
+          if (!matchMain) return false;
+        }
+        return otherFilters.every(([key, val]) => {
+          const prop = g[key as keyof GrupoMateriaDocente];
+          // El campo 'carreras' es un array; para el filtro 'carrera' se maneja aparte
+          if (key === "carrera") return (g.carreras ?? []).includes(val);
+          return prop === val;
+        });
+      });
 
-  // Lógica de filtrado combinada
-  const filtered = useMemo(() => {
-    return grupos.filter((g) => {
-      if (query.trim()) {
-        const lower = query.toLowerCase();
-        const matchMain =
-          g.grupo.toLowerCase().includes(lower) ||
-          g.materia.toLowerCase().includes(lower) ||
-          (g.paralelo && g.paralelo.toLowerCase().includes(lower)) ||
-          (g.turno && g.turno.toLowerCase().includes(lower));
-        if (!matchMain) return false;
+      if (type === "carrera") {
+        // Para carreras, aplanamos los arrays y obtenemos únicas
+        const carreras = subset.flatMap((g) => g.carreras ?? []);
+        return Array.from(new Set(carreras)).sort();
+      } else {
+        const values = subset.map(
+          (g) => g[type as keyof GrupoMateriaDocente],
+        ) as string[];
+        return Array.from(new Set(values.filter(Boolean))).sort();
       }
-      if (filters.gestion && g.gestion !== filters.gestion) return false;
-      if (filters.grupo && g.grupo !== filters.grupo) return false;
-      if (filters.paralelo && g.paralelo !== filters.paralelo) return false;
-      if (filters.turno && g.turno !== filters.turno) return false;
-      if (filters.materia && g.materia !== filters.materia) return false;
-      if (filters.carrera && !(g.carreras ?? []).includes(filters.carrera))
-        return false;
+    },
+    [grupos, query, filters],
+  );
 
-      return true;
-    });
-  }, [grupos, query, filters]);
-
-  const onLayout = (event: LayoutChangeEvent) => {
-    setContainerWidth(event.nativeEvent.layout.width);
-  };
-
-  const getGridConfig = (): {
-    numColumns: number;
-    itemWidth: DimensionValue;
-    gap: number;
-  } => {
-    if (containerWidth === 0)
-      return { numColumns: 1, itemWidth: "100%", gap: 0 };
-    const gap = 16;
-    const numColumns = containerWidth < 768 ? 1 : containerWidth < 1024 ? 2 : 3;
-
-    const totalPadding = 32; // 16 izq + 16 der del contenedor
-    const availableWidth = containerWidth - totalPadding;
-    const totalGapWidth = gap * (numColumns - 1);
-    const itemWidth = (availableWidth - totalGapWidth) / numColumns;
-
-    return { numColumns, itemWidth, gap };
-  };
-
-  const { numColumns, itemWidth, gap } = getGridConfig();
+  // Limpia filtros que ya no son válidos con las nuevas opciones
+  const cleanupInvalidFilters = useCallback(
+    (updatedFilters: typeof filters) => {
+      setFilters((prev) => {
+        const newFilters = { ...updatedFilters };
+        (Object.keys(newFilters) as FilterType[]).forEach((key) => {
+          const currentVal = newFilters[key];
+          if (currentVal !== null) {
+            const options = getAvailableOptionsFor(key);
+            if (!options.includes(currentVal)) {
+              newFilters[key] = null;
+            }
+          }
+        });
+        return newFilters;
+      });
+    },
+    [getAvailableOptionsFor],
+  );
 
   const handleSelectFilter = (type: FilterType, value: string | null) => {
-    setFilters((prev) => ({ ...prev, [type]: value }));
+    const updatedFilters = { ...filters, [type]: value };
+    setFilters(updatedFilters);
+    cleanupInvalidFilters(updatedFilters);
     setActiveFilterModal(null);
     setFilterSearchQuery("");
   };
@@ -143,17 +137,63 @@ export function GroupList({ grupos, onSelect }: Props) {
   const hasActiveFilters =
     Object.values(filters).some((v) => v !== null) || query !== "";
 
-  // Opciones filtradas dentro del modal buscador del filtro activo
+  // Opciones del modal actual, filtradas por búsqueda interna
   const filteredModalOptions = useMemo(() => {
     if (!activeFilterModal) return [] as string[];
-    const options = opcionesUnicas[activeFilterModal] ?? [];
+    const options = getAvailableOptionsFor(activeFilterModal);
     if (!filterSearchQuery.trim()) return options;
     return options.filter((opt) =>
       opt.toLowerCase().includes(filterSearchQuery.toLowerCase()),
     );
-  }, [activeFilterModal, filterSearchQuery, opcionesUnicas]);
+  }, [activeFilterModal, filterSearchQuery, getAvailableOptionsFor]);
 
-  // Componente Renderizador de Botón de Filtro (Píldora)
+  // Medir ancho del contenedor para el grid
+  const onLayout = (event: LayoutChangeEvent) => {
+    setContainerWidth(event.nativeEvent.layout.width);
+  };
+
+  const getGridConfig = (): {
+    numColumns: number;
+    itemWidth: DimensionValue;
+    gap: number;
+  } => {
+    if (containerWidth === 0)
+      return { numColumns: 1, itemWidth: "100%", gap: 0 };
+    const gap = 16;
+    const numColumns = containerWidth < 768 ? 1 : containerWidth < 1024 ? 2 : 3;
+    const totalPadding = 32;
+    const availableWidth = containerWidth - totalPadding;
+    const totalGapWidth = gap * (numColumns - 1);
+    const itemWidth = (availableWidth - totalGapWidth) / numColumns;
+    return { numColumns, itemWidth, gap };
+  };
+
+  const { numColumns, itemWidth, gap } = getGridConfig();
+
+  // Datos finales filtrados (para las tarjetas)
+  const filtered = useMemo(() => {
+    return grupos.filter((g) => {
+      if (query.trim()) {
+        const lower = query.toLowerCase();
+        const matchMain =
+          g.grupo.toLowerCase().includes(lower) ||
+          g.materia.toLowerCase().includes(lower) ||
+          (g.paralelo && g.paralelo.toLowerCase().includes(lower)) ||
+          (g.turno && g.turno.toLowerCase().includes(lower));
+        if (!matchMain) return false;
+      }
+      if (filters.gestion && g.gestion !== filters.gestion) return false;
+      if (filters.grupo && g.grupo !== filters.grupo) return false;
+      if (filters.paralelo && g.paralelo !== filters.paralelo) return false;
+      if (filters.turno && g.turno !== filters.turno) return false;
+      if (filters.materia && g.materia !== filters.materia) return false;
+      if (filters.carrera && !(g.carreras ?? []).includes(filters.carrera))
+        return false;
+      return true;
+    });
+  }, [grupos, query, filters]);
+
+  // Píldora de filtro
   const FilterPill = ({ type, label }: { type: FilterType; label: string }) => {
     const value = filters[type];
     const isActive = value !== null;
@@ -204,7 +244,7 @@ export function GroupList({ grupos, onSelect }: Props) {
 
   return (
     <MotiView style={styles.container} {...fadeSlideUp}>
-      {/* Barra superior de búsquedas y filtros */}
+      {/* Barra superior de búsqueda y píldoras de filtro */}
       <View style={styles.filterSection}>
         <View
           style={[
@@ -216,7 +256,7 @@ export function GroupList({ grupos, onSelect }: Props) {
           <TextInput
             placeholder="Buscar por grupo, materia..."
             placeholderTextColor={c.textMuted}
-            style={[styles.input, { color: c.text }]}
+            style={[styles.input, { color: c.text, outline: "none" } as any]}
             value={query}
             onChangeText={setQuery}
           />
@@ -234,7 +274,6 @@ export function GroupList({ grupos, onSelect }: Props) {
           )}
         </View>
 
-        {/* Scroll Horizontal de Filtros Avanzados */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -249,7 +288,7 @@ export function GroupList({ grupos, onSelect }: Props) {
         </ScrollView>
       </View>
 
-      {/* Lista de Tarjetas */}
+      {/* Lista de tarjetas */}
       {filtered.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={[styles.empty, { color: c.textSecondary }]}>
@@ -282,7 +321,7 @@ export function GroupList({ grupos, onSelect }: Props) {
         </View>
       )}
 
-      {/* MODAL / BOTTOM SHEET DE BUSCADOR INTERNO PARA FILTROS */}
+      {/* Modal de filtro */}
       <Modal
         visible={activeFilterModal !== null}
         animationType="fade"
@@ -293,11 +332,12 @@ export function GroupList({ grupos, onSelect }: Props) {
           style={styles.modalOverlay}
           onPress={() => setActiveFilterModal(null)}
         >
-          <View
+          <Pressable
             style={[
               styles.modalContent,
               { backgroundColor: c.card, borderColor: c.border },
             ]}
+            onPress={() => {}}
           >
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: c.text }]}>
@@ -309,7 +349,6 @@ export function GroupList({ grupos, onSelect }: Props) {
               </TouchableOpacity>
             </View>
 
-            {/* Buscador dentro del filtro */}
             <View
               style={[
                 styles.modalSearchBox,
@@ -320,14 +359,14 @@ export function GroupList({ grupos, onSelect }: Props) {
               <TextInput
                 placeholder={`Buscar ${activeFilterModal}...`}
                 placeholderTextColor={c.textMuted}
-                style={[styles.modalInput, { color: c.text }]}
+                style={[styles.modalInput, { color: c.text, outline: "none" }]}
                 value={filterSearchQuery}
                 onChangeText={setFilterSearchQuery}
               />
             </View>
 
-            {/* Lista de opciones */}
             <ScrollView
+              ref={scrollViewRef}
               style={{ maxHeight: 250 }}
               keyboardShouldPersistTaps="handled"
             >
@@ -381,7 +420,7 @@ export function GroupList({ grupos, onSelect }: Props) {
                 );
               })}
             </ScrollView>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </MotiView>
@@ -402,8 +441,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, marginLeft: 8, fontSize: 14 },
   clearAllBtn: { paddingVertical: 4, paddingHorizontal: 8 },
   filterRow: { flexDirection: "row", gap: 8, paddingVertical: 4 },
-
-  // Estilos de las píldoras de filtro (Badges)
   pillContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -422,8 +459,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "rgba(0,0,0,0.03)",
   },
-
-  // Listado
   listContainer: { flex: 1, paddingHorizontal: 16 },
   list: { paddingBottom: 32 },
   emptyContainer: {
@@ -433,8 +468,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   empty: { textAlign: "center", fontSize: 15, lineHeight: 22 },
-
-  // Estilos del Modal del buscador de filtros
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.4)",

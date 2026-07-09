@@ -32,6 +32,7 @@ interface Props {
   onClose: () => void;
   onGoToGrading: () => void;
   visible: boolean;
+  onManageEV: (ec: { id: number; nombre: string }) => void;
 }
 
 export function ECPanel({
@@ -41,6 +42,7 @@ export function ECPanel({
   onClose,
   onGoToGrading,
   visible,
+  onManageEV,
 }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -290,7 +292,9 @@ export function ECPanel({
                       key={ec.id}
                       ec={ec}
                       index={index}
-                      onEdit={setEditingEC}
+                      onEdit={() =>
+                        onManageEV({ id: ec.id, nombre: ec.nombre })
+                      }
                       onToggleStatus={handleToggleStatus}
                     />
                   ))}

@@ -1,7 +1,7 @@
 // screens/asistencia/AsistenciaScreen.tsx
 import { useResponsive } from "@/hooks/useResponsive";
 import { useTheme } from "@/theme/useTheme";
-import { ArrowLeft, Save, Search } from "lucide-react-native";
+import { AlertTriangle, ArrowLeft, Save, Search } from "lucide-react-native";
 import { AnimatePresence, MotiView } from "moti";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -217,14 +217,39 @@ export function AsistenciaScreen() {
               </View>
             )}
             {errorEstudiantes && (
-              <View style={styles.center}>
-                <Text style={{ color: c.destructive, marginBottom: 8 }}>
+              <MotiView
+                from={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "timing", duration: 300 }}
+                style={[
+                  styles.errorCard,
+                  {
+                    backgroundColor: c.card,
+                    borderColor: c.border,
+                    shadowColor: c.shadow,
+                  },
+                ]}
+              >
+                <AlertTriangle size={48} color={c.destructive} />
+
+                <Text style={[styles.errorMessage, { color: c.textSecondary }]}>
                   {errorEstudiantes}
                 </Text>
-                <TouchableOpacity onPress={handleBackToGroups}>
-                  <Text style={{ color: c.primary }}>Volver</Text>
+                <TouchableOpacity
+                  onPress={handleBackToGroups}
+                  style={[styles.errorButton, { backgroundColor: c.primary }]}
+                >
+                  <ArrowLeft size={18} color={c.primaryForeground} />
+                  <Text
+                    style={[
+                      styles.errorButtonText,
+                      { color: c.primaryForeground },
+                    ]}
+                  >
+                    Volver a grupos
+                  </Text>
                 </TouchableOpacity>
-              </View>
+              </MotiView>
             )}
             {!loadingEstudiantes &&
               !errorEstudiantes &&
@@ -461,5 +486,40 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 10,
+  },
+  errorCard: {
+    margin: 20,
+    padding: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    gap: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 6,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  errorMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    paddingHorizontal: 10,
+  },
+  errorButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  errorButtonText: {
+    fontWeight: "600",
+    fontSize: 15,
   },
 });

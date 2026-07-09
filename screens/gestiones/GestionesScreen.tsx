@@ -55,7 +55,11 @@ export function GestionesScreen() {
       <CloseGestionModal
         gestion={hook.closeGestion}
         onClose={() => hook.setCloseGestion(null)}
-        onConfirm={() => hook.handleClose(hook.closeGestion!.id)}
+        onConfirm={async () => {
+          if (hook.closeGestion) {
+            await hook.handleClose(hook.closeGestion.id);
+          }
+        }}
       />
       <DeleteGestionModal
         gestion={hook.deleteGestion}

@@ -15,10 +15,12 @@ interface Props {
   gestion: string;
   materia: string;
   onBack: () => void;
-  onExportExcel: () => void;  
+  onExportExcel: () => void;
   onExportPDF: () => void;
   onSave: () => void;
-  saving: boolean; 
+  saving: boolean;
+  showSave?: boolean;
+  ecNombre?: string;
 }
 
 export function GradingHeader({
@@ -30,6 +32,8 @@ export function GradingHeader({
   onExportPDF,
   onSave,
   saving,
+  showSave = true,
+  ecNombre,
 }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -52,6 +56,16 @@ export function GradingHeader({
             <Text style={[styles.breadcrumbText, { color: c.textSecondary }]}>
               {gestion}
             </Text>
+            {ecNombre && (
+              <>
+                <Text style={[styles.separator, { color: c.textSecondary }]}>
+                  ›
+                </Text>
+                <Text style={[styles.breadcrumbText, { color: c.primary }]}>
+                  {ecNombre}
+                </Text>
+              </>
+            )}
           </View>
           <Text style={[styles.title, { color: c.text }]}>{materia}</Text>
         </View>
@@ -61,42 +75,44 @@ export function GradingHeader({
       <View style={styles.actionsSection}>
         <MotiPressable
           onPress={onExportExcel}
-          style={[styles.exportBtn, { borderColor: '#16a34a', borderWidth: 1 }]}
+          style={[styles.exportBtn, { borderColor: "#16a34a", borderWidth: 1 }]}
           animate={({ pressed }) => ({ scale: pressed ? 0.96 : 1 })}
         >
-          <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: "600" }}>
+          <Text style={{ color: "#16a34a", fontSize: 13, fontWeight: "600" }}>
             Excel
           </Text>
         </MotiPressable>
 
         <MotiPressable
           onPress={onExportPDF}
-          style={[styles.exportBtn, { borderColor: '#dc2626', borderWidth: 1 }]}
+          style={[styles.exportBtn, { borderColor: "#dc2626", borderWidth: 1 }]}
           animate={({ pressed }) => ({ scale: pressed ? 0.96 : 1 })}
         >
-          <Text style={{ color: '#dc2626', fontSize: 13, fontWeight: "600" }}>
+          <Text style={{ color: "#dc2626", fontSize: 13, fontWeight: "600" }}>
             PDF
           </Text>
         </MotiPressable>
 
-        <MotiPressable
-          onPress={onSave}
-          disabled={saving}
-          style={[
-            styles.saveButton,
-            { backgroundColor: saving ? c.disabled : c.primary },
-          ]}
-          animate={({ pressed }) => ({ scale: pressed ? 0.96 : 1 })}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={c.primaryForeground} />
-          ) : (
-            <Save size={16} color={c.primaryForeground} />
-          )}
-          <Text style={[styles.saveText, { color: c.primaryForeground }]}>
-            {saving ? "Guardando..." : "Guardar Notas"}
-          </Text>
-        </MotiPressable>
+        {showSave && (
+          <MotiPressable
+            onPress={onSave}
+            disabled={saving}
+            style={[
+              styles.saveButton,
+              { backgroundColor: saving ? c.disabled : c.primary },
+            ]}
+            animate={({ pressed }) => ({ scale: pressed ? 0.96 : 1 })}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={c.primaryForeground} />
+            ) : (
+              <Save size={16} color={c.primaryForeground} />
+            )}
+            <Text style={[styles.saveText, { color: c.primaryForeground }]}>
+              {saving ? "Guardando..." : "Guardar Notas"}
+            </Text>
+          </MotiPressable>
+        )}
       </View>
     </View>
   );
@@ -110,7 +126,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    zIndex: 10, // Asegura que el header esté sobre la tabla
+    zIndex: 10,
   },
   leftSection: {
     flexDirection: "row",

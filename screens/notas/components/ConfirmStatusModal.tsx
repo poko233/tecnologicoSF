@@ -18,6 +18,7 @@ interface Props {
   confirmLabel?: string;
   isDestructive?: boolean;
   isLoading?: boolean;
+  hideCancel?: boolean;
   onCancel: () => void;
   onConfirm: () => void | Promise<void>;
 }
@@ -29,6 +30,7 @@ export function ConfirmStatusModal({
   confirmLabel = "Aceptar",
   isDestructive = false,
   isLoading = false,
+  hideCancel = false,
   onCancel,
   onConfirm,
 }: Props) {
@@ -65,40 +67,38 @@ export function ConfirmStatusModal({
           ]}
           {...modalTiming}
         >
-          {/* Icono */}
           <View style={[styles.iconCircle, { backgroundColor: iconBgColor }]}>
             <Text style={{ fontSize: 28, color: iconColor, fontWeight: "700" }}>
               !
             </Text>
           </View>
 
-          {/* Título */}
           <Text style={[styles.title, { color: c.text }]}>{title}</Text>
 
-          {/* Mensaje */}
           <Text style={[styles.message, { color: c.textSecondary }]}>
             {message}
           </Text>
 
-          {/* Botones */}
           <View style={styles.buttons}>
-            <TouchableOpacity
-              onPress={onCancel}
-              disabled={isLoading}
-              style={[
-                styles.btn,
-                styles.cancelBtn,
-                {
-                  borderColor: c.border,
-                  backgroundColor: c.card,
-                  opacity: isLoading ? 0.5 : 1,
-                },
-              ]}
-            >
-              <Text style={[styles.cancelText, { color: c.text }]}>
-                CANCELAR
-              </Text>
-            </TouchableOpacity>
+            {!hideCancel && (
+              <TouchableOpacity
+                onPress={onCancel}
+                disabled={isLoading}
+                style={[
+                  styles.btn,
+                  styles.cancelBtn,
+                  {
+                    borderColor: c.border,
+                    backgroundColor: c.card,
+                    opacity: isLoading ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.cancelText, { color: c.text }]}>
+                  CANCELAR
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={handleConfirm}
               disabled={isLoading}

@@ -2,7 +2,7 @@
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/theme/useTheme";
 import { formatDate } from "@/utils/dateHelpers";
-import { Eye, FileText, Lock, PauseCircle, Pencil } from "lucide-react-native";
+import { Eye, FileText, Lock, Pencil } from "lucide-react-native";
 import { MotiPressable } from "moti/interactions";
 import React from "react";
 import { StyleSheet, View } from "react-native";
@@ -123,13 +123,13 @@ export function GestionRow({
               >
                 <Lock size={18} color={theme.colors.warning} />
               </MotiPressable>
-
+              {/* BOTON DE DESACTIVAR GESTIÓN (comentado por ahora)
               <MotiPressable
                 onPress={() => onDeactivate(gestion)}
                 animate={({ pressed }) => ({ scale: pressed ? 0.9 : 1 })}
               >
                 <PauseCircle size={18} color={theme.colors.info} />
-              </MotiPressable>
+              </MotiPressable>*/}
             </>
           ) : (
             <MotiPressable
