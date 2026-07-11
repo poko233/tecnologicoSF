@@ -1,44 +1,66 @@
-import React from 'react'
-import { Text } from 'react-native'
-import { GenericAdminScreen } from '../components/GenericAdminScreen'
-import { StatusBadge } from '../components/StatusBadge'
-import { useAdminCrud } from '../hooks/useAdminCrud'
-import { ColumnDef } from '../types/admin.types'
-import { Grupo } from './grupo.types'
-import { GrupoForm } from './GrupoForm'
-import { grupoService } from './grupoService'
+// screens/admin/academico/grupos/GrupoScreen.tsx
+import React from "react";
+import { Text } from "react-native";
+import { GenericAdminScreen } from "../components/GenericAdminScreen";
+import { StatusBadge } from "../components/StatusBadge";
+import { useAdminCrud } from "../hooks/useAdminCrud";
+import { ColumnDef } from "../types/admin.types";
+import { Grupo } from "./grupo.types";
+import { GrupoForm } from "./GrupoForm";
+import { grupoService } from "./grupoService";
 
 const columns: ColumnDef[] = [
-  { key: 'nombre', header: 'Nombre', flex: 1 },
-  { key: 'codigo', header: 'Código', width: 100 },
-  { key: 'paralelo', header: 'Paralelo', width: 80 },
-  { key: 'turno', header: 'Turno', width: 90 },
-  { key: 'gestion', header: 'Gestión', width: 90 },
-  { key: 'cupos', header: 'Cupos', width: 70 },
+  { key: "nombre", header: "Nombre", flex: 1 },
+  { key: "codigo", header: "Código", width: 100 },
+  { key: "paralelo", header: "Paralelo", width: 80 },
+  { key: "turno", header: "Turno", width: 90 },
   {
-    key: 'horarios', header: 'Horarios', width: 80,
+    key: "gestionNombre", // ← ahora apunta al nuevo campo
+    header: "Gestión",
+    width: 100,
+    render: (val, item) => (
+      <Text style={{ fontSize: 13, fontWeight: "500" }}>
+        {val || `ID ${item.idGestion}`}
+      </Text>
+    ),
+  },
+  { key: "cupos", header: "Cupos", width: 70 },
+  {
+    key: "horarios",
+    header: "Horarios",
+    width: 80,
     render: (val: any[]) => (
       <Text style={{ fontSize: 12 }}>{val?.length ?? 0} día(s)</Text>
     ),
   },
-  { key: 'estado', header: 'Estado', width: 110, render: (val) => <StatusBadge status={val} /> },
-]
+  {
+    key: "estado",
+    header: "Estado",
+    width: 110,
+    render: (val) => <StatusBadge status={val} />,
+  },
+];
+
 export function GrupoScreen() {
   const crud = useAdminCrud<Grupo>({
     fetchAll: grupoService.getAll,
     create: grupoService.create,
     update: (id, data) => grupoService.update(Number(id), data),
     delete: grupoService.delete,
-    searchFields: ['nombre', 'codigo', 'gestion'],
-    idField: 'idGrupo',
-  })
+    searchFields: ["nombre", "codigo", "gestionNombre"], // ← búsqueda por nombre de gestión
+    idField: "idGrupo",
+  });
+
   const handleSaveWrapper = async (formData: Partial<Grupo>) => {
     if (crud.selectedItem?.idGrupo) {
-      await crud.handleSave({ ...formData, idGrupo: crud.selectedItem.idGrupo })
+      await crud.handleSave({
+        ...formData,
+        idGrupo: crud.selectedItem.idGrupo,
+      });
     } else {
-      await crud.handleSave(formData)
+      await crud.handleSave(formData);
     }
-  }
+  };
 
   return (
     <GenericAdminScreen
@@ -61,9 +83,9 @@ export function GrupoScreen() {
           onCancel={crud.closeModal}
         />
       )}
-      itemToDelete={crud.itemToDelete}       
-      onConfirmDelete={crud.confirmDelete}   
-      onCancelDelete={crud.cancelDelete}  
+      itemToDelete={crud.itemToDelete}
+      onConfirmDelete={crud.confirmDelete}
+      onCancelDelete={crud.cancelDelete}
     />
-  )
+  );
 }

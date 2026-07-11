@@ -1,7 +1,13 @@
+// screens/admin/academico/grupos/GrupoForm.tsx
+import { gestionesService } from "@/screens/gestiones/services/gestiones.service";
+import { Gestion } from "@/screens/gestiones/types/gestiones.types";
 import { useTheme } from "@theme";
+import { ChevronDown } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +16,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
 import HoraPickerModal from "../components/HoraPickerModal";
 import { Grupo, Horario } from "./grupo.types";
 
@@ -69,7 +74,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     codigo: "",
     paralelo: "",
     turno: "Mañana",
-    gestion: "",
+    idGestion: undefined as number | undefined,
+    gestionNombre: "",
     cupos: "",
     activo: true,
   });
@@ -78,9 +84,39 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
   const [cuposError, setCuposError] = useState("");
   const [horariosError, setHorariosError] = useState("");
 
+  // Selectores de hora individuales
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timeTarget, setTimeTarget] = useState<TimeTarget>(null);
   const [horaActual, setHoraActual] = useState("08:00");
+
+  // Selector de gestión
+  const [gestiones, setGestiones] = useState<Gestion[]>([]);
+  const [loadingGestiones, setLoadingGestiones] = useState(false);
+  const [gestionModalVisible, setGestionModalVisible] = useState(false);
+
+  // Modo Horario Fijo
+  const [isFixedSchedule, setIsFixedSchedule] = useState(false);
+  const [fixedStart, setFixedStart] = useState("08:00");
+  const [fixedEnd, setFixedEnd] = useState("10:00");
+  const [fixedSelectedDays, setFixedSelectedDays] = useState<string[]>([]);
+  const [fixedTimeTarget, setFixedTimeTarget] = useState<
+    "inicio" | "fin" | null
+  >(null);
+
+  // Cargar gestiones activas al montar
+  useEffect(() => {
+    (async () => {
+      setLoadingGestiones(true);
+      try {
+        const res = await gestionesService.listar({ estado: "activo" });
+        setGestiones(res.data);
+      } catch {
+        // si falla, la lista queda vacía
+      } finally {
+        setLoadingGestiones(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (initialData) {
@@ -89,7 +125,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         codigo: initialData.codigo ?? "",
         paralelo: initialData.paralelo ?? "",
         turno: initialData.turno ?? "Mañana",
-        gestion: initialData.gestion ?? "",
+        idGestion: initialData.idGestion,
+        gestionNombre: initialData.gestionNombre ?? "",
         cupos: String(initialData.cupos ?? ""),
         activo: initialData.estado === "activo",
       });
@@ -100,7 +137,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
           dia: h.dia,
           horaInicio: normalizarHora(h.horaInicio),
           horaFin: normalizarHora(h.horaFin),
-        }))
+        })),
       );
     } else {
       setForm({
@@ -108,7 +145,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         codigo: "",
         paralelo: "",
         turno: "Mañana",
-        gestion: "",
+        idGestion: undefined,
+        gestionNombre: "",
         cupos: "",
         activo: true,
       });
@@ -118,10 +156,21 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
     setCuposError("");
     setHorariosError("");
+    setIsFixedSchedule(false);
+    setFixedSelectedDays([]);
   }, [initialData]);
 
   const set = (key: string) => (val: string) =>
     setForm((f) => ({ ...f, [key]: val }));
+
+  const selectGestion = (gestion: Gestion) => {
+    setForm((f) => ({
+      ...f,
+      idGestion: gestion.id,
+      gestionNombre: `${gestion.nombre} (${gestion.periodo})`,
+    }));
+    setGestionModalVisible(false);
+  };
 
   const inp = [
     styles.input,
@@ -134,6 +183,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
   const lbl = [styles.label, { color: theme.colors.text }];
 
+  // --- Horarios individuales ---
   const addHorario = () =>
     setHorarios((h) => [
       ...h,
@@ -155,10 +205,9 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
               ...item,
               [key]: val,
             }
-          : item
-      )
+          : item,
+      ),
     );
-
     setHorariosError("");
   };
 
@@ -178,12 +227,45 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
   };
 
   const confirmarHoraPicker = (hora: string) => {
-    if (!timeTarget) return;
-
-    setHorario(timeTarget.index, timeTarget.key, normalizarHora(hora));
+    if (timeTarget) {
+      // picker individual
+      setHorario(timeTarget.index, timeTarget.key, normalizarHora(hora));
+    } else if (fixedTimeTarget) {
+      // picker del horario fijo
+      if (fixedTimeTarget === "inicio") setFixedStart(normalizarHora(hora));
+      else setFixedEnd(normalizarHora(hora));
+    }
 
     setTimePickerVisible(false);
     setTimeTarget(null);
+    setFixedTimeTarget(null);
+  };
+
+  // --- Horario Fijo ---
+  const toggleFixedDay = (day: string) => {
+    setFixedSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
+  };
+
+  const applyFixedSchedule = () => {
+    if (fixedSelectedDays.length === 0) return;
+
+    const newEntries: Horario[] = fixedSelectedDays.map((day) => ({
+      dia: day,
+      horaInicio: normalizarHora(fixedStart),
+      horaFin: normalizarHora(fixedEnd),
+    }));
+
+    setHorarios((prev) => [...prev, ...newEntries]);
+    setFixedSelectedDays([]);
+  };
+
+  const abrirFixedTimePicker = (tipo: "inicio" | "fin") => {
+    setFixedTimeTarget(tipo);
+    setHoraActual(tipo === "inicio" ? fixedStart : fixedEnd);
+    setTimeTarget(null); // aseguramos que no se confunda con el individual
+    setTimePickerVisible(true);
   };
 
   const validarHorarios = () => {
@@ -214,6 +296,10 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
       return;
     }
 
+    if (!form.idGestion) {
+      return;
+    }
+
     const errorHorario = validarHorarios();
 
     if (errorHorario) {
@@ -230,7 +316,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         nombre: form.nombre,
         codigo: form.codigo,
         turno: form.turno,
-        gestion: form.gestion,
+        idGestion: form.idGestion,
         cupos: Number(form.cupos),
         estado: form.activo ? "activo" : "inactivo",
         tipo: "Curso",
@@ -246,8 +332,15 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     }
   };
 
+  const gestionLabel = form.gestionNombre || "Seleccionar gestión";
+  const gestionColor = form.idGestion
+    ? theme.colors.text
+    : theme.colors.textMuted;
+  const canSave = !!form.idGestion && !saving;
+
   return (
     <View>
+      {/* Nombre y Código */}
       <View style={styles.row2}>
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Nombre *</Text>
@@ -274,6 +367,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         </View>
       </View>
 
+      {/* Paralelo */}
       <Text style={lbl}>Paralelo</Text>
       <TextInput
         style={inp}
@@ -283,6 +377,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         placeholderTextColor={theme.colors.textMuted}
       />
 
+      {/* Turno */}
       <Text style={lbl}>Turno</Text>
       <View style={styles.chipRow}>
         {TURNOS.map((t) => (
@@ -315,16 +410,31 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         ))}
       </View>
 
+      {/* Gestión y Cupos */}
       <View style={styles.row2}>
         <View style={{ flex: 1 }}>
-          <Text style={lbl}>Gestión</Text>
-          <TextInput
-            style={inp}
-            value={form.gestion}
-            onChangeText={set("gestion")}
-            placeholder="2024-I"
-            placeholderTextColor={theme.colors.textMuted}
-          />
+          <Text style={lbl}>Gestión *</Text>
+          <Pressable
+            onPress={() => setGestionModalVisible(true)}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.inputBorder,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              },
+            ]}
+          >
+            <Text
+              style={{ color: gestionColor, fontSize: 14 }}
+              numberOfLines={1}
+            >
+              {gestionLabel}
+            </Text>
+            <ChevronDown size={16} color={theme.colors.textSecondary} />
+          </Pressable>
         </View>
 
         <View style={{ width: 12 }} />
@@ -360,23 +470,30 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         </View>
       </View>
 
-      <View style={[styles.horarioSection, { borderColor: theme.colors.border }]}>
+      {/* Horarios */}
+      <View
+        style={[styles.horarioSection, { borderColor: theme.colors.border }]}
+      >
         <View style={styles.horarioHeader}>
           <Text style={[styles.horarioTitle, { color: theme.colors.primary }]}>
             🕐 Horarios de Clase
           </Text>
 
-          <Pressable onPress={addHorario} style={styles.addBtn}>
-            <Text
-              style={{
-                color: theme.colors.primary,
-                fontSize: 13,
-                fontWeight: "600",
-              }}
-            >
-              ⊕ Agregar Horario
+          {/* Switch Horario Fijo */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+              Horario fijo
             </Text>
-          </Pressable>
+            <Switch
+              value={isFixedSchedule}
+              onValueChange={(v) => setIsFixedSchedule(v)}
+              thumbColor={isFixedSchedule ? theme.colors.primary : "#ccc"}
+              trackColor={{
+                false: "#ddd",
+                true: theme.colors.primary + "60",
+              }}
+            />
+          </View>
         </View>
 
         {horariosError ? (
@@ -391,7 +508,157 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
           </Text>
         ) : null}
 
-        {horarios.length === 0 && (
+        {/* Panel de Horario Fijo */}
+        {isFixedSchedule && (
+          <View
+            style={[
+              styles.fixedPanel,
+              {
+                borderColor: theme.colors.border,
+                backgroundColor: theme.colors.backgroundSecondary,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.horarioLabel,
+                { color: theme.colors.textMuted, marginBottom: 8 },
+              ]}
+            >
+              Días de la semana
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 6,
+                marginBottom: 12,
+              }}
+            >
+              {DIAS.map((day) => {
+                const selected = fixedSelectedDays.includes(day);
+                return (
+                  <Pressable
+                    key={day}
+                    onPress={() => toggleFixedDay(day)}
+                    style={[
+                      styles.diaChip,
+                      {
+                        backgroundColor: selected
+                          ? theme.colors.primary
+                          : theme.colors.secondary,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: selected
+                          ? theme.colors.primaryForeground
+                          : theme.colors.text,
+                      }}
+                    >
+                      {day.slice(0, 3)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.horarioLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  Inicio
+                </Text>
+                <Pressable
+                  onPress={() => abrirFixedTimePicker("inicio")}
+                  style={[
+                    styles.timeButton,
+                    {
+                      borderColor: theme.colors.inputBorder,
+                      backgroundColor: theme.colors.background,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.timeButtonText,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    {normalizarHora(fixedStart) || "08:00"}
+                  </Text>
+                </Pressable>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.horarioLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  Fin
+                </Text>
+                <Pressable
+                  onPress={() => abrirFixedTimePicker("fin")}
+                  style={[
+                    styles.timeButton,
+                    {
+                      borderColor: theme.colors.inputBorder,
+                      backgroundColor: theme.colors.background,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.timeButtonText,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    {normalizarHora(fixedEnd) || "10:00"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={applyFixedSchedule}
+              disabled={fixedSelectedDays.length === 0}
+              style={[
+                styles.fixedApplyBtn,
+                {
+                  backgroundColor:
+                    fixedSelectedDays.length > 0
+                      ? theme.colors.primary
+                      : theme.colors.disabled,
+                  marginTop: 12,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color:
+                    fixedSelectedDays.length > 0
+                      ? theme.colors.primaryForeground
+                      : theme.colors.disabledForeground,
+                  fontWeight: "600",
+                  fontSize: 13,
+                }}
+              >
+                Aplicar horario fijo
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Lista de horarios existentes */}
+        {horarios.length === 0 && !isFixedSchedule ? (
           <Text
             style={{
               color: theme.colors.textMuted,
@@ -400,117 +667,155 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
               paddingVertical: 10,
             }}
           >
-            Sin horarios. Toca "Agregar Horario".
+            Sin horarios. Toca "Agregar Horario" o activa "Horario fijo".
           </Text>
+        ) : (
+          horarios.map((h, i) => (
+            <View
+              key={i}
+              style={[
+                styles.horarioRow,
+                {
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.backgroundSecondary,
+                },
+              ]}
+            >
+              <View style={{ flex: 2 }}>
+                <Text
+                  style={[
+                    styles.horarioLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  Día
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: "row", gap: 4 }}>
+                    {DIAS.map((d) => (
+                      <Pressable
+                        key={d}
+                        onPress={() => setHorario(i, "dia", d)}
+                        style={[
+                          styles.diaChip,
+                          {
+                            backgroundColor:
+                              h.dia === d
+                                ? theme.colors.primary
+                                : theme.colors.secondary,
+                            borderColor: theme.colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color:
+                              h.dia === d
+                                ? theme.colors.primaryForeground
+                                : theme.colors.text,
+                          }}
+                        >
+                          {d.slice(0, 3)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text
+                  style={[
+                    styles.horarioLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  Inicio
+                </Text>
+                <Pressable
+                  onPress={() => abrirTimePicker(i, "horaInicio")}
+                  style={[
+                    styles.timeButton,
+                    {
+                      borderColor: theme.colors.inputBorder,
+                      backgroundColor: theme.colors.background,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.timeButtonText,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    {normalizarHora(h.horaInicio) || "08:00"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View style={{ flex: 1, marginLeft: 6 }}>
+                <Text
+                  style={[
+                    styles.horarioLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  Fin
+                </Text>
+                <Pressable
+                  onPress={() => abrirTimePicker(i, "horaFin")}
+                  style={[
+                    styles.timeButton,
+                    {
+                      borderColor: theme.colors.inputBorder,
+                      backgroundColor: theme.colors.background,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.timeButtonText,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    {normalizarHora(h.horaFin) || "10:00"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Pressable
+                onPress={() => removeHorario(i)}
+                style={styles.removeBtn}
+              >
+                <Text style={{ color: theme.colors.destructive, fontSize: 18 }}>
+                  ✕
+                </Text>
+              </Pressable>
+            </View>
+          ))
         )}
 
-        {horarios.map((h, i) => (
-          <View
-            key={i}
-            style={[
-              styles.horarioRow,
-              {
-                borderColor: theme.colors.border,
-                backgroundColor: theme.colors.backgroundSecondary,
-              },
-            ]}
+        {/* Botón para agregar horario individual (visible solo si no está en modo fijo) */}
+        {!isFixedSchedule && (
+          <Pressable
+            onPress={addHorario}
+            style={[styles.addBtn, { marginTop: 8, alignSelf: "flex-start" }]}
           >
-            <View style={{ flex: 2 }}>
-              <Text
-                style={[styles.horarioLabel, { color: theme.colors.textMuted }]}
-              >
-                Día
-              </Text>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: "row", gap: 4 }}>
-                  {DIAS.map((d) => (
-                    <Pressable
-                      key={d}
-                      onPress={() => setHorario(i, "dia", d)}
-                      style={[
-                        styles.diaChip,
-                        {
-                          backgroundColor:
-                            h.dia === d
-                              ? theme.colors.primary
-                              : theme.colors.secondary,
-                          borderColor: theme.colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          color:
-                            h.dia === d
-                              ? theme.colors.primaryForeground
-                              : theme.colors.text,
-                        }}
-                      >
-                        {d.slice(0, 3)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text
-                style={[styles.horarioLabel, { color: theme.colors.textMuted }]}
-              >
-                Inicio
-              </Text>
-
-              <Pressable
-                onPress={() => abrirTimePicker(i, "horaInicio")}
-                style={[
-                  styles.timeButton,
-                  {
-                    borderColor: theme.colors.inputBorder,
-                    backgroundColor: theme.colors.background,
-                  },
-                ]}
-              >
-                <Text style={[styles.timeButtonText, { color: theme.colors.text }]}>
-                  {normalizarHora(h.horaInicio) || "08:00"}
-                </Text>
-              </Pressable>
-            </View>
-
-            <View style={{ flex: 1, marginLeft: 6 }}>
-              <Text
-                style={[styles.horarioLabel, { color: theme.colors.textMuted }]}
-              >
-                Fin
-              </Text>
-
-              <Pressable
-                onPress={() => abrirTimePicker(i, "horaFin")}
-                style={[
-                  styles.timeButton,
-                  {
-                    borderColor: theme.colors.inputBorder,
-                    backgroundColor: theme.colors.background,
-                  },
-                ]}
-              >
-                <Text style={[styles.timeButtonText, { color: theme.colors.text }]}>
-                  {normalizarHora(h.horaFin) || "10:00"}
-                </Text>
-              </Pressable>
-            </View>
-
-            <Pressable onPress={() => removeHorario(i)} style={styles.removeBtn}>
-              <Text style={{ color: theme.colors.destructive, fontSize: 18 }}>
-                ✕
-              </Text>
-            </Pressable>
-          </View>
-        ))}
+            <Text
+              style={{
+                color: theme.colors.primary,
+                fontSize: 13,
+                fontWeight: "600",
+              }}
+            >
+              ⊕ Agregar Horario
+            </Text>
+          </Pressable>
+        )}
       </View>
 
+      {/* Estado activo */}
       <View style={styles.switchRow}>
         <Text style={[lbl, { marginBottom: 0, marginTop: 0 }]}>
           Estado activo
@@ -527,6 +832,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         />
       </View>
 
+      {/* Botones Cancelar/Guardar */}
       <View style={styles.btns}>
         <Pressable
           onPress={onCancel}
@@ -543,12 +849,13 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
         <Pressable
           onPress={handleSave}
-          disabled={saving}
+          disabled={!canSave}
           style={[
             styles.btn,
             {
-              backgroundColor: theme.colors.primary,
-              opacity: saving ? 0.7 : 1,
+              backgroundColor: canSave
+                ? theme.colors.primary
+                : theme.colors.disabled,
             },
           ]}
         >
@@ -561,7 +868,11 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
             <Text
               style={[
                 styles.btnText,
-                { color: theme.colors.primaryForeground },
+                {
+                  color: canSave
+                    ? theme.colors.primaryForeground
+                    : theme.colors.disabledForeground,
+                },
               ]}
             >
               Guardar
@@ -570,12 +881,83 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         </Pressable>
       </View>
 
+      {/* Picker de hora (individual o fijo) */}
       <HoraPickerModal
         visible={timePickerVisible}
         value={horaActual}
         onClose={cerrarTimePicker}
         onConfirm={confirmarHoraPicker}
       />
+
+      {/* Modal de selección de gestión */}
+      <Modal visible={gestionModalVisible} transparent animationType="fade">
+        <Pressable
+          style={styles.gestionOverlay}
+          onPress={() => setGestionModalVisible(false)}
+        >
+          <View
+            style={[
+              styles.gestionModal,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.gestionTitle, { color: theme.colors.text }]}>
+              Seleccionar gestión activa
+            </Text>
+            {loadingGestiones ? (
+              <ActivityIndicator
+                color={theme.colors.primary}
+                style={{ marginVertical: 20 }}
+              />
+            ) : (
+              <FlatList
+                data={gestiones}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <Pressable
+                    onPress={() => selectGestion(item)}
+                    style={[
+                      styles.gestionOption,
+                      item.id === form.idGestion && {
+                        backgroundColor: theme.colors.primarySubtle,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          item.id === form.idGestion
+                            ? theme.colors.primary
+                            : theme.colors.text,
+                        fontWeight: "500",
+                      }}
+                    >
+                      {item.nombre} ({item.periodo})
+                    </Text>
+                  </Pressable>
+                )}
+                style={{ maxHeight: 300 }}
+              />
+            )}
+            <Pressable
+              onPress={() => setGestionModalVisible(false)}
+              style={[
+                styles.gestionCancelBtn,
+                { borderColor: theme.colors.border },
+              ]}
+            >
+              <Text
+                style={{ color: theme.colors.textSecondary, fontWeight: "600" }}
+              >
+                Cancelar
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -708,5 +1090,56 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginBottom: 2,
     padding: 4,
+  },
+
+  // Estilos para el panel de horario fijo
+  fixedPanel: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+
+  fixedApplyBtn: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  // Estilos para el selector de gestión
+  gestionOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+
+  gestionModal: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    maxHeight: "80%",
+  },
+
+  gestionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+
+  gestionOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+
+  gestionCancelBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderTopWidth: 1,
   },
 });
