@@ -11,7 +11,7 @@ export function ReportesScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const { isMobile } = useResponsive();
-  const { reportCards } = useReportData();  // 👈 Solo reportCards
+  const { reportCards } = useReportData();
   const { visible, reportType, open, close, resetType } = useReportModal();
 
   const handlePrintReport = (id: string) => {
@@ -35,8 +35,6 @@ export function ReportesScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* 👈 Sin summaryRow, sin SummaryCard */}
-
           <View style={styles.gridWrapper}>
             <ReportsGrid reports={reportCards} onPrint={handlePrintReport} />
           </View>
@@ -59,24 +57,24 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: 24,
+    paddingVertical: 22,
     borderBottomWidth: 1,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 15,
+    marginTop: 6,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 20,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   gridWrapper: {

@@ -32,7 +32,6 @@ export function ReportCard({ item, index, itemWidth, onPrint }: Props) {
 
   const IconComponent = (Icons as any)[item.iconName] || Icons.FileText;
 
-  // Worklet para animar el botón de impresión
   const printAnim = useMemo(
     () =>
       ({ pressed }: { pressed: boolean }) => {
@@ -47,12 +46,12 @@ export function ReportCard({ item, index, itemWidth, onPrint }: Props) {
 
   return (
     <MotiView
-      from={{ opacity: 0, translateY: 20 }}
-      animate={{ opacity: 1, translateY: 0 }}
+      from={{ opacity: 0, translateY: 16, scale: 0.97 }}
+      animate={{ opacity: 1, translateY: 0, scale: 1 }}
       transition={{
-        type: "spring",
-        damping: 18,
-        delay: index * 50,
+        type: "timing",
+        duration: 300 + index * 30,
+        easing: (t) => t * t * (3 - 2 * t),
       }}
       style={[
         styles.card,
@@ -63,10 +62,10 @@ export function ReportCard({ item, index, itemWidth, onPrint }: Props) {
           borderLeftColor: accent,
           borderLeftWidth: 4,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.04,
-          shadowRadius: 8,
-          elevation: 3,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.06,
+          shadowRadius: 10,
+          elevation: 4,
         },
       ]}
     >
@@ -75,11 +74,12 @@ export function ReportCard({ item, index, itemWidth, onPrint }: Props) {
         style={styles.pressable}
         animate={({ pressed }) => {
           "worklet";
-          return { scale: pressed ? 0.98 : 1 };
+          return { scale: pressed ? 0.985 : 1 };
         }}
+        transition={{ type: "timing", duration: 100 }}
       >
         <View style={styles.iconContainer}>
-          <IconComponent size={28} color={accent} />
+          <IconComponent size={30} color={accent} />
         </View>
         <Text style={[styles.title, { color: c.text }]} numberOfLines={2}>
           {item.title}
@@ -91,7 +91,6 @@ export function ReportCard({ item, index, itemWidth, onPrint }: Props) {
           {item.description}
         </Text>
 
-        {/* Botón Imprimir corregido */}
         <MotiPressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -99,6 +98,7 @@ export function ReportCard({ item, index, itemWidth, onPrint }: Props) {
           }}
           style={styles.printButton}
           animate={printAnim}
+          transition={{ type: "timing", duration: 100 }}
         >
           <Icons.Printer size={16} color={c.primaryForeground} />
           <Text
@@ -114,40 +114,40 @@ export function ReportCard({ item, index, itemWidth, onPrint }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: "hidden",
   },
   pressable: {
-    padding: 20,
+    padding: 22,
     flex: 1,
     justifyContent: "space-between",
   },
   iconContainer: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   title: {
     fontSize: 18,
     fontWeight: "700",
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   description: {
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
     flex: 1,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   printButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: 10,
     gap: 8,
-    // backgroundColor se asigna dinámicamente en animate
   },
   printButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
   },
 });

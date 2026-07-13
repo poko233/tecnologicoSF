@@ -3,12 +3,22 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
 import Toast from "react-native-toast-message";
+import {
+  InscritosDownloadParams,
+  InscritosFiltrosResponse,
+} from "../types/reportes.types";
 
-async function descargarConAuth(path: string, formato: "xlsx" | "pdf", nombre: string) {
-  const accept = formato === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  console.log("PATH:", path);
+// Helper existente (sin cambios)
+async function descargarConAuth(
+  path: string,
+  formato: "xlsx" | "pdf",
+  nombre: string,
+) {
+  const accept =
+    formato === "pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   const res = await httpClient._rawFetch(path, accept);
-  
 
   if (Platform.OS === "web") {
     const blob = await res.blob();
@@ -20,14 +30,35 @@ async function descargarConAuth(path: string, formato: "xlsx" | "pdf", nombre: s
     window.URL.revokeObjectURL(url);
   } else {
     const arrayBuffer = await res.arrayBuffer();
-    const file = new File(Paths.document, `${nombre}.${formato}`);
+    const file = new File(Paths.document!, `${nombre}.${formato}`);
     file.write(new Uint8Array(arrayBuffer));
     await Sharing.shareAsync(file.uri);
   }
 
-  Toast.show({ type: "success", text1: "Descargado", text2: `Archivo ${formato.toUpperCase()} listo` });
+  Toast.show({
+    type: "success",
+    text1: "Descargado",
+    text2: `Archivo ${formato.toUpperCase()} listo`,
+  });
 }
 
+// Builder de query string que soporta arrays
+function buildQueryString(params: Record<string, any>): string {
+  const parts: string[] = [];
+  for (const key in params) {
+    if (params[key] === undefined || params[key] === null || params[key] === "")
+      continue;
+    const value = params[key];
+    if (Array.isArray(value)) {
+      value.forEach((v) => parts.push(`${key}[]=${encodeURIComponent(v)}`));
+    } else {
+      parts.push(`${key}=${encodeURIComponent(value)}`);
+    }
+  }
+  return parts.length ? "?" + parts.join("&") : "";
+}
+
+// ─── MÉTODOS EXISTENTES (SIN MODIFICAR) ─────────────────
 export interface FiltroOpciones {
   carreras: { idCarrera: number; nombreCarrera: string; codigo: string }[];
   gestiones: string[];
@@ -35,11 +66,10 @@ export interface FiltroOpciones {
 }
 
 export const reportesService = {
-
   obtenerFiltros: async (): Promise<FiltroOpciones> => {
     const res = await httpClient.getAuth<{ data: FiltroOpciones }>(
       "/api/reportes/calificaciones/filtros",
-      "Error al cargar filtros"
+      "Error al cargar filtros",
     );
     return res.data;
   },
@@ -48,7 +78,7 @@ export const reportesService = {
     formato: "xlsx" | "pdf",
     idCarrera?: number,
     gestion?: string,
-    turno?: string
+    turno?: string,
   ) => {
     const partes: string[] = [];
     if (idCarrera) partes.push(`idCarrera=${idCarrera}`);
@@ -64,43 +94,48 @@ export const reportesService = {
   descargarPdf: (idCarrera?: number, gestion?: string, turno?: string) =>
     reportesService.descargarArchivo("pdf", idCarrera, gestion, turno),
 
-  obtenerCarreras: async (): Promise<{ idCarrera: number; nombreCarrera: string; codigo: string }[]> => {
+  obtenerCarreras: async (): Promise<
+    { idCarrera: number; nombreCarrera: string; codigo: string }[]
+  > => {
     const res = await httpClient.getAuth<{ data: { carreras: any[] } }>(
       "/api/reportes/inscritos-carrera/filtros",
-      "Error al cargar carreras"
+      "Error al cargar carreras",
     );
     return res.data.carreras;
   },
 
-  descargarInscritos: (
-    formato: "xlsx" | "pdf",
-    idCarrera?: number,
-    fechaInicio?: string,
-    fechaFin?: string
-  ) => {
-    const partes: string[] = [];
-    if (idCarrera) partes.push(`idCarrera=${idCarrera}`);
-    if (fechaInicio) partes.push(`fechaInicio=${fechaInicio}`);
-    if (fechaFin) partes.push(`fechaFin=${fechaFin}`);
-    const path = `/api/reportes/inscritos-carrera/${formato}?${partes.join("&")}`;
+  // ─── NUEVOS MÉTODOS PARA INSCRITOS (BACKEND REFACTORIZADO) ─────
+  obtenerFiltrosInscritos: async (): Promise<InscritosFiltrosResponse> => {
+    const res = await httpClient.getAuth<{ data: InscritosFiltrosResponse }>(
+      "/api/reportes/inscritos-carrera/filtros",
+      "Error al cargar filtros",
+    );
+    return res.data;
+  },
+
+  descargarInscritos: (params: InscritosDownloadParams) => {
+    const { formato, ...filters } = params;
+    const query = buildQueryString(filters);
+    const path = `/api/reportes/inscritos-carrera/${formato}${query}`;
     return descargarConAuth(path, formato, "inscritos-carrera");
   },
 
-  // ── LISTA OFICIAL POR GRUPO ──────────────────────────────
+  // ─── LISTA OFICIAL POR GRUPO (SIN MODIFICAR) ──────────
   obtenerGrupos: async (): Promise<any[]> => {
     const res = await httpClient.getAuth<{ data: { grupos: any[] } }>(
       "/api/reportes/lista-grupo/filtros",
-      "Error al cargar grupos"
+      "Error al cargar grupos",
     );
     return res.data.grupos;
   },
 
   descargarListaGrupo: (
     formato: "xlsx" | "pdf",
-    idGrupoMateriaDocente?: number
+    idGrupoMateriaDocente?: number,
   ) => {
     const partes: string[] = [];
-    if (idGrupoMateriaDocente) partes.push(`idGrupoMateriaDocente=${idGrupoMateriaDocente}`);
+    if (idGrupoMateriaDocente)
+      partes.push(`idGrupoMateriaDocente=${idGrupoMateriaDocente}`);
     const path = `/api/reportes/lista-grupo/${formato}?${partes.join("&")}`;
     return descargarConAuth(path, formato, "lista-grupo");
   },
