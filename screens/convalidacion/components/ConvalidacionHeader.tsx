@@ -29,7 +29,7 @@ export function ConvalidacionHeader({
       </View>
       {codigoSolicitud && (
         <View
-          style={[styles.badge, { backgroundColor: theme.colors.info }]}
+          style={[styles.badge, { backgroundColor: theme.colors.primary }]}
         >
           <Text style={styles.badgeText}>{codigoSolicitud}</Text>
         </View>

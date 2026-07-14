@@ -19,13 +19,13 @@ export function StepperConvalidacion({ pasoActual }: StepperConvalidacionProps) 
 
   const getStepColor = (numeroPaso: number) => {
     if (numeroPaso < pasoActual) return theme.colors.success; // Completado
-    if (numeroPaso === pasoActual) return theme.colors.info; // Activo
+    if (numeroPaso === pasoActual) return theme.colors.primary; // Activo
     return theme.colors.backgroundTertiary; // Pendiente
   };
 
   const getTextColor = (numeroPaso: number) => {
     if (numeroPaso < pasoActual) return theme.colors.success;
-    if (numeroPaso === pasoActual) return theme.colors.info;
+    if (numeroPaso === pasoActual) return theme.colors.primary;
     return theme.colors.textMuted;
   };
 

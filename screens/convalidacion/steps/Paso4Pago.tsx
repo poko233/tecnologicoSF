@@ -172,7 +172,7 @@ export function Paso4Pago() {
         <View
           style={[
             styles.totalBox,
-            { backgroundColor: theme.colors.info },
+            { backgroundColor: theme.colors.primary },
           ]}
         >
           <Text style={styles.totalLabel}>Total a cancelar</Text>

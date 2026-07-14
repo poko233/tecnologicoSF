@@ -15,7 +15,11 @@ export const convalidacionService = {
   getCarreras: () => httpClient.getAuth<{ data: Carrera[] }>('/api/carreras'),
 
   getGestiones: () => httpClient.getAuth<{ data: Gestion[] }>('/api/gestiones'),
-
+  resolverSolicitud: (id: number, data: any) =>
+    httpClient.postAuth<{ success: boolean }>(
+      `/api/convalidacion/solicitudes/${id}/resolver`,
+      { ...data, _method: 'PATCH' }
+    ),
   crearSolicitud: (data: any) =>
     httpClient.postAuth<{ success: boolean; data: SolicitudConvalidacion }>(
       '/api/convalidacion/solicitudes',

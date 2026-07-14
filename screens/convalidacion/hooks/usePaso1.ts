@@ -1,4 +1,5 @@
 // screens/convalidacion/hooks/usePaso1.ts
+import { httpClient } from '@http';
 import { useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import { convalidacionService } from '../services/convalidacionService';
@@ -9,6 +10,7 @@ export function usePaso1() {
   const [gestiones, setGestiones] = useState<Gestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [matriculaGenerada, setMatriculaGenerada] = useState<string>('N/A');
 
   const [formData, setFormData] = useState<Paso1FormData>({
     ci: '',
@@ -22,7 +24,6 @@ export function usePaso1() {
     telefono: '',
     celular: '',
     direccion: '',
-    matricula: '',
     idCarreraDestino: null,
     idGestion: null,
     tipo: 'externa',
@@ -38,14 +39,17 @@ export function usePaso1() {
   const loadInitialData = async () => {
     try {
       setLoadingData(true);
-      const [carrerasRes, gestionesRes] = await Promise.all([
+      const [carrerasRes, gestionesRes, matriculaRes] = await Promise.all([
         convalidacionService.getCarreras(),
         convalidacionService.getGestiones(),
+        httpClient.getAuth<{ matricula: string; fechaInscripcion: string }>(
+          '/api/estudiantes/siguiente-matricula'
+        ),
       ]);
-      console.log('Carreras cargadas:', carrerasRes.data);
-      console.log('Gestiones cargadas:', gestionesRes.data);
       setCarreras(carrerasRes.data || []);
-      setGestiones(gestionesRes.data || []);
+      // setGestiones(gestionesRes.data || []);
+      setGestiones((gestionesRes.data || []).filter((g: any) => g.estado === 'activo'));
+      setMatriculaGenerada(matriculaRes.matricula || 'N/A');
     } catch (error: any) {
       console.error('Error cargando datos:', error);
       Toast.show({
@@ -96,14 +100,6 @@ export function usePaso1() {
         type: 'error',
         text1: 'Campo requerido',
         text2: 'La fecha de nacimiento es obligatoria',
-      });
-      return false;
-    }
-    if (!formData.matricula.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Campo requerido',
-        text2: 'La matrícula es obligatoria',
       });
       return false;
     }
@@ -180,5 +176,6 @@ export function usePaso1() {
     loading,
     loadingData,
     submitForm,
+    matriculaGenerada,
   };
 }

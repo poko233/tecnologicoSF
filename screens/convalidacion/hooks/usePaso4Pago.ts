@@ -56,51 +56,54 @@ export function usePaso4Pago(solicitudId: number | null) {
   };
 
   const registrarPago = async () => {
-    if (!solicitudId || !user) return false;
+  if (!solicitudId || !user) return false;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // Si no existe cuota, crearla primero con los valores del formulario
-      if (!cuota || !cuota.id) {
-        const cuotaData = {
-          arancel_por_materia: formData.arancel_por_materia,
-          descuento: formData.descuento,
-          fecha_vencimiento: new Date(
-            Date.now() + 30 * 24 * 60 * 60 * 1000
-          ).toISOString().split('T')[0],
-        };
-        await convalidacionService.crearCuota(solicitudId, cuotaData);
-      }
-
-      // Registrar el pago
-      const pagoData = {
-        metodo: formData.metodo,
-        comprobante: formData.comprobante,
-        fecha_pago: formData.fecha_pago.toISOString().split('T')[0],
-        registrado_por: user.nombreUsuario, // Usar el username del contexto
-      };
-
-      await convalidacionService.registrarPago(solicitudId, pagoData);
-
-      Toast.show({
-        type: 'success',
-        text1: 'Pago registrado',
-        text2: 'El pago se registró correctamente',
+    // 1. Crear cuota si no existe
+    if (!cuota || !cuota.id) {
+      await convalidacionService.crearCuota(solicitudId, {
+        arancel_por_materia: formData.arancel_por_materia,
+        descuento: formData.descuento,
+        fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          .toISOString().split('T')[0],
       });
-
-      return true;
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: error?.message || 'No se pudo registrar el pago',
-      });
-      return false;
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // 2. Registrar el pago
+    await convalidacionService.registrarPago(solicitudId, {
+      metodo: formData.metodo,
+      comprobante: formData.comprobante,
+      fecha_pago: formData.fecha_pago.toISOString().split('T')[0],
+    });
+
+    // 3. ← NUEVO: Resolver la solicitud automáticamente
+    // Esto crea CarreraUsuario, NotaFinal e HistorialAcademico
+    await convalidacionService.resolverSolicitud(solicitudId, {
+      estado: 'aprobada',
+      observacion_resolucion: 'Solicitud procesada con pago registrado',
+      fecha_resolucion: new Date().toISOString().split('T')[0],
+    });
+
+    Toast.show({
+      type: 'success',
+      text1: 'Pago registrado',
+      text2: 'El pago se registró correctamente',
+    });
+
+    return true;
+  } catch (error: any) {
+    Toast.show({
+      type: 'error',
+      text1: 'Error',
+      text2: error?.message || 'No se pudo registrar el pago',
+    });
+    return false;
+  } finally {
+    setLoading(false);
+  }
+};
 
   const updateField = <K extends keyof typeof formData>(
     field: K,

@@ -10,7 +10,8 @@ export interface Gestion {
   id: number;
   nombre: string;
   anio: number;
-  semestre: string;
+  periodo: string;
+  estado: string;
 }
 
 export interface SolicitudConvalidacion {
@@ -124,7 +125,6 @@ export interface Paso1FormData {
   telefono: string;
   celular: string;
   direccion: string;
-  matricula: string;
   idCarreraDestino: number | null;
   idGestion: number | null;
   tipo: 'externa' | 'cambio_carrera';

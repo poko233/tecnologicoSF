@@ -1,5 +1,5 @@
 // screens/convalidacion/steps/Paso1DatosEstudiante.tsx
-import { DatePickerField } from '@/screens/auth/components/DatePickerField';
+import FormDateInput from '@/screens/inscripcion/components/FormDateInput';
 import { useTheme } from '@theme';
 import React from 'react';
 import {
@@ -26,7 +26,7 @@ export function Paso1DatosEstudiante() {
   const { theme } = useTheme();
   const { avanzarPaso, setSolicitudId, setCodigoSolicitud, setIdCarreraDestino, setIdUsuario, setGestionLabel } =
     useConvalidacionContext();
-  const { formData, updateField, carreras, gestiones, loading, loadingData, submitForm } = usePaso1();
+  const { formData, updateField, carreras, gestiones, loading, loadingData, submitForm, matriculaGenerada } = usePaso1();
 
   const handleSiguiente = async () => {
     const result = await submitForm();
@@ -39,7 +39,7 @@ export function Paso1DatosEstudiante() {
       const gestion = gestiones.find(g => g.id === result.idGestion);
       console.log('Gestión encontrada:', gestion, 'para idGestion:', result.idGestion);
       if (gestion) {
-        const label = `${gestion.anio || 'N/A'} — ${gestion.semestre || 'N/A'}`;
+        const label = `${gestion.anio || 'N/A'} — ${gestion.nombre || 'N/A'}`;
         console.log('Setting gestionLabel:', label);
         setGestionLabel(label);
       } else {
@@ -181,19 +181,25 @@ export function Paso1DatosEstudiante() {
 
         {/* Fecha de Nacimiento */}
         <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.colors.textMuted }]}>
-            FECHA DE NACIMIENTO *
-          </Text>
-          <DatePickerField
-            label="Seleccione fecha"
+          <FormDateInput
+            label="Fecha de nacimiento"
             value={
               formData.fecha_nac
-                ? formData.fecha_nac.toISOString().split('T')[0]
-                : null
+                ? `${String(formData.fecha_nac.getDate()).padStart(2,'0')}/${String(formData.fecha_nac.getMonth()+1).padStart(2,'0')}/${formData.fecha_nac.getFullYear()}`
+                : ''
             }
-            onChange={(dateString) => {
-              const date = new Date(dateString + 'T12:00:00');
-              updateField('fecha_nac', date);
+            onChangeText={(text) => {
+              // FormDateInput devuelve dd/mm/yyyy
+              const parts = text.split('/');
+              if (parts.length === 3) {
+                const date = new Date(
+                  parseInt(parts[2]),
+                  parseInt(parts[1]) - 1,
+                  parseInt(parts[0]),
+                  12, 0, 0
+                );
+                updateField('fecha_nac', date);
+              }
             }}
           />
         </View>
@@ -286,27 +292,32 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Matrícula */}
+        {/* Matrícula — generada automáticamente por el backend */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
-            Nº DE MATRÍCULA *
+            Nº DE MATRÍCULA
           </Text>
-          <TextInput
+          <View
             style={[
               styles.input,
               {
-                backgroundColor: theme.colors.input,
-                borderColor: theme.colors.inputBorder,
-                color: theme.colors.text,
+                backgroundColor: theme.colors.backgroundSecondary,
+                borderColor: theme.colors.border,
+                justifyContent: 'center',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
               },
             ]}
-            value={formData.matricula}
-            onChangeText={(text) => updateField('matricula', text)}
-            placeholder="MAT-2024-00001"
-            placeholderTextColor={theme.colors.textMuted}
-          />
+          >
+            <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '600', flex: 1 }}>
+              {matriculaGenerada}
+            </Text>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 11 }}>
+              Auto
+            </Text>
+          </View>
         </View>
-
         {/* Carrera Destino */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
@@ -337,9 +348,9 @@ export function Paso1DatosEstudiante() {
             value={formData.idGestion || ''}
             onChange={(value) => updateField('idGestion', value ? parseInt(value) : null)}
             options={gestiones.map((g) => ({
-              label: g.nombre,
-              value: g.id,
-            }))}
+            label: `${g.nombre} — ${g.periodo}`,
+            value: g.id,
+          }))}
             placeholder="Seleccione gestión"
           />
           {gestiones.length === 0 && !loadingData && (
@@ -437,7 +448,7 @@ export function Paso1DatosEstudiante() {
           onPress={handleSiguiente}
           style={[
             styles.button,
-            { backgroundColor: theme.colors.info },
+            { backgroundColor: theme.colors.primary },
           ]}
           disabled={loading}
         >

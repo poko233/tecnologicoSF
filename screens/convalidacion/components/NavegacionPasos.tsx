@@ -53,8 +53,8 @@ export function NavegacionPasos({
           styles.buttonFilled,
           {
             backgroundColor: siguienteDisabled
-              ? theme.colors.backgroundTertiary
-              : theme.colors.info,
+              ? theme.colors.primary
+              : theme.colors.primary,
           },
         ]}
         disabled={siguienteDisabled || loading}

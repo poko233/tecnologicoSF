@@ -243,7 +243,7 @@ export function Paso2Documentos() {
             styles.buttonFilled,
             {
               backgroundColor: validarObligatorios()
-                ? theme.colors.info
+                ? theme.colors.primary
                 : theme.colors.backgroundTertiary,
             },
           ]}

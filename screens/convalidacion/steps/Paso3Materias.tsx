@@ -304,11 +304,11 @@ export function Paso3Materias() {
           onPress={() => setModalVisible(true)}
           style={[
             styles.addButton,
-            { borderColor: theme.colors.info },
+            { borderColor: theme.colors.primary },
           ]}
         >
-          <Ionicons name="add-circle-outline" size={20} color={theme.colors.info} />
-          <Text style={[styles.addButtonText, { color: theme.colors.info }]}>
+          <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
+          <Text style={[styles.addButtonText, { color: theme.colors.primary }]}>
             Agregar materia
           </Text>
         </TouchableOpacity>
@@ -333,7 +333,7 @@ export function Paso3Materias() {
             style={[
               styles.button,
               styles.buttonFilled,
-              { backgroundColor: theme.colors.info },
+              { backgroundColor: theme.colors.primary },
             ]}
           >
             <Text style={styles.buttonTextWhite}>Siguiente →</Text>
@@ -501,7 +501,7 @@ export function Paso3Materias() {
                 style={[
                   styles.modalButton,
                   styles.buttonFilled,
-                  { backgroundColor: theme.colors.info },
+                  { backgroundColor: theme.colors.primary },
                 ]}
                 disabled={loading}
               >
