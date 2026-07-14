@@ -1,32 +1,44 @@
 import { httpClient } from "../../../http/httpClient";
 
 import {
+  CarreraAsignacion,
   DetalleEstudianteResponse,
   Estudiante,
   EstudianteForm,
   InscribirResponse,
-  MateriaSemestreUno,
+  MateriasSemestreUnoResponse,
   TurnoInscripcion,
 } from "../types/asignaciones.types";
 
-/**
- * Obtiene únicamente los estudiantes relacionados con la carrera elegida.
- * idCarrera es obligatorio para evitar cargar alumnos de todas las carreras.
- */
+export async function getCarrerasAsignaciones(): Promise<CarreraAsignacion[]> {
+  const response = await httpClient.getAuth<{
+    carreras?: CarreraAsignacion[];
+    data?: CarreraAsignacion[];
+  }>("/api/asignaciones/carreras");
+
+  return response.carreras ?? response.data ?? [];
+}
+
 export async function getEstudiantesAsignaciones(
   idCarrera: number,
+  nivel?: number | null,
 ): Promise<Estudiante[]> {
+  const params = new URLSearchParams();
+
+  params.append("idCarrera", String(idCarrera));
+
+  if (nivel !== undefined && nivel !== null && Number(nivel) > 0) {
+    params.append("nivel", String(nivel));
+  }
+
   const response = await httpClient.getAuth<{
     estudiantes?: Estudiante[];
     data?: Estudiante[];
-  }>(`/api/asignaciones/estudiantes?idCarrera=${idCarrera}`);
+  }>(`/api/asignaciones/estudiantes?${params.toString()}`);
 
   return response.estudiantes ?? response.data ?? [];
 }
 
-/**
- * Obtiene el detalle académico y personal de un estudiante.
- */
 export async function getDetalleEstudiante(
   idUsuario: number,
 ): Promise<DetalleEstudianteResponse> {
@@ -37,50 +49,76 @@ export async function getDetalleEstudiante(
   return response;
 }
 
-/**
- * Obtiene las materias de primer semestre de la carrera elegida
- * para poder inscribir al estudiante.
- */
 export async function getMateriasSemestreUno(
   idUsuario: number,
   idCarrera?: number | null,
-): Promise<MateriaSemestreUno[]> {
-  const query =
-    idCarrera !== undefined && idCarrera !== null && idCarrera > 0
-      ? `?idCarrera=${idCarrera}`
-      : "";
+  nivel?: number | null,
+): Promise<MateriasSemestreUnoResponse> {
+  const params = new URLSearchParams();
 
-  const response = await httpClient.getAuth<{
-    materias?: MateriaSemestreUno[];
-    data?: MateriaSemestreUno[];
-  }>(`/api/asignaciones/estudiantes/${idUsuario}/semestre-uno${query}`);
+  if (idCarrera !== undefined && idCarrera !== null && Number(idCarrera) > 0) {
+    params.append("idCarrera", String(idCarrera));
+  }
 
-  return response.materias ?? response.data ?? [];
+  if (nivel !== undefined && nivel !== null && Number(nivel) > 0) {
+    params.append("nivel", String(nivel));
+  }
+
+  const query = params.toString();
+
+  const response = await httpClient.getAuth<MateriasSemestreUnoResponse>(
+    `/api/asignaciones/estudiantes/${idUsuario}/semestre-uno${
+      query ? `?${query}` : ""
+    }`,
+  );
+
+  return {
+    materias: response.materias ?? response.data ?? [],
+
+    materiasPendientesAnteriores: response.materiasPendientesAnteriores ?? [],
+    tienePendientesAnteriores: Boolean(response.tienePendientesAnteriores),
+    totalPendientesAnteriores: Number(response.totalPendientesAnteriores ?? 0),
+
+    materiasBloqueadasPrerequisito:
+      response.materiasBloqueadasPrerequisito ?? [],
+    totalMateriasBloqueadasPrerequisito: Number(
+      response.totalMateriasBloqueadasPrerequisito ?? 0,
+    ),
+
+    esNivelInicial: Boolean(response.esNivelInicial),
+    nivelSeleccionado: response.nivelSeleccionado,
+    labelNivel: response.labelNivel,
+    gestionActiva: response.gestionActiva ?? null,
+  };
 }
 
-/**
- * Inscribe al estudiante en las materias disponibles del semestre 1,
- * según la carrera y turno seleccionados.
- */
 export async function inscribirSemestreUno(
   idUsuario: number,
   idCarrera: number,
   turno: TurnoInscripcion,
+  nivel?: number | null,
 ): Promise<InscribirResponse> {
+  const payload: {
+    idCarrera: number;
+    turno: TurnoInscripcion;
+    nivel?: number;
+  } = {
+    idCarrera,
+    turno,
+  };
+
+  if (nivel !== undefined && nivel !== null && Number(nivel) > 0) {
+    payload.nivel = Number(nivel);
+  }
+
   const response = await httpClient.postAuth<InscribirResponse>(
     `/api/asignaciones/estudiantes/${idUsuario}/inscribir-semestre-uno`,
-    {
-      idCarrera,
-      turno,
-    },
+    payload,
   );
 
   return response;
 }
 
-/**
- * Actualiza los datos básicos del estudiante desde Asignaciones.
- */
 export async function actualizarEstudianteAsignacion(
   idUsuario: number,
   form: EstudianteForm,

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -14,6 +14,8 @@ import { useTheme } from "../../../theme/useTheme";
 import {
   CarreraEstudiante,
   Estudiante,
+  MateriaBloqueadaPrerequisito,
+  MateriaPendienteAnterior,
   MateriaSemestreUno,
   TurnoInscripcion,
 } from "../types/asignaciones.types";
@@ -23,6 +25,8 @@ type Props = {
   estudiante: Estudiante | null;
   carreras: CarreraEstudiante[];
   materias: MateriaSemestreUno[];
+  materiasPendientesAnteriores: MateriaPendienteAnterior[];
+  materiasBloqueadasPrerequisito: MateriaBloqueadaPrerequisito[];
   loading: boolean;
   loadingMaterias: boolean;
   inscribiendo: boolean;
@@ -38,11 +42,33 @@ type PasoModal = "carrera" | "inscripcion";
 
 const TURNOS: TurnoInscripcion[] = ["Mañana", "Tarde", "Noche"];
 
+function normalizarTurno(turno?: string | null): TurnoInscripcion | "" {
+  const value = String(turno ?? "").trim().toLowerCase();
+
+  if (value === "mañana" || value === "manana") return "Mañana";
+  if (value === "tarde") return "Tarde";
+  if (value === "noche") return "Noche";
+
+  return "";
+}
+
+function nombreCompleto(estudiante: Estudiante | null) {
+  if (!estudiante) return "";
+
+  return `${estudiante.nombres ?? ""} ${estudiante.apellidoPaterno ?? ""} ${
+    estudiante.apellidoMaterno ?? ""
+  }`
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function InscribirModal({
   visible,
   estudiante,
   carreras,
   materias,
+  materiasPendientesAnteriores,
+  materiasBloqueadasPrerequisito,
   loading,
   loadingMaterias,
   inscribiendo,
@@ -73,18 +99,14 @@ export default function InscribirModal({
     : "rgba(15,23,42,0.11)";
 
   const [paso, setPaso] = useState<PasoModal>("carrera");
-
   const [carreraSeleccionada, setCarreraSeleccionada] =
     useState<CarreraEstudiante | null>(null);
-
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<
     TurnoInscripcion | ""
   >("");
 
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
+    if (!visible) return;
 
     setPaso("carrera");
     setCarreraSeleccionada(null);
@@ -93,44 +115,39 @@ export default function InscribirModal({
 
   const cargandoDatos = loading || !estudiante;
 
-  const nombre = estudiante
-    ? `${estudiante.nombres} ${estudiante.apellidoPaterno} ${
-        estudiante.apellidoMaterno ?? ""
-      }`.trim()
-    : "";
+  const pendientesAnteriores = Array.isArray(materiasPendientesAnteriores)
+    ? materiasPendientesAnteriores
+    : [];
 
-  const materiasYaInscritas = materias.filter(
+  const bloqueadasPrerequisito = Array.isArray(materiasBloqueadasPrerequisito)
+    ? materiasBloqueadasPrerequisito
+    : [];
+
+  const materiasConGrupoDelTurno = useMemo(() => {
+    return materias.map((materia) => {
+      const gruposDisponibles = Array.isArray(materia.gruposDisponibles)
+        ? materia.gruposDisponibles
+        : materia.grupoSeleccionado
+          ? [materia.grupoSeleccionado]
+          : [];
+
+      const grupoSeleccionado = turnoSeleccionado
+        ? gruposDisponibles.find(
+            (grupo) => normalizarTurno(grupo.turno) === turnoSeleccionado,
+          ) ?? null
+        : null;
+
+      return {
+        ...materia,
+        gruposDisponibles,
+        grupoSeleccionado,
+      };
+    });
+  }, [materias, turnoSeleccionado]);
+
+  const materiasYaInscritas = materiasConGrupoDelTurno.filter(
     (materia) => materia.yaInscrito,
   );
-
-  const materiasPendientesBase = materias.filter(
-    (materia) => !materia.yaInscrito,
-  );
-
-  const todasMateriasInscritas =
-    materias.length > 0 &&
-    materiasYaInscritas.length > 0 &&
-    materiasPendientesBase.length === 0;
-
-  const materiasConGrupoDelTurno = materias.map((materia) => {
-    const gruposDisponibles = Array.isArray(materia.gruposDisponibles)
-      ? materia.gruposDisponibles
-      : materia.grupoSeleccionado
-        ? [materia.grupoSeleccionado]
-        : [];
-
-    const grupoSeleccionado = turnoSeleccionado
-      ? gruposDisponibles.find(
-          (grupo) => grupo.turno === turnoSeleccionado,
-        ) ?? null
-      : null;
-
-    return {
-      ...materia,
-      gruposDisponibles,
-      grupoSeleccionado,
-    };
-  });
 
   const materiasPendientes = materiasConGrupoDelTurno.filter(
     (materia) => !materia.yaInscrito && materia.grupoSeleccionado !== null,
@@ -141,13 +158,10 @@ export default function InscribirModal({
     turnoSeleccionado !== "" &&
     materiasPendientes.length > 0 &&
     !loadingMaterias &&
-    !inscribiendo &&
-    !todasMateriasInscritas;
+    !inscribiendo;
 
   const seleccionarCarrera = async (carrera: CarreraEstudiante) => {
-    if (inscribiendo) {
-      return;
-    }
+    if (inscribiendo) return;
 
     setCarreraSeleccionada(carrera);
     setTurnoSeleccionado("");
@@ -157,9 +171,7 @@ export default function InscribirModal({
   };
 
   const volverACarreras = () => {
-    if (loadingMaterias || inscribiendo) {
-      return;
-    }
+    if (loadingMaterias || inscribiendo) return;
 
     setPaso("carrera");
     setCarreraSeleccionada(null);
@@ -167,13 +179,7 @@ export default function InscribirModal({
   };
 
   const confirmarInscripcion = async () => {
-    if (
-      !carreraSeleccionada ||
-      !turnoSeleccionado ||
-      !puedeInscribir
-    ) {
-      return;
-    }
+    if (!carreraSeleccionada || !turnoSeleccionado || !puedeInscribir) return;
 
     await onConfirm(carreraSeleccionada.idCarrera, turnoSeleccionado);
   };
@@ -181,15 +187,44 @@ export default function InscribirModal({
   const getIconoTurno = (
     turno: TurnoInscripcion,
   ): keyof typeof Ionicons.glyphMap => {
-    if (turno === "Mañana") {
-      return "sunny-outline";
-    }
-
-    if (turno === "Tarde") {
-      return "partly-sunny-outline";
-    }
-
+    if (turno === "Mañana") return "sunny-outline";
+    if (turno === "Tarde") return "partly-sunny-outline";
     return "moon-outline";
+  };
+
+  const getMateriaStatus = (materia: MateriaSemestreUno) => {
+    if (materia.yaInscrito) {
+      return {
+        status: "Inscrita",
+        color: "#22C55E",
+      };
+    }
+
+    if (materia.estadoAcademico === "reprobada") {
+      return {
+        status: "Reprobada",
+        color: "#EF4444",
+      };
+    }
+
+    if (materia.estadoAcademico === "abandono") {
+      return {
+        status: "Abandono",
+        color: "#F59E0B",
+      };
+    }
+
+    if (materia.estadoAcademico === "pendiente") {
+      return {
+        status: "Pendiente",
+        color: "#F59E0B",
+      };
+    }
+
+    return {
+      status: "Disponible",
+      color: theme.colors.primary,
+    };
   };
 
   return (
@@ -216,28 +251,26 @@ export default function InscribirModal({
                   styles.headerIcon,
                   {
                     backgroundColor: isDark
-                      ? "rgba(59,130,246,0.18)"
-                      : "#DBEAFE",
+                      ? "rgba(239,68,68,0.18)"
+                      : "#FEE2E2",
                   },
                 ]}
               >
-                <Ionicons
-                  name="school-outline"
-                  size={25}
-                  color={theme.colors.primary}
-                />
+                <Ionicons name="cube-outline" size={25} color="#EF4444" />
               </View>
 
               <View style={styles.headerText}>
                 <ThemedText style={[styles.title, { color: strongText }]}>
-                  Inscribir semestre 1
+                  Inscribir materias
                 </ThemedText>
 
                 <ThemedText
                   numberOfLines={1}
                   style={[styles.studentName, { color: mutedText }]}
                 >
-                  {cargandoDatos ? "Preparando datos..." : nombre}
+                  {cargandoDatos
+                    ? "Preparando datos..."
+                    : nombreCompleto(estudiante)}
                 </ThemedText>
               </View>
             </View>
@@ -253,7 +286,7 @@ export default function InscribirModal({
                 },
               ]}
             >
-              <Ionicons name="close" size={24} color={strongText} />
+              <Ionicons name="close" size={25} color={strongText} />
             </Pressable>
           </View>
 
@@ -316,8 +349,8 @@ export default function InscribirModal({
                   <ThemedText
                     style={[styles.stepInfoSubtitle, { color: mutedText }]}
                   >
-                    Primero elija la carrera en la que se realizará la
-                    inscripción del estudiante.
+                    Primero elija la carrera para cargar las materias
+                    disponibles del estudiante.
                   </ThemedText>
                 </View>
               </View>
@@ -325,7 +358,7 @@ export default function InscribirModal({
               <ScrollView
                 style={styles.carrerasList}
                 contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator
               >
                 {carreras.length === 0 ? (
                   <View
@@ -402,8 +435,8 @@ export default function InscribirModal({
                             { color: mutedText },
                           ]}
                         >
-                          Código: {carrera.codigo} · Régimen:{" "}
-                          {carrera.regimen}
+                          Código: {carrera.codigo ?? "Sin código"} · Régimen:{" "}
+                          {carrera.regimen ?? "Sin régimen"}
                         </ThemedText>
                       </View>
 
@@ -466,16 +499,12 @@ export default function InscribirModal({
                       styles.carreraSeleccionadaIcon,
                       {
                         backgroundColor: isDark
-                          ? "rgba(59,130,246,0.18)"
-                          : "#DBEAFE",
+                          ? "rgba(239,68,68,0.18)"
+                          : "#FEE2E2",
                       },
                     ]}
                   >
-                    <Ionicons
-                      name="school-outline"
-                      size={20}
-                      color={theme.colors.primary}
-                    />
+                    <Ionicons name="cube-outline" size={20} color="#EF4444" />
                   </View>
 
                   <View style={styles.carreraSeleccionadaText}>
@@ -510,9 +539,7 @@ export default function InscribirModal({
                       borderColor: border,
                       backgroundColor: softBgStrong,
                       opacity:
-                        pressed || loadingMaterias || inscribiendo
-                          ? 0.75
-                          : 1,
+                        pressed || loadingMaterias || inscribiendo ? 0.75 : 1,
                     },
                   ]}
                 >
@@ -556,471 +583,549 @@ export default function InscribirModal({
                     Buscando grupos disponibles para esta carrera...
                   </ThemedText>
                 </View>
-              ) : todasMateriasInscritas ? (
-                <>
-                  <View
-                    style={[
-                      styles.inscripcionCompletaBox,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(34,197,94,0.10)"
-                          : "#F0FDF4",
-                        borderColor: isDark
-                          ? "rgba(34,197,94,0.28)"
-                          : "#BBF7D0",
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.inscripcionCompletaIcon,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(34,197,94,0.18)"
-                            : "#DCFCE7",
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name="checkmark-done-outline"
-                        size={25}
-                        color="#22C55E"
-                      />
-                    </View>
-
-                    <View style={styles.inscripcionCompletaText}>
-                      <ThemedText
-                        style={[
-                          styles.inscripcionCompletaTitle,
-                          { color: strongText },
-                        ]}
-                      >
-                        Inscripción completa
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.inscripcionCompletaSubtitle,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Todas las materias de esta carrera ya fueron inscritas.
-                      </ThemedText>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.inscritasCountBadge,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(34,197,94,0.18)"
-                            : "#DCFCE7",
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.inscritasCountText,
-                          { color: "#22C55E" },
-                        ]}
-                      >
-                        {materiasYaInscritas.length}
-                      </ThemedText>
-                    </View>
-                  </View>
-
-                  <View style={styles.materiasTopRow}>
-                    <View style={styles.materiasTopText}>
-                      <ThemedText
-                        style={[styles.sectionTitle, { color: strongText }]}
-                      >
-                        Materias ya inscritas
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[styles.materiasInfoText, { color: mutedText }]}
-                      >
-                        Esta carrera ya tiene todas sus materias registradas.
-                      </ThemedText>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.countBadge,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(34,197,94,0.16)"
-                            : "#DCFCE7",
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.countBadgeText,
-                          { color: "#22C55E" },
-                        ]}
-                      >
-                        {materiasYaInscritas.length}
-                      </ThemedText>
-                    </View>
-                  </View>
-
-                  <ScrollView
-                    style={styles.materiasList}
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator
-                  >
-                    {materiasYaInscritas.map((materia) => (
-                      <MateriaCard
-                        key={`inscrita-${materia.idCarrera}-${materia.idMateria}`}
-                        materia={materia}
-                        status="Inscrita"
-                        statusColor="#22C55E"
-                        backgroundColor={softBg}
-                        borderColor={border}
-                        strongText={strongText}
-                        mutedText={mutedText}
-                      />
-                    ))}
-                  </ScrollView>
-                </>
               ) : (
                 <>
-                  <View
-                    style={[
-                      styles.turnoCompactContainer,
-                      {
-                        backgroundColor: softBg,
-                        borderColor: border,
-                      },
-                    ]}
+                  <ScrollView
+                    style={styles.contentScroll}
+                    contentContainerStyle={styles.contentScrollContent}
+                    showsVerticalScrollIndicator
+                    nestedScrollEnabled
                   >
-                    <View style={styles.turnoCompactHeader}>
-                      <View style={styles.turnoIcon}>
-                        <Ionicons
-                          name="time-outline"
-                          size={19}
-                          color={theme.colors.primary}
-                        />
-                      </View>
+                    {pendientesAnteriores.length > 0 && (
+                      <WarningBox
+                        title="Tiene materias pendientes anteriores"
+                        text="Puede avanzar e inscribirse al nivel seleccionado, pero todavía debe aprobar estas materias anteriores."
+                        strongText={strongText}
+                        mutedText={mutedText}
+                        isDark={isDark}
+                      >
+                        {pendientesAnteriores.map((materia) => (
+                          <MateriaPendienteAnteriorCard
+                            key={`pendiente-anterior-${materia.idMateria}`}
+                            materia={materia}
+                            strongText={strongText}
+                            mutedText={mutedText}
+                            backgroundColor={softBgStrong}
+                            borderColor={border}
+                          />
+                        ))}
+                      </WarningBox>
+                    )}
 
-                      <View style={styles.turnoHeaderText}>
-                        <ThemedText
-                          style={[styles.turnoTitle, { color: strongText }]}
+                    {bloqueadasPrerequisito.length > 0 && (
+                      <WarningBox
+                        title="Materias bloqueadas por prerequisito"
+                        text="Estas materias no se inscribirán hasta que el estudiante apruebe su prerequisito."
+                        strongText={strongText}
+                        mutedText={mutedText}
+                        isDark={isDark}
+                      >
+                        {bloqueadasPrerequisito.map((materia) => (
+                          <MateriaBloqueadaCard
+                            key={`bloqueada-${materia.idMateria}`}
+                            materia={materia}
+                            strongText={strongText}
+                            mutedText={mutedText}
+                            backgroundColor={softBgStrong}
+                            borderColor={border}
+                          />
+                        ))}
+                      </WarningBox>
+                    )}
+
+                    <View
+                      style={[
+                        styles.turnoCompactContainer,
+                        {
+                          backgroundColor: softBg,
+                          borderColor: border,
+                        },
+                      ]}
+                    >
+                      <View style={styles.turnoCompactHeader}>
+                        <View
+                          style={[
+                            styles.turnoIcon,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(239,68,68,0.18)"
+                                : "#FEE2E2",
+                            },
+                          ]}
                         >
-                          Turno de inscripción
-                        </ThemedText>
+                          <Ionicons
+                            name="time-outline"
+                            size={19}
+                            color="#EF4444"
+                          />
+                        </View>
 
-                        <ThemedText
-                          style={[styles.turnoSubtitle, { color: mutedText }]}
-                        >
-                          Seleccione el turno en el que cursará el estudiante.
-                        </ThemedText>
-                      </View>
-                    </View>
+                        <View style={styles.turnoHeaderText}>
+                          <ThemedText
+                            style={[styles.turnoTitle, { color: strongText }]}
+                          >
+                            Turno de inscripción
+                          </ThemedText>
 
-                    <View style={styles.turnosRow}>
-                      {TURNOS.map((turno) => {
-                        const seleccionado = turnoSeleccionado === turno;
-
-                        return (
-                          <Pressable
-                            key={turno}
-                            disabled={inscribiendo}
-                            onPress={() => setTurnoSeleccionado(turno)}
-                            style={({ pressed }) => [
-                              styles.turnoButtonCompact,
-                              {
-                                backgroundColor: seleccionado
-                                  ? theme.colors.primary
-                                  : softBgStrong,
-                                borderColor: seleccionado
-                                  ? theme.colors.primary
-                                  : border,
-                                opacity: pressed || inscribiendo ? 0.76 : 1,
-                              },
+                          <ThemedText
+                            style={[
+                              styles.turnoSubtitle,
+                              { color: mutedText },
                             ]}
                           >
-                            <Ionicons
-                              name={getIconoTurno(turno)}
-                              size={18}
-                              color={seleccionado ? "#FFFFFF" : mutedText}
-                            />
+                            Seleccione el turno en el que cursará el estudiante.
+                          </ThemedText>
+                        </View>
+                      </View>
 
-                            <ThemedText
-                              style={[
-                                styles.turnoButtonText,
+                      <View style={styles.turnosRow}>
+                        {TURNOS.map((turno) => {
+                          const seleccionado = turnoSeleccionado === turno;
+
+                          return (
+                            <Pressable
+                              key={turno}
+                              disabled={inscribiendo}
+                              onPress={() => setTurnoSeleccionado(turno)}
+                              style={({ pressed }) => [
+                                styles.turnoButtonCompact,
                                 {
-                                  color: seleccionado
-                                    ? "#FFFFFF"
-                                    : strongText,
+                                  backgroundColor: seleccionado
+                                    ? "#EF4444"
+                                    : softBgStrong,
+                                  borderColor: seleccionado ? "#EF4444" : border,
+                                  opacity: pressed || inscribiendo ? 0.76 : 1,
                                 },
                               ]}
                             >
-                              {turno}
-                            </ThemedText>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
+                              <Ionicons
+                                name={getIconoTurno(turno)}
+                                size={18}
+                                color={seleccionado ? "#FFFFFF" : mutedText}
+                              />
 
-                  <View style={styles.materiasTopRow}>
-                    <View style={styles.materiasTopText}>
-                      <ThemedText
-                        style={[styles.sectionTitle, { color: strongText }]}
-                      >
-                        Materias que se van a inscribir
-                      </ThemedText>
-
-                      <ThemedText
-                        numberOfLines={1}
-                        style={[styles.materiasInfoText, { color: mutedText }]}
-                      >
-                        {turnoSeleccionado
-                          ? `Grupos activos disponibles para el turno ${turnoSeleccionado}.`
-                          : "Seleccione un turno para ver las materias disponibles."}
-                      </ThemedText>
-                    </View>
-
-                    <View style={styles.resumenChips}>
-                      <View
-                        style={[
-                          styles.resumenChip,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(59,130,246,0.18)"
-                              : "#DBEAFE",
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          style={[
-                            styles.resumenChipNumber,
-                            { color: theme.colors.primary },
-                          ]}
-                        >
-                          {turnoSeleccionado ? materiasPendientes.length : 0}
-                        </ThemedText>
-
-                        <ThemedText
-                          style={[
-                            styles.resumenChipLabel,
-                            { color: theme.colors.primary },
-                          ]}
-                        >
-                          Pendientes
-                        </ThemedText>
-                      </View>
-
-                      <View
-                        style={[
-                          styles.resumenChip,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(34,197,94,0.16)"
-                              : "#DCFCE7",
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          style={[
-                            styles.resumenChipNumber,
-                            { color: "#22C55E" },
-                          ]}
-                        >
-                          {materiasYaInscritas.length}
-                        </ThemedText>
-
-                        <ThemedText
-                          style={[
-                            styles.resumenChipLabel,
-                            { color: "#22C55E" },
-                          ]}
-                        >
-                          Inscritas
-                        </ThemedText>
+                              <ThemedText
+                                style={[
+                                  styles.turnoButtonText,
+                                  {
+                                    color: seleccionado
+                                      ? "#FFFFFF"
+                                      : strongText,
+                                  },
+                                ]}
+                              >
+                                {turno}
+                              </ThemedText>
+                            </Pressable>
+                          );
+                        })}
                       </View>
                     </View>
-                  </View>
 
-                  <ScrollView
-                    style={styles.materiasList}
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator
-                  >
-                    {!turnoSeleccionado ? (
-                      <View
-                        style={[
-                          styles.emptyState,
-                          {
-                            backgroundColor: softBg,
-                            borderColor: border,
-                          },
-                        ]}
-                      >
-                        <Ionicons
-                          name="time-outline"
-                          size={38}
-                          color={theme.colors.primary}
-                        />
-
+                    <View style={styles.materiasTopRow}>
+                      <View style={styles.materiasTopText}>
                         <ThemedText
-                          style={[styles.emptyTitle, { color: strongText }]}
+                          style={[styles.sectionTitle, { color: strongText }]}
                         >
-                          Seleccione un turno
+                          Materias que se van a inscribir
                         </ThemedText>
 
                         <ThemedText
-                          style={[styles.emptyText, { color: mutedText }]}
+                          style={[
+                            styles.materiasInfoText,
+                            { color: mutedText },
+                          ]}
                         >
-                          Debe seleccionar Mañana, Tarde o Noche antes de
-                          continuar.
+                          {turnoSeleccionado
+                            ? `Grupos activos disponibles para el turno ${turnoSeleccionado}.`
+                            : "Seleccione un turno para ver las materias disponibles."}
                         </ThemedText>
                       </View>
-                    ) : materiasPendientes.length === 0 ? (
-                      <View
-                        style={[
-                          styles.emptyState,
-                          {
-                            backgroundColor: softBg,
-                            borderColor: border,
-                          },
-                        ]}
-                      >
-                        <Ionicons
-                          name="alert-circle-outline"
-                          size={38}
-                          color="#F59E0B"
-                        />
 
-                        <ThemedText
-                          style={[styles.emptyTitle, { color: strongText }]}
+                      <View style={styles.resumenChips}>
+                        <View
+                          style={[
+                            styles.resumenChip,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(239,68,68,0.18)"
+                                : "#FEE2E2",
+                            },
+                          ]}
                         >
-                          No hay materias disponibles
-                        </ThemedText>
-
-                        <ThemedText
-                          style={[styles.emptyText, { color: mutedText }]}
-                        >
-                          No existen grupos activos con cupos para el turno
-                          seleccionado.
-                        </ThemedText>
-                      </View>
-                    ) : (
-                      materiasPendientes.map((materia) => (
-                        <MateriaCard
-                          key={`${materia.idCarrera}-${materia.idMateria}`}
-                          materia={materia}
-                          status="Pendiente"
-                          statusColor={theme.colors.primary}
-                          backgroundColor={softBg}
-                          borderColor={border}
-                          strongText={strongText}
-                          mutedText={mutedText}
-                        />
-                      ))
-                    )}
-
-                    {materiasYaInscritas.length > 0 && (
-                      <>
-                        <View style={styles.inscritasMiniHeader}>
                           <ThemedText
                             style={[
-                              styles.inscritasMiniTitle,
-                              { color: strongText },
+                              styles.resumenChipNumber,
+                              { color: "#EF4444" },
                             ]}
                           >
-                            Materias ya inscritas
+                            {turnoSeleccionado ? materiasPendientes.length : 0}
+                          </ThemedText>
+
+                          <ThemedText
+                            style={[
+                              styles.resumenChipLabel,
+                              { color: "#EF4444" },
+                            ]}
+                          >
+                            Pendientes
                           </ThemedText>
                         </View>
 
-                        {materiasYaInscritas.map((materia) => (
-                          <MateriaCard
-                            key={`inscrita-${materia.idCarrera}-${materia.idMateria}`}
-                            materia={materia}
-                            status="Inscrita"
-                            statusColor="#22C55E"
-                            backgroundColor={softBg}
-                            borderColor={border}
-                            strongText={strongText}
-                            mutedText={mutedText}
+                        <View
+                          style={[
+                            styles.resumenChip,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(34,197,94,0.16)"
+                                : "#DCFCE7",
+                            },
+                          ]}
+                        >
+                          <ThemedText
+                            style={[
+                              styles.resumenChipNumber,
+                              { color: "#22C55E" },
+                            ]}
+                          >
+                            {materiasYaInscritas.length}
+                          </ThemedText>
+
+                          <ThemedText
+                            style={[
+                              styles.resumenChipLabel,
+                              { color: "#22C55E" },
+                            ]}
+                          >
+                            Inscritas
+                          </ThemedText>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.materiasContainer}>
+                      {!turnoSeleccionado ? (
+                        <View
+                          style={[
+                            styles.emptyState,
+                            {
+                              backgroundColor: softBg,
+                              borderColor: border,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name="time-outline"
+                            size={38}
+                            color="#EF4444"
                           />
-                        ))}
-                      </>
-                    )}
+
+                          <ThemedText
+                            style={[styles.emptyTitle, { color: strongText }]}
+                          >
+                            Seleccione un turno
+                          </ThemedText>
+
+                          <ThemedText
+                            style={[styles.emptyText, { color: mutedText }]}
+                          >
+                            Debe seleccionar Mañana, Tarde o Noche antes de
+                            continuar.
+                          </ThemedText>
+                        </View>
+                      ) : materiasPendientes.length === 0 ? (
+                        <View
+                          style={[
+                            styles.emptyState,
+                            {
+                              backgroundColor: softBg,
+                              borderColor: border,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name="alert-circle-outline"
+                            size={38}
+                            color="#F59E0B"
+                          />
+
+                          <ThemedText
+                            style={[styles.emptyTitle, { color: strongText }]}
+                          >
+                            No hay materias disponibles
+                          </ThemedText>
+
+                          <ThemedText
+                            style={[styles.emptyText, { color: mutedText }]}
+                          >
+                            No existen grupos activos con cupos para el turno
+                            seleccionado o las materias ya están inscritas.
+                          </ThemedText>
+                        </View>
+                      ) : (
+                        materiasPendientes.map((materia) => {
+                          const estado = getMateriaStatus(materia);
+
+                          return (
+                            <MateriaCard
+                              key={`${materia.idCarrera}-${materia.idMateria}`}
+                              materia={materia}
+                              status={estado.status}
+                              statusColor={estado.color}
+                              backgroundColor={softBg}
+                              borderColor={border}
+                              strongText={strongText}
+                              mutedText={mutedText}
+                            />
+                          );
+                        })
+                      )}
+
+                      {materiasYaInscritas.length > 0 && (
+                        <>
+                          <View style={styles.inscritasMiniHeader}>
+                            <ThemedText
+                              style={[
+                                styles.inscritasMiniTitle,
+                                { color: strongText },
+                              ]}
+                            >
+                              Materias ya inscritas
+                            </ThemedText>
+                          </View>
+
+                          {materiasYaInscritas.map((materia) => (
+                            <MateriaCard
+                              key={`inscrita-${materia.idCarrera}-${materia.idMateria}`}
+                              materia={materia}
+                              status="Inscrita"
+                              statusColor="#22C55E"
+                              backgroundColor={softBg}
+                              borderColor={border}
+                              strongText={strongText}
+                              mutedText={mutedText}
+                            />
+                          ))}
+                        </>
+                      )}
+                    </View>
                   </ScrollView>
+
+                  <View style={[styles.footer, { borderTopColor: border }]}>
+                    <Pressable
+                      onPress={volverACarreras}
+                      disabled={loadingMaterias || inscribiendo}
+                      style={({ pressed }) => [
+                        styles.cancelBtn,
+                        {
+                          borderColor: border,
+                          backgroundColor: softBg,
+                          opacity:
+                            pressed || loadingMaterias || inscribiendo
+                              ? 0.75
+                              : 1,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        style={[styles.cancelText, { color: strongText }]}
+                      >
+                        Volver
+                      </ThemedText>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={confirmarInscripcion}
+                      disabled={!puedeInscribir}
+                      style={({ pressed }) => [
+                        styles.confirmBtn,
+                        {
+                          backgroundColor: puedeInscribir
+                            ? "#EF4444"
+                            : isDark
+                              ? "rgba(255,255,255,0.12)"
+                              : "#CBD5E1",
+                          opacity: pressed ? 0.82 : 1,
+                        },
+                      ]}
+                    >
+                      {inscribiendo ? (
+                        <>
+                          <ActivityIndicator color="#FFFFFF" />
+
+                          <ThemedText style={styles.confirmText}>
+                            Inscribiendo...
+                          </ThemedText>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={19}
+                            color="#FFFFFF"
+                          />
+
+                          <ThemedText style={styles.confirmText}>
+                            Aceptar e inscribir
+                          </ThemedText>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
                 </>
               )}
-
-              <View style={[styles.footer, { borderTopColor: border }]}>
-                <Pressable
-                  onPress={volverACarreras}
-                  disabled={loadingMaterias || inscribiendo}
-                  style={({ pressed }) => [
-                    styles.cancelBtn,
-                    {
-                      borderColor: border,
-                      backgroundColor: softBg,
-                      opacity:
-                        pressed || loadingMaterias || inscribiendo
-                          ? 0.75
-                          : 1,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[styles.cancelText, { color: strongText }]}
-                  >
-                    Volver
-                  </ThemedText>
-                </Pressable>
-
-                {!todasMateriasInscritas && !loadingMaterias && (
-                  <Pressable
-                    onPress={confirmarInscripcion}
-                    disabled={!puedeInscribir}
-                    style={({ pressed }) => [
-                      styles.confirmBtn,
-                      {
-                        backgroundColor: puedeInscribir
-                          ? theme.colors.primary
-                          : isDark
-                            ? "rgba(255,255,255,0.12)"
-                            : "#CBD5E1",
-                        opacity: pressed ? 0.82 : 1,
-                      },
-                    ]}
-                  >
-                    {inscribiendo ? (
-                      <>
-                        <ActivityIndicator color="#FFFFFF" />
-
-                        <ThemedText style={styles.confirmText}>
-                          Inscribiendo...
-                        </ThemedText>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={19}
-                          color="#FFFFFF"
-                        />
-
-                        <ThemedText style={styles.confirmText}>
-                          Aceptar e inscribir
-                        </ThemedText>
-                      </>
-                    )}
-                  </Pressable>
-                )}
-              </View>
             </View>
           )}
         </View>
       </View>
     </Modal>
+  );
+}
+
+function WarningBox({
+  title,
+  text,
+  strongText,
+  mutedText,
+  isDark,
+  children,
+}: {
+  title: string;
+  text: string;
+  strongText: string;
+  mutedText: string;
+  isDark: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      style={[
+        styles.warningBox,
+        {
+          backgroundColor: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
+          borderColor: isDark ? "rgba(245,158,11,0.34)" : "#FDE68A",
+        },
+      ]}
+    >
+      <View style={styles.warningIcon}>
+        <Ionicons name="warning-outline" size={22} color="#F59E0B" />
+      </View>
+
+      <View style={styles.warningContent}>
+        <ThemedText style={[styles.warningTitle, { color: strongText }]}>
+          {title}
+        </ThemedText>
+
+        <ThemedText style={[styles.warningText, { color: mutedText }]}>
+          {text}
+        </ThemedText>
+
+        <View style={styles.previousList}>{children}</View>
+      </View>
+    </View>
+  );
+}
+
+function MateriaPendienteAnteriorCard({
+  materia,
+  strongText,
+  mutedText,
+  backgroundColor,
+  borderColor,
+}: {
+  materia: MateriaPendienteAnterior;
+  strongText: string;
+  mutedText: string;
+  backgroundColor: string;
+  borderColor: string;
+}) {
+  const nota =
+    materia.notaFinalHistorial !== null &&
+    materia.notaFinalHistorial !== undefined
+      ? `Nota: ${materia.notaFinalHistorial}`
+      : "Sin nota final";
+
+  const estado = materia.estadoNotaHistorial ?? "Pendiente";
+
+  return (
+    <View
+      style={[
+        styles.previousCard,
+        {
+          backgroundColor,
+          borderColor,
+        },
+      ]}
+    >
+      <View style={styles.previousIcon}>
+        <Ionicons name="alert-circle-outline" size={17} color="#F59E0B" />
+      </View>
+
+      <View style={styles.previousContent}>
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.previousTitle, { color: strongText }]}
+        >
+          {materia.nombreMateria}
+        </ThemedText>
+
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.previousText, { color: mutedText }]}
+        >
+          {materia.codigoMateria} · Nivel {materia.semestre} · {estado} · {nota}
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
+function MateriaBloqueadaCard({
+  materia,
+  strongText,
+  mutedText,
+  backgroundColor,
+  borderColor,
+}: {
+  materia: MateriaBloqueadaPrerequisito;
+  strongText: string;
+  mutedText: string;
+  backgroundColor: string;
+  borderColor: string;
+}) {
+  return (
+    <View
+      style={[
+        styles.previousCard,
+        {
+          backgroundColor,
+          borderColor,
+        },
+      ]}
+    >
+      <View style={styles.previousIconDanger}>
+        <Ionicons name="lock-closed-outline" size={17} color="#EF4444" />
+      </View>
+
+      <View style={styles.previousContent}>
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.previousTitle, { color: strongText }]}
+        >
+          {materia.nombreMateria}
+        </ThemedText>
+
+        <ThemedText
+          numberOfLines={2}
+          style={[styles.previousText, { color: mutedText }]}
+        >
+          Requiere aprobar: {materia.nombrePrerequisito ?? "Prerequisito"}{" "}
+          {materia.codigoPrerequisito
+            ? `(${materia.codigoPrerequisito})`
+            : ""}
+        </ThemedText>
+      </View>
+    </View>
   );
 }
 
@@ -1062,7 +1167,9 @@ function MateriaCard({
         ]}
       >
         <Ionicons
-          name={status === "Inscrita" ? "checkmark-done-outline" : "book-outline"}
+          name={
+            status === "Inscrita" ? "checkmark-done-outline" : "book-outline"
+          }
           size={21}
           color={statusColor}
         />
@@ -1082,6 +1189,17 @@ function MateriaCard({
         >
           {materia.codigoMateria} · {materia.nombreCarrera}
         </ThemedText>
+
+        {materia.notaFinalHistorial !== null &&
+          materia.notaFinalHistorial !== undefined && (
+            <ThemedText
+              numberOfLines={1}
+              style={[styles.historialText, { color: mutedText }]}
+            >
+              Última nota: {materia.notaFinalHistorial} ·{" "}
+              {materia.estadoNotaHistorial}
+            </ThemedText>
+          )}
 
         {grupo && (
           <View style={styles.groupInfo}>
@@ -1146,23 +1264,24 @@ function MateriaCard({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(2,6,23,0.74)",
+    backgroundColor: "rgba(2,6,23,0.78)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 10,
+    padding: 12,
   },
   modal: {
     width: "100%",
-    maxWidth: 1400,
-    height: "96%",
+    maxWidth: 1420,
+    height: "92%",
+    maxHeight: 920,
     borderRadius: 28,
     borderWidth: 1,
     padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.34,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
-    elevation: 14,
+    elevation: 16,
   },
   body: {
     flex: 1,
@@ -1179,7 +1298,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 13,
     minWidth: 0,
   },
   headerText: {
@@ -1187,31 +1306,33 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   headerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 17,
+    width: 58,
+    height: 58,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    fontSize: 27,
+    fontSize: 28,
     fontWeight: "900",
+    letterSpacing: -0.5,
   },
   studentName: {
     marginTop: 3,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "900",
+    letterSpacing: 0.3,
   },
   closeBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 54,
+    height: 54,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   loadingBox: {
     flex: 1,
-    minHeight: 300,
+    minHeight: 260,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 50,
@@ -1268,6 +1389,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
+  listContent: {
+    paddingBottom: 14,
+  },
   carreraCard: {
     borderWidth: 1,
     borderRadius: 18,
@@ -1309,7 +1433,7 @@ const styles = StyleSheet.create({
   carreraSeleccionadaBox: {
     borderWidth: 1,
     borderRadius: 18,
-    padding: 11,
+    padding: 12,
     marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -1324,9 +1448,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   carreraSeleccionadaIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1336,71 +1460,149 @@ const styles = StyleSheet.create({
   },
   carreraSeleccionadaLabel: {
     fontSize: 11.5,
-    fontWeight: "800",
+    fontWeight: "900",
     textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   carreraSeleccionadaNombre: {
     marginTop: 2,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "900",
   },
   cambiarCarreraBtn: {
-    minHeight: 40,
+    minHeight: 42,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    borderRadius: 13,
+    paddingHorizontal: 13,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 6,
   },
   cambiarCarreraText: {
     fontSize: 12,
     fontWeight: "900",
   },
+  contentScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  contentScrollContent: {
+    paddingBottom: 18,
+  },
+  warningBox: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 13,
+    flexDirection: "row",
+    gap: 11,
+    marginBottom: 12,
+  },
+  warningIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: "rgba(245,158,11,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  warningContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  warningText: {
+    marginTop: 3,
+    fontSize: 12.5,
+    fontWeight: "800",
+    lineHeight: 18,
+  },
+  previousList: {
+    marginTop: 10,
+    gap: 8,
+  },
+  previousCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  previousIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 10,
+    backgroundColor: "rgba(245,158,11,0.16)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previousIconDanger: {
+    width: 31,
+    height: 31,
+    borderRadius: 10,
+    backgroundColor: "rgba(239,68,68,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previousContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  previousTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  previousText: {
+    marginTop: 2,
+    fontSize: 11.7,
+    fontWeight: "800",
+  },
   turnoCompactContainer: {
     borderWidth: 1,
     borderRadius: 18,
-    padding: 11,
-    marginBottom: 10,
+    padding: 13,
+    marginBottom: 12,
   },
   turnoCompactHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginBottom: 9,
+    marginBottom: 10,
   },
   turnoHeaderText: {
     flex: 1,
     minWidth: 0,
   },
   turnoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(59,130,246,0.13)",
   },
   turnoTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "900",
   },
   turnoSubtitle: {
     marginTop: 2,
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 12.5,
+    fontWeight: "800",
     lineHeight: 17,
   },
   turnosRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 9,
     flexWrap: "wrap",
   },
   turnoButtonCompact: {
     flex: 1,
-    minWidth: 120,
-    minHeight: 42,
+    minWidth: 125,
+    minHeight: 44,
     borderWidth: 1,
     borderRadius: 13,
     paddingHorizontal: 12,
@@ -1425,29 +1627,30 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   sectionTitle: {
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: "900",
+    letterSpacing: -0.3,
   },
   materiasInfoText: {
     marginTop: 3,
     fontSize: 12.5,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   resumenChips: {
     flexDirection: "row",
-    gap: 7,
+    gap: 8,
     alignItems: "center",
   },
   resumenChip: {
-    minWidth: 80,
-    minHeight: 44,
-    borderRadius: 13,
+    minWidth: 84,
+    minHeight: 48,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
   },
   resumenChipNumber: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "900",
   },
   resumenChipLabel: {
@@ -1456,54 +1659,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textTransform: "uppercase",
   },
-  inscripcionCompletaBox: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  inscripcionCompletaIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inscripcionCompletaText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  inscripcionCompletaTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  inscripcionCompletaSubtitle: {
-    marginTop: 3,
-    fontSize: 12.5,
-    fontWeight: "700",
-    lineHeight: 18,
-  },
-  inscritasCountBadge: {
-    minWidth: 44,
-    height: 38,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inscritasCountText: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  materiasList: {
-    flex: 1,
-    minHeight: 0,
-  },
-  listContent: {
-    paddingBottom: 10,
+  materiasContainer: {
+    paddingBottom: 4,
   },
   emptyState: {
     borderWidth: 1,
@@ -1520,7 +1677,7 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 4,
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "700",
     textAlign: "center",
     lineHeight: 19,
   },
@@ -1560,8 +1717,13 @@ const styles = StyleSheet.create({
   materiaSubtitle: {
     marginTop: 3,
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     lineHeight: 18,
+  },
+  historialText: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "800",
   },
   groupInfo: {
     flexDirection: "row",
@@ -1577,7 +1739,7 @@ const styles = StyleSheet.create({
   },
   groupText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   statusBadge: {
     borderRadius: 999,
@@ -1590,7 +1752,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     borderTopWidth: 1,
-    marginTop: 8,
     paddingTop: 10,
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -1623,17 +1784,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
-  countBadge: {
-  minWidth: 38,
-  height: 30,
-  borderRadius: 999,
-  alignItems: "center",
-  justifyContent: "center",
-  paddingHorizontal: 10,
-},
-
-countBadgeText: {
-  fontSize: 13,
-  fontWeight: "900",
-},
 });

@@ -1,0 +1,712 @@
+import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
+import { useEffect, useMemo, useState } from "react";
+import {
+    ActivityIndicator,
+    Image,
+    Linking,
+    Platform,
+    Pressable,
+    StyleSheet,
+    View,
+} from "react-native";
+import Toast from "react-native-toast-message";
+
+import { ThemedText } from "../../../components/ThemedText";
+import { httpClient } from "../../../http/httpClient";
+import { useTheme } from "../../../theme/useTheme";
+import {
+    DocumentoEstudiante,
+    EstudianteUsuario,
+} from "../types/estudiante.types";
+
+type DocumentoRequerido = {
+  titulo: string;
+  descripcion: string;
+};
+
+type DocumentoLocal = {
+  archivoNombre: string | null;
+  previewUri: string | null;
+  mimeType: string | null;
+};
+
+type Props = {
+  estudiante: EstudianteUsuario | null;
+  onDocumentoSubido: (idUsuario: number) => Promise<void> | void;
+};
+
+const DOCUMENTOS_REQUERIDOS: DocumentoRequerido[] = [
+  {
+    titulo: "Carnet de identidad",
+    descripcion: "Documento de identidad del estudiante.",
+  },
+  {
+    titulo: "Certificado de nacimiento",
+    descripcion: "Certificado legal del estudiante.",
+  },
+  {
+    titulo: "Título de bachiller",
+    descripcion: "Documento académico requerido.",
+  },
+];
+
+function normalizarTexto(texto?: string | null) {
+  return (texto || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function obtenerUrlDocumento(documento?: DocumentoEstudiante | null) {
+  return documento?.archivoUrl || documento?.ubicacionArchivo || null;
+}
+
+function detectarMimeDesdeUrl(url?: string | null) {
+  const lower = (url || "").toLowerCase();
+
+  if (lower.endsWith(".pdf")) return "application/pdf";
+
+  if (
+    lower.endsWith(".jpg") ||
+    lower.endsWith(".jpeg") ||
+    lower.endsWith(".png") ||
+    lower.endsWith(".webp")
+  ) {
+    return "image/*";
+  }
+
+  return null;
+}
+
+function abrirUrl(url?: string | null) {
+  if (!url) return;
+
+  if (Platform.OS === "web") {
+    window.open(url, "_blank");
+    return;
+  }
+
+  Linking.openURL(url);
+}
+
+function obtenerPdfUrlAjustado(url: string) {
+  if (!url) return url;
+  if (url.includes("#")) return url;
+
+  return `${url}#toolbar=0&navpanes=0&scrollbar=0&view=Fit&zoom=page-fit`;
+}
+
+export default function EstudianteDocumentosPanel({
+  estudiante,
+  onDocumentoSubido,
+}: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const documentos = estudiante?.documentos ?? [];
+
+  const documentosMap = useMemo(() => {
+    const map = new Map<string, DocumentoEstudiante>();
+
+    documentos.forEach((doc) => {
+      const key = normalizarTexto(doc.nombreDocumento);
+
+      if (key) {
+        map.set(key, doc);
+      }
+    });
+
+    return map;
+  }, [documentos]);
+
+  if (!estudiante) return null;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.grid}>
+        {DOCUMENTOS_REQUERIDOS.map((doc) => {
+          const documentoExistente =
+            documentosMap.get(normalizarTexto(doc.titulo)) ?? null;
+
+          return (
+            <DocumentoEstadoCard
+              key={doc.titulo}
+              idUsuario={estudiante.id}
+              titulo={doc.titulo}
+              descripcion={doc.descripcion}
+              documentoExistente={documentoExistente}
+              onDocumentoSubido={() => onDocumentoSubido(estudiante.id)}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function DocumentoEstadoCard({
+  idUsuario,
+  titulo,
+  descripcion,
+  documentoExistente,
+  onDocumentoSubido,
+}: {
+  idUsuario: number;
+  titulo: string;
+  descripcion: string;
+  documentoExistente?: DocumentoEstudiante | null;
+  onDocumentoSubido: () => Promise<void> | void;
+}) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const [subiendo, setSubiendo] = useState(false);
+  const [local, setLocal] = useState<DocumentoLocal>({
+    archivoNombre: null,
+    previewUri: null,
+    mimeType: null,
+  });
+
+  const urlExistente = obtenerUrlDocumento(documentoExistente);
+  const mimeExistente = detectarMimeDesdeUrl(urlExistente);
+
+  const previewUri = local.previewUri || urlExistente;
+  const archivoNombre =
+    local.archivoNombre ||
+    documentoExistente?.nombreDocumento ||
+    documentoExistente?.ubicacionArchivo ||
+    null;
+
+  const mimeType = local.mimeType || mimeExistente;
+  const existeArchivo = Boolean(previewUri);
+
+  const esImagen =
+    mimeType?.startsWith("image/") ||
+    /\.(jpg|jpeg|png|webp)$/i.test(previewUri || "");
+
+  const esPdf =
+    mimeType === "application/pdf" || /\.pdf$/i.test(previewUri || "");
+
+  useEffect(() => {
+    setLocal({
+      archivoNombre: null,
+      previewUri: null,
+      mimeType: null,
+    });
+  }, [documentoExistente?.idDocumentoEstudiante]);
+
+  const subirArchivo = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/jpeg", "image/png", "image/webp"],
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const archivo = result.assets[0];
+
+      const formData = new FormData();
+
+      formData.append("idUsuario", String(idUsuario));
+      formData.append("nombreDocumento", titulo);
+
+      if (Platform.OS === "web") {
+        const webFile = (archivo as any).file;
+
+        if (!webFile) {
+          Toast.show({
+            type: "error",
+            text1: "Archivo inválido",
+            text2: "No se pudo leer el archivo seleccionado.",
+          });
+
+          return;
+        }
+
+        formData.append("archivo", webFile);
+      } else {
+        formData.append("archivo", {
+          uri: archivo.uri,
+          name: archivo.name || "documento.pdf",
+          type: archivo.mimeType || "application/pdf",
+        } as any);
+      }
+
+      setSubiendo(true);
+
+      await httpClient.postFormData("/api/documentos-estudiante", formData);
+
+      setLocal({
+        archivoNombre: archivo.name || titulo,
+        previewUri: archivo.uri,
+        mimeType: archivo.mimeType || null,
+      });
+
+      Toast.show({
+        type: "success",
+        text1: "Documento subido",
+        text2: titulo,
+      });
+
+      await onDocumentoSubido();
+    } catch (error) {
+      console.error(error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo subir el documento.",
+      });
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
+  return (
+    <View
+      style={[
+        styles.docCard,
+        existeArchivo ? styles.docCardOk : styles.docCardMissing,
+      ]}
+    >
+      <View style={styles.topArea}>
+        <View style={styles.cardTop}>
+          <View
+            style={[
+              styles.docIcon,
+              existeArchivo ? styles.docIconOk : styles.docIconMissing,
+            ]}
+          >
+            <Ionicons
+              name={
+                existeArchivo ? "checkmark-circle" : "document-text-outline"
+              }
+              size={20}
+              color={existeArchivo ? colors.primary : colors.textMuted}
+            />
+          </View>
+
+          <View style={styles.docTitleBox}>
+            <ThemedText style={styles.docTitle} numberOfLines={1}>
+              {titulo}
+            </ThemedText>
+
+            <View
+              style={[
+                styles.statusPill,
+                existeArchivo ? styles.statusOk : styles.statusMissing,
+              ]}
+            >
+              <ThemedText style={styles.statusText}>
+                {existeArchivo ? "Cargado" : "Faltante"}
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+
+        <ThemedText style={styles.docDescription} numberOfLines={1}>
+          {descripcion}
+        </ThemedText>
+
+        <View
+          style={[
+            styles.dropBox,
+            existeArchivo ? styles.dropBoxOk : styles.dropBoxMissing,
+          ]}
+        >
+          <Ionicons
+            name={existeArchivo ? "checkmark-circle" : "cloud-upload-outline"}
+            size={15}
+            color={existeArchivo ? colors.primary : colors.textMuted}
+          />
+
+          <View style={styles.fileInfo}>
+            <ThemedText style={styles.fileName} numberOfLines={1}>
+              {archivoNombre || "PDF, JPG o PNG - máximo 5MB"}
+            </ThemedText>
+
+            {existeArchivo && (
+              <ThemedText style={styles.fileOk} numberOfLines={1}>
+                Documento cargado correctamente
+              </ThemedText>
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.previewArea}>
+        {previewUri && esImagen && (
+          <Image source={{ uri: previewUri }} style={styles.previewImage} />
+        )}
+
+        {previewUri && esPdf && Platform.OS === "web" && (
+          <PdfPreview uri={previewUri} title={archivoNombre || titulo} />
+        )}
+
+        {previewUri && esPdf && Platform.OS !== "web" && (
+          <Pressable
+            onPress={() => abrirUrl(previewUri)}
+            style={styles.pdfPreviewNative}
+          >
+            <Ionicons
+              name="document-outline"
+              size={34}
+              color={colors.primary}
+            />
+
+            <ThemedText style={styles.pdfTitle}>Documento PDF</ThemedText>
+
+            <ThemedText style={styles.pdfSub}>
+              Toca para abrir el archivo completo.
+            </ThemedText>
+          </Pressable>
+        )}
+
+        {!previewUri && (
+          <View style={styles.emptyPreview}>
+            <Ionicons
+              name="document-attach-outline"
+              size={38}
+              color={colors.textMuted}
+            />
+
+            <ThemedText style={styles.emptyPreviewText}>
+              Documento pendiente
+            </ThemedText>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.actionsRow}>
+        {previewUri && (
+          <Pressable
+            onPress={() => abrirUrl(previewUri)}
+            style={styles.secondaryBtn}
+          >
+            <Ionicons name="open-outline" size={16} color={colors.primary} />
+
+            <ThemedText style={styles.secondaryBtnText}>Ver</ThemedText>
+          </Pressable>
+        )}
+
+        <Pressable
+          disabled={subiendo}
+          onPress={subirArchivo}
+          style={[
+            styles.uploadBtn,
+            !previewUri && styles.uploadBtnFull,
+            subiendo && styles.disabled,
+          ]}
+        >
+          {subiendo ? (
+            <>
+              <ActivityIndicator color={colors.primaryForeground} />
+
+              <ThemedText style={styles.uploadText}>Subiendo...</ThemedText>
+            </>
+          ) : (
+            <>
+              <Ionicons
+                name={
+                  existeArchivo
+                    ? "refresh-circle-outline"
+                    : "add-circle-outline"
+                }
+                size={17}
+                color={colors.primaryForeground}
+              />
+
+              <ThemedText style={styles.uploadText}>
+                {existeArchivo ? "Cambiar" : "Subir archivo"}
+              </ThemedText>
+            </>
+          )}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function PdfPreview({ uri, title }: { uri: string; title: string }) {
+  const Iframe = "iframe" as any;
+
+  return (
+    <Iframe
+      src={obtenerPdfUrlAjustado(uri)}
+      title={title}
+      scrolling="no"
+      style={{
+        width: "100%",
+        height: "100%",
+        border: "0",
+        backgroundColor: "#fff",
+        overflow: "hidden",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+function createStyles(colors: any) {
+  const muted = colors.textMuted || colors.muted || colors.textSecondary;
+
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      minHeight: 0,
+    },
+
+    grid: {
+      flex: 1,
+      minHeight: 0,
+      flexDirection: "row",
+      flexWrap: "nowrap",
+      gap: 12,
+    },
+
+    docCard: {
+      flex: 1,
+      minWidth: 0,
+      height: "100%",
+      borderWidth: 1,
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      padding: 14,
+      gap: 9,
+      overflow: "hidden",
+    },
+
+    docCardOk: {
+      borderColor: colors.primary,
+    },
+
+    docCardMissing: {
+      borderColor: colors.border,
+    },
+
+    topArea: {
+      gap: 7,
+    },
+
+    cardTop: {
+      flexDirection: "row",
+      gap: 10,
+      alignItems: "center",
+      minHeight: 44,
+    },
+
+    docIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 13,
+      borderWidth: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    docIconOk: {
+      backgroundColor: `${colors.primary}22`,
+      borderColor: `${colors.primary}55`,
+    },
+
+    docIconMissing: {
+      backgroundColor: colors.backgroundSecondary,
+      borderColor: colors.border,
+    },
+
+    docTitleBox: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    docTitle: {
+      fontSize: 17,
+      fontWeight: "900",
+      color: colors.text,
+      lineHeight: 20,
+    },
+
+    statusPill: {
+      marginTop: 3,
+      alignSelf: "flex-start",
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+
+    statusOk: {
+      backgroundColor: colors.primary,
+    },
+
+    statusMissing: {
+      backgroundColor: colors.destructive || "#DC2626",
+    },
+
+    statusText: {
+      color: colors.primaryForeground,
+      fontWeight: "900",
+      fontSize: 10,
+    },
+
+    docDescription: {
+      color: colors.textSecondary,
+      lineHeight: 17,
+      fontWeight: "700",
+      fontSize: 12.5,
+    },
+
+    dropBox: {
+      height: 50,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderRadius: 13,
+      paddingHorizontal: 11,
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 8,
+    },
+
+    dropBoxOk: {
+      borderColor: colors.primary,
+      backgroundColor: `${colors.primary}12`,
+    },
+
+    dropBoxMissing: {
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundSecondary,
+    },
+
+    fileInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    fileName: {
+      fontSize: 11.5,
+      color: colors.text,
+      fontWeight: "900",
+    },
+
+    fileOk: {
+      marginTop: 2,
+      fontSize: 10,
+      color: colors.primary,
+      fontWeight: "900",
+    },
+
+    previewArea: {
+      flex: 1,
+      minHeight: 0,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: "#FFFFFF",
+      overflow: "hidden",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    previewImage: {
+      width: "100%",
+      height: "100%",
+      resizeMode: "contain",
+      backgroundColor: "#FFFFFF",
+    },
+
+    emptyPreview: {
+      flex: 1,
+      width: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.backgroundSecondary,
+      gap: 10,
+    },
+
+    emptyPreviewText: {
+      color: muted,
+      fontWeight: "900",
+      fontSize: 13,
+    },
+
+    pdfPreviewNative: {
+      flex: 1,
+      width: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.backgroundSecondary,
+      gap: 8,
+      padding: 16,
+    },
+
+    pdfTitle: {
+      fontWeight: "900",
+      color: colors.text,
+      fontSize: 15,
+    },
+
+    pdfSub: {
+      color: muted,
+      fontWeight: "700",
+      fontSize: 12,
+      textAlign: "center",
+    },
+
+    actionsRow: {
+      height: 42,
+      flexDirection: "row",
+      gap: 8,
+    },
+
+    secondaryBtn: {
+      height: 42,
+      minWidth: 84,
+      borderRadius: 13,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundSecondary,
+      justifyContent: "center",
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 6,
+      paddingHorizontal: 10,
+    },
+
+    secondaryBtnText: {
+      color: colors.primary,
+      fontWeight: "900",
+      fontSize: 12,
+    },
+
+    uploadBtn: {
+      flex: 1,
+      height: 42,
+      borderRadius: 13,
+      backgroundColor: colors.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 7,
+      paddingHorizontal: 10,
+    },
+
+    uploadBtnFull: {
+      flex: 1,
+    },
+
+    uploadText: {
+      color: colors.primaryForeground,
+      fontWeight: "900",
+      fontSize: 12,
+    },
+
+    disabled: {
+      opacity: 0.7,
+    },
+  });
+}

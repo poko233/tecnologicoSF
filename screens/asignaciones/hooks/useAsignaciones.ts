@@ -3,6 +3,7 @@ import Toast from "react-native-toast-message";
 
 import {
   actualizarEstudianteAsignacion,
+  getCarrerasAsignaciones,
   getDetalleEstudiante,
   getEstudiantesAsignaciones,
   getMateriasSemestreUno,
@@ -10,20 +11,21 @@ import {
 } from "../services/asignaciones.services";
 
 import {
+  CarreraAsignacion,
   DetalleEstudianteResponse,
   Estudiante,
   EstudianteForm,
+  MateriaBloqueadaPrerequisito,
+  MateriaPendienteAnterior,
   MateriaSemestreUno,
   TurnoInscripcion,
 } from "../types/asignaciones.types";
 
 export function useAsignaciones() {
-  /*
-   * Ya no inicia en true porque los estudiantes no deben cargarse
-   * hasta que el usuario elija una carrera en la tabla.
-   */
   const [loading, setLoading] = useState(false);
+  const [loadingCarreras, setLoadingCarreras] = useState(false);
 
+  const [carreras, setCarreras] = useState<CarreraAsignacion[]>([]);
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
 
   const [estudianteSeleccionado, setEstudianteSeleccionado] =
@@ -34,68 +36,118 @@ export function useAsignaciones() {
 
   const [materias, setMaterias] = useState<MateriaSemestreUno[]>([]);
 
+  const [materiasPendientesAnteriores, setMateriasPendientesAnteriores] =
+    useState<MateriaPendienteAnterior[]>([]);
+
+  const [materiasBloqueadasPrerequisito, setMateriasBloqueadasPrerequisito] =
+    useState<MateriaBloqueadaPrerequisito[]>([]);
+
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [loadingMaterias, setLoadingMaterias] = useState(false);
   const [inscribiendo, setInscribiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  /*
-   * Guarda la carrera que se está mostrando actualmente en la tabla.
-   * Esto permite refrescar correctamente después de inscribir o editar,
-   * sin volver a cargar estudiantes de todas las carreras.
-   */
+  const [carreraActual, setCarreraActual] = useState<number | null>(null);
+  const [nivelActual, setNivelActual] = useState<number | null>(null);
+
   const carreraActualRef = useRef<number | null>(null);
+  const nivelActualRef = useRef<number | null>(null);
 
-  const limpiarSeleccion = useCallback((conLoading = false) => {
-    setDetalle(null);
-    setMaterias([]);
-    setLoadingDetalle(conLoading);
-    setLoadingMaterias(conLoading);
-  }, []);
-
-  /*
-   * Ahora idCarrera es obligatorio.
-   * La tabla solamente cargará estudiantes pertenecientes a la carrera
-   * que el usuario haya seleccionado.
-   */
-  const cargarEstudiantes = useCallback(async (idCarrera: number) => {
-    if (!idCarrera || Number(idCarrera) <= 0) {
-      carreraActualRef.current = null;
-      setEstudiantes([]);
-      return [];
-    }
-
+  const cargarCarreras = useCallback(async () => {
     try {
-      setLoading(true);
+      setLoadingCarreras(true);
 
-      carreraActualRef.current = Number(idCarrera);
+      const data = await getCarrerasAsignaciones();
+      const lista = Array.isArray(data) ? data : [];
 
-      /*
-       * IMPORTANTE:
-       * getEstudiantesAsignaciones debe recibir idCarrera y enviarlo
-       * al endpoint como query parameter.
-       */
-      const data = await getEstudiantesAsignaciones(Number(idCarrera));
+      setCarreras(lista);
 
-      setEstudiantes(Array.isArray(data) ? data : []);
-
-      return Array.isArray(data) ? data : [];
+      return lista;
     } catch (error: any) {
-      setEstudiantes([]);
+      setCarreras([]);
 
       Toast.show({
         type: "error",
         text1: "Error",
         text2:
           error?.response?.data?.message ??
-          "No se pudieron cargar los estudiantes de esta carrera.",
+          "No se pudieron cargar las carreras.",
       });
 
       return [];
     } finally {
-      setLoading(false);
+      setLoadingCarreras(false);
     }
   }, []);
+
+  const limpiarSeleccion = useCallback((conLoading = false) => {
+    setDetalle(null);
+    setMaterias([]);
+    setMateriasPendientesAnteriores([]);
+    setMateriasBloqueadasPrerequisito([]);
+    setLoadingDetalle(conLoading);
+    setLoadingMaterias(conLoading);
+  }, []);
+
+  const limpiarTabla = useCallback(() => {
+    carreraActualRef.current = null;
+    nivelActualRef.current = null;
+
+    setCarreraActual(null);
+    setNivelActual(null);
+    setEstudiantes([]);
+  }, []);
+
+  const cargarEstudiantes = useCallback(
+    async (idCarrera: number, nivel?: number | null) => {
+      if (!idCarrera || Number(idCarrera) <= 0) {
+        limpiarTabla();
+        return [];
+      }
+
+      const idCarreraNumber = Number(idCarrera);
+      const nivelNumber =
+        nivel !== undefined && nivel !== null && Number(nivel) > 0
+          ? Number(nivel)
+          : null;
+
+      try {
+        setLoading(true);
+
+        carreraActualRef.current = idCarreraNumber;
+        nivelActualRef.current = nivelNumber;
+
+        setCarreraActual(idCarreraNumber);
+        setNivelActual(nivelNumber);
+
+        const data = await getEstudiantesAsignaciones(
+          idCarreraNumber,
+          nivelNumber,
+        );
+
+        const lista = Array.isArray(data) ? data : [];
+
+        setEstudiantes(lista);
+
+        return lista;
+      } catch (error: any) {
+        setEstudiantes([]);
+
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2:
+            error?.response?.data?.message ??
+            "No se pudieron cargar los estudiantes de esta carrera y nivel.",
+        });
+
+        return [];
+      } finally {
+        setLoading(false);
+      }
+    },
+    [limpiarTabla],
+  );
 
   const cargarDetalle = useCallback(async (idUsuario: number) => {
     try {
@@ -125,28 +177,89 @@ export function useAsignaciones() {
   }, []);
 
   const cargarMaterias = useCallback(
-    async (idUsuario: number, idCarrera?: number | null) => {
+    async (
+      idUsuario: number,
+      idCarrera?: number | null,
+      nivel?: number | null,
+    ) => {
+      const idCarreraFinal =
+        idCarrera !== undefined && idCarrera !== null
+          ? Number(idCarrera)
+          : carreraActualRef.current;
+
+      const nivelFinal =
+        nivel !== undefined && nivel !== null
+          ? Number(nivel)
+          : nivelActualRef.current;
+
+      if (!idCarreraFinal || Number(idCarreraFinal) <= 0) {
+        Toast.show({
+          type: "error",
+          text1: "Carrera requerida",
+          text2: "Debes seleccionar una carrera antes de cargar materias.",
+        });
+
+        setMaterias([]);
+        setMateriasPendientesAnteriores([]);
+        setMateriasBloqueadasPrerequisito([]);
+        return [];
+      }
+
+      if (!nivelFinal || Number(nivelFinal) <= 0) {
+        Toast.show({
+          type: "error",
+          text1: "Nivel requerido",
+          text2:
+            "Debes seleccionar semestre, año o mes antes de cargar materias.",
+        });
+
+        setMaterias([]);
+        setMateriasPendientesAnteriores([]);
+        setMateriasBloqueadasPrerequisito([]);
+        return [];
+      }
+
       try {
         setLoadingMaterias(true);
         setMaterias([]);
+        setMateriasPendientesAnteriores([]);
+        setMateriasBloqueadasPrerequisito([]);
 
         const data = await getMateriasSemestreUno(
           idUsuario,
-          idCarrera ?? undefined,
+          Number(idCarreraFinal),
+          Number(nivelFinal),
         );
 
-        setMaterias(Array.isArray(data) ? data : []);
+        const lista = Array.isArray(data.materias) ? data.materias : [];
+        const pendientesAnteriores = Array.isArray(
+          data.materiasPendientesAnteriores,
+        )
+          ? data.materiasPendientesAnteriores
+          : [];
 
-        return Array.isArray(data) ? data : [];
+        const bloqueadasPrerequisito = Array.isArray(
+          data.materiasBloqueadasPrerequisito,
+        )
+          ? data.materiasBloqueadasPrerequisito
+          : [];
+
+        setMaterias(lista);
+        setMateriasPendientesAnteriores(pendientesAnteriores);
+        setMateriasBloqueadasPrerequisito(bloqueadasPrerequisito);
+
+        return lista;
       } catch (error: any) {
         setMaterias([]);
+        setMateriasPendientesAnteriores([]);
+        setMateriasBloqueadasPrerequisito([]);
 
         Toast.show({
           type: "error",
           text1: "Error",
           text2:
             error?.response?.data?.message ??
-            "No se pudieron cargar las materias.",
+            "No se pudieron cargar las materias del nivel seleccionado.",
         });
 
         return [];
@@ -162,12 +275,33 @@ export function useAsignaciones() {
       idUsuario: number,
       idCarrera: number | null | undefined,
       turno: TurnoInscripcion,
+      nivel?: number | null,
     ) => {
-      if (!idCarrera || Number(idCarrera) <= 0) {
+      const idCarreraFinal =
+        idCarrera !== undefined && idCarrera !== null
+          ? Number(idCarrera)
+          : carreraActualRef.current;
+
+      const nivelFinal =
+        nivel !== undefined && nivel !== null
+          ? Number(nivel)
+          : nivelActualRef.current;
+
+      if (!idCarreraFinal || Number(idCarreraFinal) <= 0) {
         Toast.show({
           type: "error",
           text1: "Carrera requerida",
           text2: "Debes seleccionar una carrera antes de inscribir.",
+        });
+
+        return null;
+      }
+
+      if (!nivelFinal || Number(nivelFinal) <= 0) {
+        Toast.show({
+          type: "error",
+          text1: "Nivel requerido",
+          text2: "Debes seleccionar semestre, año o mes antes de inscribir.",
         });
 
         return null;
@@ -178,8 +312,9 @@ export function useAsignaciones() {
 
         const data = await inscribirSemestreUno(
           idUsuario,
-          Number(idCarrera),
+          Number(idCarreraFinal),
           turno,
+          Number(nivelFinal),
         );
 
         Toast.show({
@@ -190,18 +325,14 @@ export function useAsignaciones() {
             "El estudiante fue inscrito correctamente en las materias.",
         });
 
-        /*
-         * Se vuelve a cargar la carrera que estaba visible en la tabla.
-         * Así el alumno aparecerá inmediatamente resaltado en verde,
-         * porque el backend debe devolver yaInscrito: true.
-         */
-        const carreraParaRecargar =
-          carreraActualRef.current ?? Number(idCarrera);
-
         await Promise.all([
-          cargarEstudiantes(carreraParaRecargar),
+          cargarEstudiantes(Number(idCarreraFinal), Number(nivelFinal)),
           cargarDetalle(idUsuario),
-          cargarMaterias(idUsuario, Number(idCarrera)),
+          cargarMaterias(
+            idUsuario,
+            Number(idCarreraFinal),
+            Number(nivelFinal),
+          ),
         ]);
 
         return data;
@@ -211,7 +342,7 @@ export function useAsignaciones() {
           text1: "No se pudo inscribir",
           text2:
             error?.response?.data?.message ??
-            "Verifique los cupos disponibles y el turno seleccionado.",
+            "Verifique los cupos disponibles, el turno y el nivel seleccionado.",
         });
 
         return null;
@@ -235,13 +366,16 @@ export function useAsignaciones() {
           text2: "Estudiante actualizado correctamente.",
         });
 
-        /*
-         * Solo recarga la tabla si ya existe una carrera seleccionada.
-         * No debe cargar todos los estudiantes automáticamente.
-         */
         const tareas: Promise<unknown>[] = [cargarDetalle(idUsuario)];
 
-        if (carreraActualRef.current) {
+        if (carreraActualRef.current && nivelActualRef.current) {
+          tareas.push(
+            cargarEstudiantes(
+              carreraActualRef.current,
+              nivelActualRef.current,
+            ),
+          );
+        } else if (carreraActualRef.current) {
           tareas.push(cargarEstudiantes(carreraActualRef.current));
         }
 
@@ -265,17 +399,11 @@ export function useAsignaciones() {
     [cargarDetalle, cargarEstudiantes],
   );
 
-  /*
-   * Ya no usamos useEffect para cargar estudiantes al abrir esta pantalla.
-   * La carga se ejecuta recién al llamar:
-   *
-   * cargarEstudiantes(idCarrera)
-   *
-   * desde el selector de carrera.
-   */
-
   return {
     loading,
+    loadingCarreras,
+
+    carreras,
     estudiantes,
 
     estudianteSeleccionado,
@@ -283,17 +411,24 @@ export function useAsignaciones() {
 
     detalle,
     materias,
+    materiasPendientesAnteriores,
+    materiasBloqueadasPrerequisito,
 
     loadingDetalle,
     loadingMaterias,
     inscribiendo,
     guardando,
 
+    carreraActual,
+    nivelActual,
+
+    cargarCarreras,
     cargarEstudiantes,
     cargarDetalle,
     cargarMaterias,
     inscribir,
     actualizarEstudiante,
     limpiarSeleccion,
+    limpiarTabla,
   };
 }
