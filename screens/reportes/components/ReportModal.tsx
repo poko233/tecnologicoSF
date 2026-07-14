@@ -13,10 +13,13 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message"; // ✅ Asegurar importación
 import { useInscritosFilters } from "../hooks/useInscritosFilters";
+import { usePagosFilters } from "../hooks/usePagosFilters";
 import { reportesService } from "../services/reportes.service";
 import { InscritosFiltrosResponse } from "../types/reportes.types";
 import { InscritosForm } from "./InscritosForm";
+import { PagosForm } from "./PagosForm";
 
 interface Props {
   visible: boolean;
@@ -29,9 +32,10 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
   const c = theme.colors;
 
   const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false); // ⭐ Estado para descarga
-  const [format, setFormat] = useState<"xlsx" | "pdf">("xlsx"); // ✅ Corregido el tipo
+  const [downloading, setDownloading] = useState(false);
+  const [format, setFormat] = useState<"xlsx" | "pdf">("xlsx");
 
+  // Filtros para centralizador y lista-grupo (sin cambios)
   const [filtrosCal, setFiltrosCal] = useState<any>(null);
   const [idCarrera, setIdCarrera] = useState<number | null>(null);
   const [gestion, setGestion] = useState("");
@@ -42,20 +46,24 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
   const [grupos, setGrupos] = useState<any[]>([]);
   const [idGrupo, setIdGrupo] = useState<number | null>(null);
 
+  // Inscritos
   const inscritosFilters = useInscritosFilters();
   const [inscritosData, setInscritosData] =
     useState<InscritosFiltrosResponse | null>(null);
   const [loadingInscritos, setLoadingInscritos] = useState(false);
 
+  // Pagos
+  const pagosFilters = usePagosFilters();
+
   const isCentralizador = reportType === "centralizador";
   const isInscritos = reportType === "carrera";
   const isListaGrupo = reportType === "lista-grupo";
+  const isPagos = reportType === "pagos"; // ✅ NUEVO
 
   useEffect(() => {
     if (!visible) return;
     setLoading(true);
-    setLoadingInscritos(false);
-    setDownloading(false); // Resetear al abrir
+    setDownloading(false);
 
     if (isCentralizador) {
       reportesService
@@ -79,6 +87,9 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
         .obtenerGrupos()
         .then(setGrupos)
         .finally(() => setLoading(false));
+    } else if (isPagos) {
+      // Los filtros de pagos se cargan dentro del propio PagosForm
+      setLoading(false);
     } else {
       setLoading(false);
     }
@@ -86,8 +97,7 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
 
   const handleDownload = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    setDownloading(true); // ⭐ Mostrar spinner
+    setDownloading(true);
 
     try {
       if (isCentralizador) {
@@ -130,12 +140,33 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
             "pdf",
             idGrupo ?? undefined,
           );
+      } else if (isPagos) {
+        const { filters } = pagosFilters;
+        await reportesService.descargarPagos({
+          formato: format,
+          estudiante_id:
+            filters.tipo === "estudiante"
+              ? (filters.estudianteId ?? undefined)
+              : undefined,
+          grupo_id:
+            filters.tipo === "grupo"
+              ? (filters.grupoId ?? undefined)
+              : undefined,
+          gestion_id: filters.gestionId ?? undefined,
+          solo_ultimo_pago: filters.soloUltimoPago,
+          incluir_observaciones: filters.incluirObservaciones,
+        });
       }
-    } catch (error) {
-      // El error ya es manejado por el servicio (Toast)
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: "Error en la descarga",
+        text2: error?.message || "Error inesperado al descargar el reporte.",
+        visibilityTime: 4000,
+      });
     } finally {
       setDownloading(false);
-      onClose(); // ⭐ Cerrar solo después de que termine la descarga
+      onClose();
     }
   };
 
@@ -151,7 +182,9 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
       ? "Inscritos por Carrera"
       : isListaGrupo
         ? "Lista Oficial por Grupo"
-        : "Parámetros del Reporte";
+        : isPagos
+          ? "Reporte de Pagos"
+          : "Parámetros del Reporte";
 
   const renderChipSelect = (
     label: string,
@@ -205,10 +238,12 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
           style={StyleSheet.absoluteFill}
           experimentalBlurMethod="dimezisBlurView"
         >
-          {/* ✅ TouchableWithoutFeedback exterior captura el fondo */}
-          <TouchableWithoutFeedback onPress={handleBackdropPress}>
-            <View style={styles.backdrop}>
-              {/* ✅ TouchableWithoutFeedback interior captura el modal y detiene la propagación */}
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={handleBackdropPress}
+            style={StyleSheet.absoluteFill}
+          >
+            <View style={styles.backdrop} pointerEvents="box-none">
               <TouchableWithoutFeedback onPress={() => {}}>
                 <MotiView
                   from={{ opacity: 0, scale: 0.92, translateY: 20 }}
@@ -250,13 +285,25 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                   </View>
 
                   {/* BODY */}
-                  {isInscritos ? (
+                  {isPagos ? (
+                    <PagosForm
+                      filters={pagosFilters.filters}
+                      onSetTipo={pagosFilters.setTipo}
+                      onSetEstudiante={pagosFilters.setEstudiante}
+                      onSetGrupo={pagosFilters.setGrupo}
+                      onSetGestion={pagosFilters.setGestion}
+                      onToggleSoloUltimoPago={pagosFilters.toggleSoloUltimoPago}
+                      onToggleIncluirObservaciones={
+                        pagosFilters.toggleIncluirObservaciones
+                      }
+                    />
+                  ) : isInscritos ? (
                     <InscritosForm
                       filtrosData={inscritosData}
                       loading={loadingInscritos}
                       filters={inscritosFilters.filters}
                       onToggleCarrera={inscritosFilters.toggleCarrera}
-                      onToggleAllCarreras={inscritosFilters.toggleAllCarreras} // ✅ AGREGA ESTO
+                      onToggleAllCarreras={inscritosFilters.toggleAllCarreras}
                       onSetTurno={inscritosFilters.setTurno}
                       onSetGestion={inscritosFilters.setGestion}
                       onSetSemestre={inscritosFilters.setSemestre}
@@ -315,7 +362,6 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                               )}
                             </>
                           )}
-
                           {isListaGrupo && (
                             <>
                               {renderChipSelect(
@@ -464,7 +510,7 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                 </MotiView>
               </TouchableWithoutFeedback>
             </View>
-          </TouchableWithoutFeedback>
+          </TouchableOpacity>
         </BlurView>
       )}
     </AnimatePresence>

@@ -21,13 +21,6 @@ export interface CarreraFiltro {
   regimen: string;
 }
 
-export interface GestionFiltro {
-  id: number;
-  nombre: string;
-  anio: number;
-  periodo: string;
-}
-
 export interface TurnoFiltro {
   valor: string;
   etiqueta: string;
@@ -53,4 +46,79 @@ export interface SelectorOption {
   id: number | string;
   label: string;
   subtitle?: string;
+}
+// ---------- NUEVOS TIPOS PARA EL REPORTE DE PAGOS ----------
+export interface GestionFiltro {
+  id: number;
+  nombre: string;
+  anio: number;
+  periodo: string;
+  estado: string;
+}
+
+export interface GrupoFiltro {
+  id: number;
+  nombre: string;
+  codigo: string;
+  paralelo: string;
+  turno: string;
+  idGestion: number;
+  gestion: string | null;
+}
+
+// ✅ CORRECCIÓN: El backend devuelve `current_page`, `last_page`, etc., directamente en `grupos`
+export interface PagosFiltrosResponse {
+  grupos: {
+    data: GrupoFiltro[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    next_page_url: string | null; // ✅ Añadido
+    // `links` existe en el backend, pero no lo usamos, lo definimos como opcional
+    links?: {
+      url: string | null;
+      label: string;
+      page: number | null;
+      active: boolean;
+    }[];
+  };
+  gestiones: GestionFiltro[];
+}
+
+export interface EstudianteSearchResult {
+  id: number;
+  ci: string;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  nombreCompleto: string;
+  matricula: string | null;
+  email: string | null;
+  telefono: string | null;
+  celular: string | null;
+  foto: string | null;
+  estado: string;
+}
+
+export interface PagosDownloadParams {
+  formato: "xlsx" | "pdf";
+  estudiante_id?: number;
+  grupo_id?: number;
+  gestion_id?: number;
+  solo_ultimo_pago?: boolean;
+  incluir_observaciones?: boolean;
+}
+
+export type PagosReportType = "estudiante" | "grupo";
+
+export interface PagosFiltersState {
+  tipo: PagosReportType;
+  estudianteId: number | null;
+  estudianteNombre: string | null;
+  grupoId: number | null;
+  grupoNombre: string | null;
+  gestionId: number | null;
+  soloUltimoPago: boolean;
+  incluirObservaciones: boolean;
 }
