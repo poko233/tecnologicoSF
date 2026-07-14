@@ -3,12 +3,15 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
 import Toast from "react-native-toast-message";
+// ✅ AÑADIDAS LAS IMPORTACIONES DE TIPOS QUE FALTABAN
 import {
   InscritosDownloadParams,
   InscritosFiltrosResponse,
+  PagosDownloadParams,
+  PagosFiltrosResponse,
 } from "../types/reportes.types";
 
-// Helper existente (sin cambios)
+// ─── HELPER DE DESCARGA (SIN CAMBIOS) ──────────────────────
 async function descargarConAuth(
   path: string,
   formato: "xlsx" | "pdf",
@@ -42,7 +45,7 @@ async function descargarConAuth(
   });
 }
 
-// Builder de query string que soporta arrays
+// ─── BUILDER DE QUERY (SIN CAMBIOS) ──────────────────────
 function buildQueryString(params: Record<string, any>): string {
   const parts: string[] = [];
   for (const key in params) {
@@ -51,6 +54,8 @@ function buildQueryString(params: Record<string, any>): string {
     const value = params[key];
     if (Array.isArray(value)) {
       value.forEach((v) => parts.push(`${key}[]=${encodeURIComponent(v)}`));
+    } else if (typeof value === "boolean") {
+      parts.push(`${key}=${value ? "1" : "0"}`);
     } else {
       parts.push(`${key}=${encodeURIComponent(value)}`);
     }
@@ -58,7 +63,7 @@ function buildQueryString(params: Record<string, any>): string {
   return parts.length ? "?" + parts.join("&") : "";
 }
 
-// ─── MÉTODOS EXISTENTES (SIN MODIFICAR) ─────────────────
+// ─── SERVICIOS EXISTENTES ──────────────────────────────────
 export interface FiltroOpciones {
   carreras: { idCarrera: number; nombreCarrera: string; codigo: string }[];
   gestiones: string[];
@@ -87,16 +92,11 @@ export const reportesService = {
     const path = `/api/reportes/calificaciones/${formato}?${partes.join("&")}`;
     return descargarConAuth(path, formato, "calificaciones");
   },
-
   descargarXlsx: (idCarrera?: number, gestion?: string, turno?: string) =>
     reportesService.descargarArchivo("xlsx", idCarrera, gestion, turno),
-
   descargarPdf: (idCarrera?: number, gestion?: string, turno?: string) =>
     reportesService.descargarArchivo("pdf", idCarrera, gestion, turno),
-
-  obtenerCarreras: async (): Promise<
-    { idCarrera: number; nombreCarrera: string; codigo: string }[]
-  > => {
+  obtenerCarreras: async () => {
     const res = await httpClient.getAuth<{ data: { carreras: any[] } }>(
       "/api/reportes/inscritos-carrera/filtros",
       "Error al cargar carreras",
@@ -138,5 +138,40 @@ export const reportesService = {
       partes.push(`idGrupoMateriaDocente=${idGrupoMateriaDocente}`);
     const path = `/api/reportes/lista-grupo/${formato}?${partes.join("&")}`;
     return descargarConAuth(path, formato, "lista-grupo");
+  },
+
+  // ─── NUEVOS MÉTODOS PARA REPORTE DE PAGOS ──────────────
+  obtenerFiltrosPagos: async (
+    search: string = "",
+    page: number = 1,
+    signal?: AbortSignal,
+  ): Promise<PagosFiltrosResponse> => {
+    const res = await httpClient.getAuth<{ data: PagosFiltrosResponse }>(
+      `/api/reportes/pagos/filtros?search=${encodeURIComponent(search)}&page=${page}`,
+      "Error al cargar filtros de pagos",
+      signal, // ✅ Pasamos la señal al httpClient
+    );
+    return res.data;
+  },
+
+  buscarEstudiantes: async (
+    search: string = "",
+    page: number = 1,
+    perPage: number = 15,
+    signal?: AbortSignal,
+  ): Promise<any> => {
+    const res = await httpClient.getAuth<any>(
+      `/api/cuota/search?search=${encodeURIComponent(search)}&page=${page}&per_page=${perPage}`,
+      "Error al buscar estudiantes",
+      signal, // ✅ Pasamos la señal al httpClient
+    );
+    return res;
+  },
+
+  descargarPagos: async (params: PagosDownloadParams) => {
+    const { formato, ...filters } = params;
+    const query = buildQueryString(filters);
+    const path = `/api/reportes/pagos/${formato}${query}`;
+    return descargarConAuth(path, formato, "reporte-pagos");
   },
 };
