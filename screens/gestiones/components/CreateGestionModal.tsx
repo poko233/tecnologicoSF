@@ -44,8 +44,11 @@ export function CreateGestionModal({
   const [nombre, setNombre] = useState("");
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [periodo, setPeriodo] = useState<Periodo>("Anual");
-  const [fechaInicio, setFechaInicio] = useState<Date>(new Date());
-  const [fechaFin, setFechaFin] = useState<Date>(new Date());
+
+  // Ambas fechas inician nulas – ninguna fecha por defecto
+  const [fechaInicio, setFechaInicio] = useState<Date | null>(null);
+  const [fechaFin, setFechaFin] = useState<Date | null>(null);
+
   const [isStartSelected, setIsStartSelected] = useState(false);
   const [isEndSelected, setIsEndSelected] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -56,8 +59,9 @@ export function CreateGestionModal({
     if (!nombre.trim()) return false;
     if (anio < 2000 || anio > 2100) return false;
     if (!isStartSelected || !isEndSelected) return false;
-    const inicioStr = fechaInicio.toISOString().split("T")[0];
-    const finStr = fechaFin.toISOString().split("T")[0];
+    // fechas seguras gracias a los flags
+    const inicioStr = fechaInicio!.toISOString().split("T")[0];
+    const finStr = fechaFin!.toISOString().split("T")[0];
     if (finStr < inicioStr) return false;
     return true;
   }, [nombre, anio, isStartSelected, isEndSelected, fechaInicio, fechaFin]);
@@ -66,8 +70,8 @@ export function CreateGestionModal({
     setNombre("");
     setAnio(new Date().getFullYear());
     setPeriodo("Anual");
-    setFechaInicio(new Date());
-    setFechaFin(new Date());
+    setFechaInicio(null);
+    setFechaFin(null);
     setIsStartSelected(false);
     setIsEndSelected(false);
   };
@@ -81,22 +85,20 @@ export function CreateGestionModal({
     if (!isFormValid || submitting) return;
     setSubmitting(true);
 
-    // Cierra el modal inmediatamente, sin esperar la respuesta
     const formData: GestionFormData = {
       nombre: nombre.trim(),
       anio,
       periodo,
-      fecha_inicio: fechaInicio.toISOString().split("T")[0],
-      fecha_fin: fechaFin.toISOString().split("T")[0],
+      fecha_inicio: fechaInicio!.toISOString().split("T")[0],
+      fecha_fin: fechaFin!.toISOString().split("T")[0],
     };
 
     await onSubmit(formData).finally(() => {
-      // Al terminar, resetea (aunque el modal ya no esté visible)
       resetForm();
       setSubmitting(false);
     });
 
-    onClose(); // ← cierre inmediato
+    onClose();
   };
 
   const formatDisplayDate = (date: Date) =>
@@ -111,8 +113,10 @@ export function CreateGestionModal({
       const newDate = new Date(result.date + "T12:00:00");
       setFechaInicio(newDate);
       setIsStartSelected(true);
-      if (fechaFin < newDate) {
-        setFechaFin(newDate);
+
+      // Si ya había una fecha fin seleccionada y es anterior a la nueva inicio, la borramos
+      if (isEndSelected && fechaFin && fechaFin < newDate) {
+        setFechaFin(null);
         setIsEndSelected(false);
       }
     }
@@ -127,11 +131,27 @@ export function CreateGestionModal({
     setShowEndPicker(false);
   };
 
+  // Texto para el botón de fecha fin según el estado
+  const getEndDateDisplay = () => {
+    if (!isStartSelected) {
+      return "Seleccione inicio primero";
+    }
+    if (isEndSelected && fechaFin) {
+      return formatDisplayDate(fechaFin);
+    }
+    return "Seleccione fecha fin";
+  };
+
+  const endDateColor = !isStartSelected
+    ? theme.colors.textMuted
+    : isEndSelected
+      ? theme.colors.text
+      : theme.colors.textMuted;
+
   return (
     <AnimatePresence>
       {visible && (
         <RNModal transparent visible={visible} onRequestClose={handleClose}>
-          {/* Overlay animado sin BlurView */}
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={styles.centeredView}
@@ -274,6 +294,7 @@ export function CreateGestionModal({
                   </View>
 
                   <View style={styles.row}>
+                    {/* Fecha Inicio – sin valor por defecto */}
                     <View style={{ flex: 1 }}>
                       <ThemedText
                         style={[styles.label, { color: theme.colors.text }]}
@@ -290,12 +311,24 @@ export function CreateGestionModal({
                           },
                         ]}
                       >
-                        <ThemedText style={{ color: theme.colors.text }}>
-                          {formatDisplayDate(fechaInicio)}
-                        </ThemedText>
+                        {isStartSelected && fechaInicio ? (
+                          <ThemedText style={{ color: theme.colors.text }}>
+                            {formatDisplayDate(fechaInicio)}
+                          </ThemedText>
+                        ) : (
+                          <ThemedText
+                            style={{
+                              color: theme.colors.textMuted,
+                              fontSize: 12,
+                            }}
+                          >
+                            Seleccione la fecha de inicio
+                          </ThemedText>
+                        )}
                       </Pressable>
                     </View>
 
+                    {/* Fecha Fin – solo habilitada tras elegir inicio */}
                     <View style={{ flex: 1 }}>
                       <ThemedText
                         style={[styles.label, { color: theme.colors.text }]}
@@ -316,20 +349,14 @@ export function CreateGestionModal({
                           },
                         ]}
                       >
-                        {isStartSelected ? (
-                          <ThemedText style={{ color: theme.colors.text }}>
-                            {formatDisplayDate(fechaFin)}
-                          </ThemedText>
-                        ) : (
-                          <ThemedText
-                            style={{
-                              color: theme.colors.textMuted,
-                              fontSize: 12,
-                            }}
-                          >
-                            Seleccione inicio primero
-                          </ThemedText>
-                        )}
+                        <ThemedText
+                          style={{
+                            color: endDateColor,
+                            fontSize: isEndSelected ? 14 : 12,
+                          }}
+                        >
+                          {getEndDateDisplay()}
+                        </ThemedText>
                       </Pressable>
                     </View>
                   </View>
@@ -403,9 +430,13 @@ export function CreateGestionModal({
             mode="single"
             onClose={() => setShowStartPicker(false)}
             onApply={handleStartDateApply}
-            initialDate={fechaInicio.toISOString().split("T")[0]}
+            initialDate={
+              fechaInicio ? fechaInicio.toISOString().split("T")[0] : undefined
+            }
             maxDate={
-              isEndSelected ? fechaFin.toISOString().split("T")[0] : undefined
+              isEndSelected && fechaFin
+                ? fechaFin.toISOString().split("T")[0]
+                : undefined
             }
           />
 
@@ -414,8 +445,12 @@ export function CreateGestionModal({
             mode="single"
             onClose={() => setShowEndPicker(false)}
             onApply={handleEndDateApply}
-            initialDate={fechaFin.toISOString().split("T")[0]}
-            minDate={fechaInicio.toISOString().split("T")[0]}
+            initialDate={
+              fechaFin ? fechaFin.toISOString().split("T")[0] : undefined
+            }
+            minDate={
+              fechaInicio ? fechaInicio.toISOString().split("T")[0] : undefined
+            }
           />
         </RNModal>
       )}
