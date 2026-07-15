@@ -1,5 +1,6 @@
 // screens/convalidacion/context/ConvalidacionContext.tsx
 import React, { createContext, ReactNode, useContext, useState } from 'react';
+import type { Paso1FormData } from '../types';
 
 interface ConvalidacionState {
   pasoActual: number; // 1 a 5
@@ -8,15 +9,17 @@ interface ConvalidacionState {
   idCarreraDestino: number | null;
   idUsuario: number | null;
   gestionLabel: string;
+  paso1Data: Paso1FormData | null;
 }
 
 interface ConvalidacionContextType extends ConvalidacionState {
   setPasoActual: (paso: number) => void;
   setSolicitudId: (id: number) => void;
   setCodigoSolicitud: (codigo: string) => void;
-  setIdCarreraDestino: (id: number) => void;
-  setIdUsuario: (id: number) => void;
+  setIdCarreraDestino: (id: number | null) => void;
+  setIdUsuario: (id: number | null) => void;
   setGestionLabel: (label: string) => void;
+  setPaso1Data: (data: Paso1FormData) => void; 
   avanzarPaso: () => void;
   retrocederPaso: () => void;
   resetWizard: () => void;
@@ -33,6 +36,7 @@ const initialState: ConvalidacionState = {
   idCarreraDestino: null,
   idUsuario: null,
   gestionLabel: '',
+  paso1Data: null,
 };
 
 export function ConvalidacionProvider({ children }: { children: ReactNode }) {
@@ -50,16 +54,19 @@ export function ConvalidacionProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, codigoSolicitud: codigo }));
   };
 
-  const setIdCarreraDestino = (id: number) => {
+  const setIdCarreraDestino = (id: number | null) => {
     setState((prev) => ({ ...prev, idCarreraDestino: id }));
   };
-
-  const setIdUsuario = (id: number) => {
+  const setIdUsuario = (id: number | null) => {
     setState((prev) => ({ ...prev, idUsuario: id }));
   };
 
   const setGestionLabel = (label: string) => {
     setState((prev) => ({ ...prev, gestionLabel: label }));
+  };
+
+  const setPaso1Data = (data: Paso1FormData) => {
+    setState((prev) => ({ ...prev, paso1Data: data })); // 👈 NUEVO
   };
 
   const avanzarPaso = () => {
@@ -90,6 +97,7 @@ export function ConvalidacionProvider({ children }: { children: ReactNode }) {
         setIdCarreraDestino,
         setIdUsuario,
         setGestionLabel,
+        setPaso1Data,
         avanzarPaso,
         retrocederPaso,
         resetWizard,

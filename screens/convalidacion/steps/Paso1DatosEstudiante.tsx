@@ -17,6 +17,10 @@ import { usePaso1 } from '../hooks/usePaso1';
 
 const EXPEDIDOS = ['LPZ', 'CBBA', 'OR', 'PT', 'TJ', 'SCZ', 'BN', 'PD', 'CH', 'QR', 'EXT'];
 const GENEROS = ['MASCULINO', 'FEMENINO'];
+const TIPOS = [
+  { value: 'externa', label: 'Externa' },
+  { value: 'cambio_carrera', label: 'Cambio de carrera' },
+];
 
 export function Paso1DatosEstudiante() {
   const { theme } = useTheme();
@@ -36,24 +40,15 @@ export function Paso1DatosEstudiante() {
       if (gestion) {
         const label = `${gestion.anio || 'N/A'} — ${gestion.nombre || 'N/A'}`;
         setGestionLabel(label);
-      } else {
-        console.warn('No se encontró la gestión con id:', result.idGestion);
       }
 
       avanzarPaso();
     }
   };
 
-  if (loadingData) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-          Cargando datos...
-        </Text>
-      </View>
-    );
-  }
+  // ❌ ANTES: aquí había un `if (loadingData) return <LoadingScreen />` que
+  //    bloqueaba TODO el formulario. Se quitó para que el usuario pueda
+  //    empezar a escribir de inmediato.
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -183,7 +178,6 @@ export function Paso1DatosEstudiante() {
                 : ''
             }
             onChangeText={(text) => {
-              // FormDateInput devuelve dd/mm/yyyy
               const parts = text.split('/');
               if (parts.length === 3) {
                 const date = new Date(
@@ -304,54 +298,108 @@ export function Paso1DatosEstudiante() {
               },
             ]}
           >
-            <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '600', flex: 1 }}>
-              {matriculaGenerada}
-            </Text>
-            <Text style={{ color: theme.colors.textMuted, fontSize: 11 }}>
-              Auto
-            </Text>
+            {loadingData ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <>
+                <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '600', flex: 1 }}>
+                  {matriculaGenerada}
+                </Text>
+                <Text style={{ color: theme.colors.textMuted, fontSize: 11 }}>
+                  Auto
+                </Text>
+              </>
+            )}
           </View>
         </View>
-        {/* Carrera Destino */}
+
+        {/* Carrera Destino — 👇 aquí sí importa loadingData, porque depende de la API */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             CARRERA DESTINO *
           </Text>
-          <SelectField
-            value={formData.idCarreraDestino || ''}
-            onChange={(value) => updateField('idCarreraDestino', value ? parseInt(value) : null)}
-            options={carreras.map((c) => ({
-              label: c.nombreCarrera,
-              value: c.idCarrera,
-            }))}
-            placeholder="Seleccione carrera"
-          />
-          {carreras.length === 0 && !loadingData && (
-            <Text style={{ color: theme.colors.destructive, fontSize: 11, marginTop: 4 }}>
-              No hay carreras disponibles
-            </Text>
+          {loadingData ? (
+            <View
+              style={[
+                styles.input,
+                styles.inputLoading,
+                { backgroundColor: theme.colors.input, borderColor: theme.colors.inputBorder },
+              ]}
+            >
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text style={{ color: theme.colors.textMuted, fontSize: 13, marginLeft: 8 }}>
+                Cargando carreras...
+              </Text>
+            </View>
+          ) : (
+            <>
+              <SelectField
+                value={formData.idCarreraDestino || ''}
+                onChange={(value) => updateField('idCarreraDestino', value ? parseInt(value) : null)}
+                options={carreras.map((c) => ({
+                  label: c.nombreCarrera,
+                  value: c.idCarrera,
+                }))}
+                placeholder="Seleccione carrera"
+              />
+              {carreras.length === 0 && (
+                <Text style={{ color: theme.colors.destructive, fontSize: 11, marginTop: 4 }}>
+                  No hay carreras disponibles
+                </Text>
+              )}
+            </>
           )}
         </View>
 
-        {/* Gestión */}
+        {/* Gestión — 👇 mismo caso */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             GESTIÓN *
           </Text>
-          <SelectField
-            value={formData.idGestion || ''}
-            onChange={(value) => updateField('idGestion', value ? parseInt(value) : null)}
-            options={gestiones.map((g) => ({
-            label: `${g.nombre} — ${g.periodo}`,
-            value: g.id,
-          }))}
-            placeholder="Seleccione gestión"
-          />
-          {gestiones.length === 0 && !loadingData && (
-            <Text style={{ color: theme.colors.destructive, fontSize: 11, marginTop: 4 }}>
-              No hay gestiones disponibles
-            </Text>
+          {loadingData ? (
+            <View
+              style={[
+                styles.input,
+                styles.inputLoading,
+                { backgroundColor: theme.colors.input, borderColor: theme.colors.inputBorder },
+              ]}
+            >
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text style={{ color: theme.colors.textMuted, fontSize: 13, marginLeft: 8 }}>
+                Cargando gestiones...
+              </Text>
+            </View>
+          ) : (
+            <>
+              <SelectField
+                value={formData.idGestion || ''}
+                onChange={(value) => updateField('idGestion', value ? parseInt(value) : null)}
+                options={gestiones.map((g) => ({
+                  label: `${g.nombre} — ${g.periodo}`,
+                  value: g.id,
+                }))}
+                placeholder="Seleccione gestión"
+              />
+              {gestiones.length === 0 && (
+                <Text style={{ color: theme.colors.destructive, fontSize: 11, marginTop: 4 }}>
+                  No hay gestiones disponibles
+                </Text>
+              )}
+            </>
           )}
+        </View>
+
+        {/* Tipo */}
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textMuted }]}>
+            TIPO DE CONVALIDACIÓN *
+          </Text>
+          <SelectField
+            value={formData.tipo}
+            onChange={(value) => updateField('tipo', value as any)}
+            options={TIPOS}
+            placeholder="Seleccione tipo"
+          />
         </View>
 
         {/* Institución de Origen */}
@@ -431,7 +479,7 @@ export function Paso1DatosEstudiante() {
             styles.button,
             { backgroundColor: theme.colors.primary },
           ]}
-          disabled={loading}
+          disabled={loading || loadingData} // 👈 evita avanzar si aún no llegó carrera/gestión
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
@@ -447,15 +495,6 @@ export function Paso1DatosEstudiante() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
   },
   sectionTitle: {
     fontSize: 12,
@@ -488,6 +527,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 15,
+  },
+  inputLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   textArea: {
     minHeight: 100,

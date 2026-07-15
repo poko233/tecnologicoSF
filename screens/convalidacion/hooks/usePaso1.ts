@@ -2,35 +2,41 @@
 import { httpClient } from '@http';
 import { useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
+import { useConvalidacionContext } from '../context/ConvalidacionContext';
 import { convalidacionService } from '../services/convalidacionService';
 import type { Carrera, Gestion, Paso1FormData } from '../types';
 
+const defaultFormData: Paso1FormData = {
+  ci: '',
+  expedido: 'CBBA',
+  nombres: '',
+  apellidoPaterno: '',
+  apellidoMaterno: '',
+  genero: 'MASCULINO',
+  fecha_nac: null,
+  email: '',
+  telefono: '',
+  celular: '',
+  direccion: '',
+  idCarreraDestino: null,
+  idGestion: null,
+  tipo: 'externa',
+  institucion_origen: '',
+  carrera_origen_nombre: '',
+  motivo: '',
+};
+
 export function usePaso1() {
+  const { paso1Data, setPaso1Data, solicitudId, setSolicitudId,codigoSolicitud,idUsuario, } = useConvalidacionContext();
   const [carreras, setCarreras] = useState<Carrera[]>([]);
   const [gestiones, setGestiones] = useState<Gestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [matriculaGenerada, setMatriculaGenerada] = useState<string>('N/A');
 
-  const [formData, setFormData] = useState<Paso1FormData>({
-    ci: '',
-    expedido: 'CBBA',
-    nombres: '',
-    apellidoPaterno: '',
-    apellidoMaterno: '',
-    genero: 'MASCULINO',
-    fecha_nac: null,
-    email: '',
-    telefono: '',
-    celular: '',
-    direccion: '',
-    idCarreraDestino: null,
-    idGestion: null,
-    tipo: 'externa',
-    institucion_origen: '',
-    carrera_origen_nombre: '',
-    motivo: '',
-  });
+  const [formData, setFormData] = useState<Paso1FormData>(
+    paso1Data || defaultFormData
+  );
 
   useEffect(() => {
     loadInitialData();
@@ -66,7 +72,11 @@ export function usePaso1() {
     field: K,
     value: Paso1FormData[K]
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value }; 
+      setPaso1Data(next); 
+      return next;
+    });
   };
 
   const validateForm = (): boolean => {
@@ -139,7 +149,16 @@ export function usePaso1() {
 
   const submitForm = async () => {
     if (!validateForm()) return null;
-
+    if (solicitudId) {
+      setPaso1Data(formData);
+      return {
+        id: solicitudId,
+        codigo: codigoSolicitud,
+        idCarreraDestino: formData.idCarreraDestino,
+        idUsuario: idUsuario,
+        idGestion: formData.idGestion,
+      };
+    }
     try {
       setLoading(true);
       const payload = {
@@ -149,6 +168,8 @@ export function usePaso1() {
           : '',
       };
       const response = await convalidacionService.crearSolicitud(payload);
+      setPaso1Data(formData);
+      setSolicitudId(response.data.id); 
       Toast.show({
         type: 'success',
         text1: 'Solicitud creada',
