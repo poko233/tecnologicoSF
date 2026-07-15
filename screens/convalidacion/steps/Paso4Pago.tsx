@@ -74,9 +74,6 @@ export function Paso4Pago() {
   const subtotal = cantidadMaterias * arancelPorMateria;
   const monto = subtotal - descuento;
 
-  console.log('Cuota actual:', cuota);
-  console.log('Gestión label:', gestionLabel);
-  console.log('Cálculo:', { cantidadMaterias, arancelPorMateria, descuento, subtotal, monto });
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>

@@ -17,10 +17,6 @@ import { usePaso1 } from '../hooks/usePaso1';
 
 const EXPEDIDOS = ['LPZ', 'CBBA', 'OR', 'PT', 'TJ', 'SCZ', 'BN', 'PD', 'CH', 'QR', 'EXT'];
 const GENEROS = ['MASCULINO', 'FEMENINO'];
-const TIPOS = [
-  { value: 'externa', label: 'Externa' },
-  { value: 'cambio_carrera', label: 'Cambio de carrera' },
-];
 
 export function Paso1DatosEstudiante() {
   const { theme } = useTheme();
@@ -37,10 +33,8 @@ export function Paso1DatosEstudiante() {
       setIdUsuario(result.idUsuario);
 
       const gestion = gestiones.find(g => g.id === result.idGestion);
-      console.log('Gestión encontrada:', gestion, 'para idGestion:', result.idGestion);
       if (gestion) {
         const label = `${gestion.anio || 'N/A'} — ${gestion.nombre || 'N/A'}`;
-        console.log('Setting gestionLabel:', label);
         setGestionLabel(label);
       } else {
         console.warn('No se encontró la gestión con id:', result.idGestion);
@@ -358,19 +352,6 @@ export function Paso1DatosEstudiante() {
               No hay gestiones disponibles
             </Text>
           )}
-        </View>
-
-        {/* Tipo */}
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.colors.textMuted }]}>
-            TIPO DE CONVALIDACIÓN *
-          </Text>
-          <SelectField
-            value={formData.tipo}
-            onChange={(value) => updateField('tipo', value as any)}
-            options={TIPOS}
-            placeholder="Seleccione tipo"
-          />
         </View>
 
         {/* Institución de Origen */}

@@ -29,7 +29,6 @@ export function Paso3Materias() {
     materia_origen_nombre: '',
     materia_origen_institucion: '',
     nota_origen: '',
-    creditos_origen: '',
     idMateriaDestino: null as number | null,
   });
 
@@ -38,7 +37,6 @@ export function Paso3Materias() {
       materia_origen_nombre: '',
       materia_origen_institucion: '',
       nota_origen: '',
-      creditos_origen: '',
       idMateriaDestino: null,
     });
   };
@@ -48,7 +46,6 @@ export function Paso3Materias() {
       !formData.materia_origen_nombre.trim() ||
       !formData.materia_origen_institucion.trim() ||
       !formData.nota_origen ||
-      !formData.creditos_origen ||
       !formData.idMateriaDestino
     ) {
       Toast.show({
@@ -62,7 +59,6 @@ export function Paso3Materias() {
     const success = await agregarMateria({
       ...formData,
       nota_origen: parseFloat(formData.nota_origen),
-      creditos_origen: parseInt(formData.creditos_origen),
       idMateriaDestino: formData.idMateriaDestino!,
     });
 
@@ -148,14 +144,7 @@ export function Paso3Materias() {
             >
               NOTA
             </Text>
-            <Text
-              style={[
-                styles.tableHeaderText,
-                { color: theme.colors.textMuted, width: 50, textAlign: 'center' },
-              ]}
-            >
-              CR.
-            </Text>
+            
             <Text
               style={[
                 styles.tableHeaderText,
@@ -223,18 +212,6 @@ export function Paso3Materias() {
                   ]}
                 >
                   {detalle.nota_origen}
-                </Text>
-                <Text
-                  style={[
-                    styles.tableCell,
-                    {
-                      color: theme.colors.text,
-                      width: 50,
-                      textAlign: 'center',
-                    },
-                  ]}
-                >
-                  {detalle.creditos_origen}
                 </Text>
                 <Text
                   style={[
@@ -432,27 +409,6 @@ export function Paso3Materias() {
                 keyboardType="numeric"
               />
 
-              {/* Créditos */}
-              <Text style={[styles.label, { color: theme.colors.textMuted }]}>
-                CRÉDITOS *
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: theme.colors.input,
-                    borderColor: theme.colors.inputBorder,
-                    color: theme.colors.text,
-                  },
-                ]}
-                value={formData.creditos_origen}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, creditos_origen: text }))
-                }
-                placeholder="Ej: 4"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-              />
 
               {/* Materia Destino */}
               <Text style={[styles.label, { color: theme.colors.textMuted }]}>
@@ -461,7 +417,6 @@ export function Paso3Materias() {
               <SelectField
                 value={formData.idMateriaDestino?.toString() || ''}
                 onChange={(value) => {
-                  console.log('Materia destino seleccionada:', value);
                   setFormData(prev => ({
                     ...prev,
                     idMateriaDestino: value ? parseInt(value) : null

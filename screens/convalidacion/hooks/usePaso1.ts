@@ -66,7 +66,6 @@ export function usePaso1() {
     field: K,
     value: Paso1FormData[K]
   ) => {
-    console.log(`Actualizando campo ${field}:`, value);
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 

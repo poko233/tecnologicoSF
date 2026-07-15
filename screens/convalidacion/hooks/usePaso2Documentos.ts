@@ -103,7 +103,6 @@ export function usePaso2Documentos(solicitudId: number | null) {
         } as any);
       }
 
-      console.log('Subiendo documento:', { tipo, fileName: file.name, mimeType: file.mimeType });
 
       const response = await convalidacionService.subirDocumento(
         solicitudId,

@@ -21,18 +21,15 @@ export function usePaso3Materias(
 
   const loadData = async () => {
     if (!solicitudId || !idCarreraDestino) {
-      console.log('No se puede cargar datos:', { solicitudId, idCarreraDestino });
       return;
     }
 
     try {
       setLoadingData(true);
-      console.log('Cargando materias para carrera:', idCarreraDestino);
       const [materiasRes, detallesRes] = await Promise.all([
         convalidacionService.getMateriasCarrera(idCarreraDestino),
         convalidacionService.getDetalles(solicitudId),
       ]);
-      console.log('Detalles cargados:', detallesRes.data);
       setMaterias((materiasRes as any).materias || (materiasRes as any).data || []);
       setDetalles((detallesRes as any).data || (detallesRes as any).detalles || []);
     } catch (error: any) {
@@ -51,7 +48,6 @@ export function usePaso3Materias(
     materia_origen_nombre: string;
     materia_origen_institucion: string;
     nota_origen: number;
-    creditos_origen: number;
     idMateriaDestino: number;
   }) => {
     if (!solicitudId) return false;

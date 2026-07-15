@@ -30,16 +30,13 @@ export function usePaso4Pago(solicitudId: number | null) {
 
     try {
       setLoadingData(true);
-      console.log('Cargando cuota para solicitud:', solicitudId);
       const response = await convalidacionService.getCuota(solicitudId);
-      console.log('Cuota cargada:', response.data);
       setCuota(response.data);
 
       // Si hay cuota, actualizar formData con los valores
       if (response.data) {
         setFormData(prev => ({
           ...prev,
-          arancel_por_materia: response.data.arancel_por_materia || 100,
           descuento: response.data.descuento || 0,
         }));
       }
