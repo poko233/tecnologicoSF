@@ -1,12 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Pressable,
-    TextInput,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  Image,
+  Pressable,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
@@ -14,24 +14,24 @@ import { useTheme } from "../../../theme/useTheme";
 import { createEstudiantesTableStyles } from "../styles/estudiantesTable.styles";
 import { EstudianteUsuario } from "../types/estudiante.types";
 import {
-    esEstadoActivo,
-    nombreCompleto,
-    normalizarEstado,
-    normalizarTipoCarrera,
-    obtenerCarrerasEstudiante,
-    obtenerCarrerasTexto,
-    obtenerFechaInscripcion,
-    obtenerIniciales,
-    obtenerLabelNivelPorRegimen,
-    obtenerMatricula,
-    obtenerNivelesDeCarreraEstudiante,
-    obtenerNivelesTexto,
-    obtenerPromocionActual,
-    obtenerReferencia,
-    obtenerRoles,
-    obtenerTipoCarreraLabel,
-    obtenerTiposCarreraEstudiante,
-    obtenerTiposCarreraTexto,
+  esEstadoActivo,
+  nombreCompleto,
+  normalizarEstado,
+  normalizarTipoCarrera,
+  obtenerCarrerasEstudiante,
+  obtenerCarrerasTexto,
+  obtenerFechaInscripcion,
+  obtenerIniciales,
+  obtenerLabelNivelPorRegimen,
+  obtenerMatricula,
+  obtenerNivelesDeCarreraEstudiante,
+  obtenerNivelesTexto,
+  obtenerPromocionActual,
+  obtenerReferencia,
+  obtenerRoles,
+  obtenerTipoCarreraLabel,
+  obtenerTiposCarreraEstudiante,
+  obtenerTiposCarreraTexto,
 } from "../utils/estudiante.helpers";
 
 type FiltrosEstudiantes = {
@@ -46,6 +46,7 @@ type Props = {
   filtros: FiltrosEstudiantes;
   onFiltrosChange: (filtros: FiltrosEstudiantes) => void;
   onVerDetalle: (estudiante: EstudianteUsuario) => void;
+  onVerHistorialEstudiante: (estudiante: EstudianteUsuario) => void;
   onRefresh: () => void;
 };
 
@@ -93,6 +94,7 @@ export default function EstudiantesTable({
   filtros,
   onFiltrosChange,
   onVerDetalle,
+  onVerHistorialEstudiante,
   onRefresh,
 }: Props) {
   const { theme } = useTheme();
@@ -661,6 +663,7 @@ export default function EstudiantesTable({
                       colors={colors}
                       styles={styles}
                       onVer={() => onVerDetalle(estudiante)}
+                      onHistorial={() => onVerHistorialEstudiante(estudiante)}
                     />
                   );
                 }
@@ -729,11 +732,13 @@ export default function EstudiantesTable({
                         </View>
 
                         <View style={styles.accionCompactCell}>
-                          <VerButton
+                          <ActionButtons
                             compact
                             colors={colors}
-                            styles={styles}
-                            onPress={() => onVerDetalle(estudiante)}
+                            onVer={() => onVerDetalle(estudiante)}
+                            onHistorial={() =>
+                              onVerHistorialEstudiante(estudiante)
+                            }
                           />
                         </View>
                       </>
@@ -856,10 +861,12 @@ export default function EstudiantesTable({
                         </View>
 
                         <View style={styles.accionCell}>
-                          <VerButton
+                          <ActionButtons
                             colors={colors}
-                            styles={styles}
-                            onPress={() => onVerDetalle(estudiante)}
+                            onVer={() => onVerDetalle(estudiante)}
+                            onHistorial={() =>
+                              onVerHistorialEstudiante(estudiante)
+                            }
                           />
                         </View>
                       </>
@@ -1146,32 +1153,109 @@ function EstadoBadge({
   );
 }
 
-function VerButton({
+function ActionButtons({
   colors,
-  styles,
   compact = false,
-  onPress,
+  onVer,
+  onHistorial,
 }: {
   colors: any;
-  styles: TableStyles;
   compact?: boolean;
+  onVer: () => void;
+  onHistorial: () => void;
+}) {
+  const width = compact ? 104 : 124;
+  const height = compact ? 34 : 38;
+
+  const primary = colors.primary || "#EF4444";
+  const primaryForeground = colors.primaryForeground || "#FFFFFF";
+  const borderColor = colors.border || "rgba(148, 163, 184, 0.35)";
+  const secondaryBg =
+    colors.cardSecondary || colors.surface || "rgba(148, 163, 184, 0.12)";
+  const textColor = colors.text || "#FFFFFF";
+
+  return (
+    <View
+      style={{
+        width,
+        alignItems: "stretch",
+        justifyContent: "center",
+        gap: 8,
+      }}
+    >
+      <ActionColumnButton
+        icon="eye-outline"
+        label="Ver"
+        width={width}
+        height={height}
+        backgroundColor={primary}
+        textColor={primaryForeground}
+        onPress={onVer}
+      />
+
+      <ActionColumnButton
+        icon="school-outline"
+        label={compact ? "Historial" : "Historial"}
+        width={width}
+        height={height}
+        backgroundColor={secondaryBg}
+        textColor={textColor}
+        borderColor={borderColor}
+        onPress={onHistorial}
+      />
+    </View>
+  );
+}
+
+function ActionColumnButton({
+  icon,
+  label,
+  width,
+  height,
+  backgroundColor,
+  textColor,
+  borderColor,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  width: number;
+  height: number;
+  backgroundColor: string;
+  textColor: string;
+  borderColor?: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        compact ? styles.editBtnCompact : styles.editBtn,
-        { opacity: pressed ? 0.75 : 1 },
-      ]}
+      style={({ pressed }) => ({
+        width,
+        height,
+        borderRadius: 14,
+        borderWidth: borderColor ? 1 : 0,
+        borderColor,
+        backgroundColor,
+        opacity: pressed ? 0.75 : 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+        paddingHorizontal: 10,
+      })}
     >
-      <Ionicons
-        name="eye-outline"
-        size={compact ? 18 : 16}
-        color={colors.primaryForeground || "#FFFFFF"}
-      />
+      <Ionicons name={icon} size={15} color={textColor} />
 
-      {!compact && <ThemedText style={styles.editText}>Ver</ThemedText>}
+      <ThemedText
+        numberOfLines={1}
+        style={{
+          color: textColor,
+          fontSize: 11,
+          fontWeight: "900",
+        }}
+      >
+        {label}
+      </ThemedText>
     </Pressable>
   );
 }
@@ -1191,6 +1275,7 @@ function MobileEstudianteCard({
   colors,
   styles,
   onVer,
+  onHistorial,
 }: {
   estudiante: EstudianteUsuario;
   nombre: string;
@@ -1206,7 +1291,15 @@ function MobileEstudianteCard({
   colors: any;
   styles: TableStyles;
   onVer: () => void;
+  onHistorial: () => void;
 }) {
+  const primary = colors.primary || "#EF4444";
+  const primaryForeground = colors.primaryForeground || "#FFFFFF";
+  const borderColor = colors.border || "rgba(148, 163, 184, 0.35)";
+  const textColor = colors.text || "#FFFFFF";
+  const secondaryBg =
+    colors.cardSecondary || colors.surface || "rgba(148, 163, 184, 0.12)";
+
   return (
     <View style={styles.mobileCard}>
       <View style={styles.mobileCardTop}>
@@ -1280,22 +1373,79 @@ function MobileEstudianteCard({
         />
       </View>
 
-      <Pressable
-        onPress={onVer}
-        style={({ pressed }) => [
-          styles.mobileEditBtn,
-          { opacity: pressed ? 0.75 : 1 },
-        ]}
+      <View
+        style={{
+          gap: 8,
+          marginTop: 10,
+        }}
       >
-        <Ionicons
-          name="eye-outline"
-          size={17}
-          color={colors.primaryForeground || "#FFFFFF"}
+        <MobileActionButton
+          icon="eye-outline"
+          label="Ver estudiante"
+          backgroundColor={primary}
+          textColor={primaryForeground}
+          onPress={onVer}
         />
 
-        <ThemedText style={styles.editText}>Ver estudiante</ThemedText>
-      </Pressable>
+        <MobileActionButton
+          icon="school-outline"
+          label="Historial estudiante"
+          backgroundColor={secondaryBg}
+          textColor={textColor}
+          borderColor={borderColor}
+          onPress={onHistorial}
+        />
+      </View>
     </View>
+  );
+}
+
+function MobileActionButton({
+  icon,
+  label,
+  backgroundColor,
+  textColor,
+  borderColor,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  backgroundColor: string;
+  textColor: string;
+  borderColor?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: "100%",
+        height: 44,
+        borderRadius: 16,
+        borderWidth: borderColor ? 1 : 0,
+        borderColor,
+        backgroundColor,
+        opacity: pressed ? 0.75 : 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingHorizontal: 12,
+      })}
+    >
+      <Ionicons name={icon} size={17} color={textColor} />
+
+      <ThemedText
+        numberOfLines={1}
+        style={{
+          color: textColor,
+          fontSize: 12,
+          fontWeight: "900",
+        }}
+      >
+        {label}
+      </ThemedText>
+    </Pressable>
   );
 }
 

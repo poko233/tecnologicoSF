@@ -2,11 +2,12 @@ import { Platform } from "react-native";
 
 import { httpClient } from "../../../http/httpClient";
 import {
-    EstudianteDetalleResponse,
-    EstudianteForm,
-    EstudiantesResponse,
-    EstudianteUpdateResponse,
-    FotoEstudianteArchivo,
+  EstudianteDetalleResponse,
+  EstudianteForm,
+  EstudiantesResponse,
+  EstudianteUpdateResponse,
+  FotoEstudianteArchivo,
+  HistorialEstudianteResponse,
 } from "../types/estudiante.types";
 
 export async function obtenerEstudiantes() {
@@ -20,6 +21,13 @@ export async function obtenerDetalleEstudiante(id: number) {
   return httpClient.getAuth<EstudianteDetalleResponse>(
     `/api/estudiantes-usuarios/${id}`,
     "No se pudo cargar el detalle del estudiante",
+  );
+}
+
+export async function obtenerHistorialEstudiante(id: number) {
+  return httpClient.getAuth<HistorialEstudianteResponse>(
+    `/api/estudiantes-usuarios/${id}/historial-estudiante`,
+    "No se pudo cargar el historial del estudiante",
   );
 }
 

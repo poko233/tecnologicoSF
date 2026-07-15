@@ -9,12 +9,14 @@ import { useTheme } from "../../theme/useTheme";
 
 import EstudianteEditModal from "./components/EstudianteEditModal";
 import EstudiantesTable from "./components/EstudiantesTable";
+import HistorialEstudianteModal from "./components/HistorialEstudianteModal";
 import { useEstudiantes } from "./hooks/useEstudiantes";
 import { createEstudianteScreenStyles } from "./styles/estudianteScreen.styles";
 import {
-    EstudianteForm,
-    EstudianteUsuario,
-    FotoEstudianteArchivo,
+  EstudianteForm,
+  EstudianteUsuario,
+  FotoEstudianteArchivo,
+  HistorialEstudianteResponse,
 } from "./types/estudiante.types";
 
 export type FiltrosEstudiantes = {
@@ -36,16 +38,27 @@ export default function EstudianteScreen() {
     estudiantes,
     loading,
     cargandoDetalle,
+    cargandoHistorialEstudiante,
     guardando,
     subiendoFoto,
     cargarEstudiantes,
     cargarDetalleEstudiante,
+    cargarHistorialEstudiante,
     guardarDatosEstudiante,
     guardarFotoEstudiante,
   } = useEstudiantes();
 
   const [estudianteSeleccionado, setEstudianteSeleccionado] =
     useState<EstudianteUsuario | null>(null);
+
+  const [estudianteHistorial, setEstudianteHistorial] =
+    useState<EstudianteUsuario | null>(null);
+
+  const [historialEstudiante, setHistorialEstudiante] =
+    useState<HistorialEstudianteResponse | null>(null);
+
+  const [historialEstudianteVisible, setHistorialEstudianteVisible] =
+    useState(false);
 
   const [filtros, setFiltros] = useState<FiltrosEstudiantes>({
     tipo: "",
@@ -67,6 +80,27 @@ export default function EstudianteScreen() {
     if (guardando || subiendoFoto) return;
 
     setEstudianteSeleccionado(null);
+  };
+
+  const abrirHistorialEstudiante = async (estudiante: EstudianteUsuario) => {
+    setEstudianteHistorial(estudiante);
+    setHistorialEstudiante(null);
+    setHistorialEstudianteVisible(true);
+
+    const data = await cargarHistorialEstudiante(estudiante.id, true);
+
+    if (data) {
+      setHistorialEstudiante(data);
+      setEstudianteHistorial(data.estudiante);
+    }
+  };
+
+  const cerrarHistorialEstudiante = () => {
+    if (cargandoHistorialEstudiante) return;
+
+    setHistorialEstudianteVisible(false);
+    setHistorialEstudiante(null);
+    setEstudianteHistorial(null);
   };
 
   const guardarDatos = async (id: number, form: EstudianteForm) => {
@@ -162,8 +196,7 @@ export default function EstudianteScreen() {
 
               <ThemedText style={styles.subtitle}>
                 Administra los datos personales, contacto, referencia,
-                documentos, foto y código QR de los usuarios con rol de
-                Estudiante.
+                documentos, foto, código QR e historial del estudiante.
               </ThemedText>
             </View>
 
@@ -184,7 +217,7 @@ export default function EstudianteScreen() {
               />
 
               <ThemedText style={styles.reportBtnText}>
-                Report de documentos adeudados
+                Reporte de documentos adeudados
               </ThemedText>
             </Pressable>
           </View>
@@ -196,6 +229,7 @@ export default function EstudianteScreen() {
           filtros={filtros}
           onFiltrosChange={setFiltros}
           onVerDetalle={abrirDetalle}
+          onVerHistorialEstudiante={abrirHistorialEstudiante}
           onRefresh={() => cargarEstudiantes(true)}
         />
       </ScrollView>
@@ -210,6 +244,14 @@ export default function EstudianteScreen() {
         onSave={guardarDatos}
         onFotoActualizada={guardarFoto}
         onDocumentoSubido={recargarDetalle}
+      />
+
+      <HistorialEstudianteModal
+        visible={historialEstudianteVisible}
+        estudiante={estudianteHistorial}
+        historial={historialEstudiante}
+        loading={cargandoHistorialEstudiante}
+        onClose={cerrarHistorialEstudiante}
       />
     </View>
   );

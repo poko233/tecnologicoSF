@@ -2,24 +2,28 @@ import { useCallback, useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 
 import {
-    actualizarEstudiante,
-    actualizarFotoEstudiante,
-    obtenerDetalleEstudiante,
-    obtenerEstudiantes,
+  actualizarEstudiante,
+  actualizarFotoEstudiante,
+  obtenerDetalleEstudiante,
+  obtenerEstudiantes,
+  obtenerHistorialEstudiante,
 } from "../services/estudiante.service";
 import {
-    EstudianteForm,
-    EstudianteUsuario,
-    FotoEstudianteArchivo,
+  EstudianteForm,
+  EstudianteUsuario,
+  FotoEstudianteArchivo,
+  HistorialEstudianteResponse,
 } from "../types/estudiante.types";
 
 let estudiantesCache: EstudianteUsuario[] | null = null;
 let detalleEstudianteCache: Record<number, EstudianteUsuario> = {};
+let historialEstudianteCache: Record<number, HistorialEstudianteResponse> = {};
 let estudiantesCacheDirty = true;
 
 export function invalidarCacheEstudiantes() {
   estudiantesCacheDirty = true;
   detalleEstudianteCache = {};
+  historialEstudianteCache = {};
 }
 
 function guardarEstudianteEnCache(estudiante: EstudianteUsuario) {
@@ -39,6 +43,8 @@ export function useEstudiantes() {
 
   const [loading, setLoading] = useState(false);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [cargandoHistorialEstudiante, setCargandoHistorialEstudiante] =
+    useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
 
@@ -118,6 +124,46 @@ export function useEstudiantes() {
     [],
   );
 
+  const cargarHistorialEstudiante = useCallback(
+    async (id: number, forzar = false) => {
+      if (!forzar && historialEstudianteCache[id]) {
+        return historialEstudianteCache[id];
+      }
+
+      try {
+        setCargandoHistorialEstudiante(true);
+
+        const data = await obtenerHistorialEstudiante(id);
+
+        historialEstudianteCache[id] = data;
+
+        if (data.estudiante) {
+          guardarEstudianteEnCache(data.estudiante);
+
+          if (estudiantesCache) {
+            setEstudiantes(estudiantesCache);
+          }
+        }
+
+        return data;
+      } catch (error: any) {
+        console.error(error);
+
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2:
+            error?.message || "No se pudo cargar el historial del estudiante.",
+        });
+
+        return null;
+      } finally {
+        setCargandoHistorialEstudiante(false);
+      }
+    },
+    [],
+  );
+
   const guardarDatosEstudiante = useCallback(
     async (id: number, form: EstudianteForm) => {
       try {
@@ -127,6 +173,7 @@ export function useEstudiantes() {
         const estudiante = data.estudiante;
 
         guardarEstudianteEnCache(estudiante);
+        delete historialEstudianteCache[id];
 
         if (estudiantesCache) {
           setEstudiantes(estudiantesCache);
@@ -200,10 +247,12 @@ export function useEstudiantes() {
     estudiantes,
     loading,
     cargandoDetalle,
+    cargandoHistorialEstudiante,
     guardando,
     subiendoFoto,
     cargarEstudiantes,
     cargarDetalleEstudiante,
+    cargarHistorialEstudiante,
     guardarDatosEstudiante,
     guardarFotoEstudiante,
   };

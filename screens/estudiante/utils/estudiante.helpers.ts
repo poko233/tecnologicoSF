@@ -1,4 +1,8 @@
-import { EstudianteUsuario } from "../types/estudiante.types";
+import {
+  EstadoMateriaHistorialEstudiante,
+  EstudianteUsuario,
+  MateriaHistorialEstudiante,
+} from "../types/estudiante.types";
 
 function limpiarTexto(value?: string | number | null) {
   return String(value ?? "").trim();
@@ -267,4 +271,131 @@ export function normalizarEstado(estado?: string | null) {
   if (value === "INACTIVO") return "INACTIVO";
 
   return "SIN ESTADO";
+}
+
+export function formatearNotaFinal(nota?: number | string | null) {
+  if (nota === null || nota === undefined || nota === "") {
+    return "Sin nota";
+  }
+
+  const numero = Number(nota);
+
+  if (Number.isNaN(numero)) {
+    return String(nota);
+  }
+
+  return Number.isInteger(numero) ? String(numero) : numero.toFixed(2);
+}
+
+export function obtenerEstadoMateriaLabel(
+  estado?: EstadoMateriaHistorialEstudiante | string | null,
+) {
+  const value = String(estado || "").toUpperCase();
+
+  if (value === "APROBADO") return "Aprobado";
+  if (value === "REPROBADO") return "Reprobado";
+  if (value === "INSCRITO") return "Inscrito";
+  if (value === "PENDIENTE") return "Pendiente";
+
+  return "Sin estado";
+}
+
+const ORDINALES: Record<number, string> = {
+  1: "Primer",
+  2: "Segundo",
+  3: "Tercer",
+  4: "Cuarto",
+  5: "Quinto",
+  6: "Sexto",
+  7: "Séptimo",
+  8: "Octavo",
+  9: "Noveno",
+  10: "Décimo",
+};
+
+export function obtenerLabelNivelHistorialEstudiante(
+  nivel: number,
+  regimen?: string | null,
+) {
+  const numero = Number(nivel || 0);
+  const prefijo = ORDINALES[numero] || `${numero}.`;
+  const tipoNivel = obtenerLabelNivelPorRegimen(regimen);
+
+  return `${prefijo} ${tipoNivel}`;
+}
+
+export type HistorialEstudianteNivelAgrupado = {
+  nivel: number;
+  label: string;
+  materias: MateriaHistorialEstudiante[];
+};
+
+export type HistorialEstudianteCarreraAgrupada = {
+  idCarrera: number;
+  nombreCarrera: string;
+  codigoCarrera?: string | null;
+  regimen?: string | null;
+  tipoCarrera?: string | null;
+  niveles: HistorialEstudianteNivelAgrupado[];
+};
+
+export function agruparHistorialEstudiantePorCarreraNivel(
+  materias: MateriaHistorialEstudiante[],
+): HistorialEstudianteCarreraAgrupada[] {
+  const carrerasMap = new Map<number, HistorialEstudianteCarreraAgrupada>();
+
+  materias.forEach((materia) => {
+    const idCarrera = Number(materia.idCarrera);
+
+    if (!carrerasMap.has(idCarrera)) {
+      carrerasMap.set(idCarrera, {
+        idCarrera,
+        nombreCarrera: materia.nombreCarrera,
+        codigoCarrera: materia.codigoCarrera,
+        regimen: materia.regimen,
+        tipoCarrera: materia.tipoCarrera,
+        niveles: [],
+      });
+    }
+
+    const carrera = carrerasMap.get(idCarrera)!;
+    const nivelMateria = Number(materia.nivel || 0);
+
+    let nivel = carrera.niveles.find((item) => item.nivel === nivelMateria);
+
+    if (!nivel) {
+      nivel = {
+        nivel: nivelMateria,
+        label: obtenerLabelNivelHistorialEstudiante(
+          nivelMateria,
+          materia.regimen,
+        ),
+        materias: [],
+      };
+
+      carrera.niveles.push(nivel);
+    }
+
+    nivel.materias.push(materia);
+  });
+
+  return Array.from(carrerasMap.values()).map((carrera) => ({
+    ...carrera,
+    niveles: carrera.niveles
+      .sort((a, b) => a.nivel - b.nivel)
+      .map((nivel) => ({
+        ...nivel,
+        materias: nivel.materias.sort((a, b) =>
+          a.nombreMateria.localeCompare(b.nombreMateria),
+        ),
+      })),
+  }));
+}
+
+export function normalizarBusqueda(value?: string | number | null) {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }

@@ -36,6 +36,15 @@ export type PromocionEstudiante = {
   updated_at?: string | null;
 };
 
+export type CarreraEstudiante = {
+  idCarrera: number | string;
+  nombreCarrera: string;
+  codigo?: string | null;
+  regimen?: string | null;
+  tipo?: string | null;
+  estadoCarrera?: string | null;
+};
+
 export type EstudianteUsuario = {
   id: number;
   usuario: string;
@@ -67,6 +76,7 @@ export type EstudianteUsuario = {
 
   roles?: RolEstudiante[];
   documentos?: DocumentoEstudiante[];
+  carreras?: CarreraEstudiante[];
 
   numeroReferencias?: ReferenciaEstudiante | ReferenciaEstudiante[] | null;
   numero_referencias?: ReferenciaEstudiante | ReferenciaEstudiante[] | null;
@@ -98,6 +108,63 @@ export type FotoEstudianteArchivo = {
   name: string;
   type: string;
   file?: any;
+};
+
+export type EstadoMateriaHistorialEstudiante =
+  | "APROBADO"
+  | "REPROBADO"
+  | "INSCRITO"
+  | "PENDIENTE";
+
+export type CarreraHistorialEstudiante = {
+  idCarrera: number;
+  nombreCarrera: string;
+  codigo?: string | null;
+  regimen?: string | null;
+  tipo?: string | null;
+  estadoCarrera?: string | null;
+};
+
+export type MateriaHistorialEstudiante = {
+  idCarrera: number;
+  nombreCarrera: string;
+  codigoCarrera?: string | null;
+  regimen?: string | null;
+  tipoCarrera?: string | null;
+
+  idMateria: number;
+  nombreMateria: string;
+  codigoMateria?: string | null;
+  nivel: number;
+
+  notaFinal?: number | null;
+  gestion?: string | null;
+  estadoMateria: EstadoMateriaHistorialEstudiante;
+  observacion?: string | null;
+
+  idGrupo?: number | null;
+  nombreGrupo?: string | null;
+  codigoGrupo?: string | null;
+  paralelo?: string | null;
+  turno?: string | null;
+  fechaInscripcionMateria?: string | null;
+};
+
+export type ResumenHistorialEstudiante = {
+  totalMaterias: number;
+  aprobadas: number;
+  reprobadas: number;
+  inscritas: number;
+  pendientes: number;
+  conNota: number;
+  promedioGeneral?: number | null;
+};
+
+export type HistorialEstudianteResponse = {
+  estudiante: EstudianteUsuario;
+  carreras: CarreraHistorialEstudiante[];
+  materias: MateriaHistorialEstudiante[];
+  resumen: ResumenHistorialEstudiante;
 };
 
 export type EstudiantesResponse = {

@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Linking,
-    Platform,
-    Pressable,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Image,
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -16,13 +16,16 @@ import { ThemedText } from "../../../components/ThemedText";
 import { httpClient } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 import {
-    DocumentoEstudiante,
-    EstudianteUsuario,
+  DocumentoEstudiante,
+  EstudianteUsuario,
 } from "../types/estudiante.types";
 
 type DocumentoRequerido = {
+  key: string;
   titulo: string;
   descripcion: string;
+  tipos: string[];
+  aliases: string[];
 };
 
 type DocumentoLocal = {
@@ -38,25 +41,125 @@ type Props = {
 
 const DOCUMENTOS_REQUERIDOS: DocumentoRequerido[] = [
   {
+    key: "carnet_identidad",
     titulo: "Carnet de identidad",
     descripcion: "Documento de identidad del estudiante.",
+    tipos: ["carnet_identidad", "documento_identidad", "ci"],
+    aliases: [
+      "carnet de identidad",
+      "carnet identidad",
+      "fotocopia de carnet",
+      "fotocopia carnet",
+      "documento de identidad",
+      "documento identidad",
+      "ci",
+      "carnet",
+    ],
   },
   {
+    key: "certificado_nacimiento",
     titulo: "Certificado de nacimiento",
     descripcion: "Certificado legal del estudiante.",
+    tipos: ["certificado_nacimiento"],
+    aliases: [
+      "certificado de nacimiento",
+      "certificado nacimiento",
+      "nacimiento",
+    ],
   },
   {
+    key: "titulo_bachiller",
     titulo: "Título de bachiller",
     descripcion: "Documento académico requerido.",
+    tipos: ["titulo_bachiller", "titulo_de_bachiller"],
+    aliases: [
+      "titulo de bachiller",
+      "título de bachiller",
+      "titulo bachiller",
+      "título bachiller",
+      "bachiller",
+      "diploma de bachiller",
+    ],
   },
 ];
 
 function normalizarTexto(texto?: string | null) {
-  return (texto || "")
+  return String(texto || "")
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_\-.]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizarTipo(tipo?: string | null) {
+  return String(tipo || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-]+/g, "_");
+}
+
+function documentoEstaEntregado(documento?: DocumentoEstudiante | null) {
+  if (!documento) return false;
+
+  const estado = normalizarTexto(documento.estadoDocumento);
+
+  if (
+    estado === "entregado" ||
+    estado === "presentado" ||
+    estado === "aprobado" ||
+    estado === "activo" ||
+    estado === "1"
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function documentoCoincide(
+  documento: DocumentoEstudiante,
+  requerido: DocumentoRequerido,
+) {
+  if (!documentoEstaEntregado(documento)) return false;
+
+  const tipoDocumento = normalizarTipo((documento as any).tipo);
+  const nombreDocumento = normalizarTexto(documento.nombreDocumento);
+
+  const tiposPermitidos = requerido.tipos.map(normalizarTipo);
+  const aliasesPermitidos = [
+    requerido.titulo,
+    requerido.key,
+    ...requerido.aliases,
+  ].map(normalizarTexto);
+
+  if (tipoDocumento && tiposPermitidos.includes(tipoDocumento)) {
+    return true;
+  }
+
+  if (!nombreDocumento) return false;
+
+  return aliasesPermitidos.some((alias) => {
+    if (!alias) return false;
+
+    return (
+      nombreDocumento === alias ||
+      nombreDocumento.includes(alias) ||
+      alias.includes(nombreDocumento)
+    );
+  });
+}
+
+function obtenerDocumentoExistente(
+  documentos: DocumentoEstudiante[],
+  requerido: DocumentoRequerido,
+) {
+  return (
+    documentos.find((documento) => documentoCoincide(documento, requerido)) ??
+    null
+  );
 }
 
 function obtenerUrlDocumento(documento?: DocumentoEstudiante | null) {
@@ -72,7 +175,8 @@ function detectarMimeDesdeUrl(url?: string | null) {
     lower.endsWith(".jpg") ||
     lower.endsWith(".jpeg") ||
     lower.endsWith(".png") ||
-    lower.endsWith(".webp")
+    lower.endsWith(".webp") ||
+    lower.endsWith(".jfif")
   ) {
     return "image/*";
   }
@@ -98,6 +202,15 @@ function obtenerPdfUrlAjustado(url: string) {
   return `${url}#toolbar=0&navpanes=0&scrollbar=0&view=Fit&zoom=page-fit`;
 }
 
+function obtenerNombreArchivoDesdeRuta(ruta?: string | null) {
+  if (!ruta) return null;
+
+  const clean = ruta.split("?")[0];
+  const partes = clean.split("/");
+
+  return partes[partes.length - 1] || null;
+}
+
 export default function EstudianteDocumentosPanel({
   estudiante,
   onDocumentoSubido,
@@ -108,35 +221,19 @@ export default function EstudianteDocumentosPanel({
 
   const documentos = estudiante?.documentos ?? [];
 
-  const documentosMap = useMemo(() => {
-    const map = new Map<string, DocumentoEstudiante>();
-
-    documentos.forEach((doc) => {
-      const key = normalizarTexto(doc.nombreDocumento);
-
-      if (key) {
-        map.set(key, doc);
-      }
-    });
-
-    return map;
-  }, [documentos]);
-
   if (!estudiante) return null;
 
   return (
     <View style={styles.container}>
       <View style={styles.grid}>
         {DOCUMENTOS_REQUERIDOS.map((doc) => {
-          const documentoExistente =
-            documentosMap.get(normalizarTexto(doc.titulo)) ?? null;
+          const documentoExistente = obtenerDocumentoExistente(documentos, doc);
 
           return (
             <DocumentoEstadoCard
-              key={doc.titulo}
+              key={doc.key}
               idUsuario={estudiante.id}
-              titulo={doc.titulo}
-              descripcion={doc.descripcion}
+              documentoRequerido={doc}
               documentoExistente={documentoExistente}
               onDocumentoSubido={() => onDocumentoSubido(estudiante.id)}
             />
@@ -149,14 +246,12 @@ export default function EstudianteDocumentosPanel({
 
 function DocumentoEstadoCard({
   idUsuario,
-  titulo,
-  descripcion,
+  documentoRequerido,
   documentoExistente,
   onDocumentoSubido,
 }: {
   idUsuario: number;
-  titulo: string;
-  descripcion: string;
+  documentoRequerido: DocumentoRequerido;
   documentoExistente?: DocumentoEstudiante | null;
   onDocumentoSubido: () => Promise<void> | void;
 }) {
@@ -175,18 +270,19 @@ function DocumentoEstadoCard({
   const mimeExistente = detectarMimeDesdeUrl(urlExistente);
 
   const previewUri = local.previewUri || urlExistente;
+
   const archivoNombre =
     local.archivoNombre ||
     documentoExistente?.nombreDocumento ||
-    documentoExistente?.ubicacionArchivo ||
-    null;
+    obtenerNombreArchivoDesdeRuta(documentoExistente?.ubicacionArchivo) ||
+    documentoRequerido.titulo;
 
   const mimeType = local.mimeType || mimeExistente;
   const existeArchivo = Boolean(previewUri);
 
   const esImagen =
     mimeType?.startsWith("image/") ||
-    /\.(jpg|jpeg|png|webp)$/i.test(previewUri || "");
+    /\.(jpg|jpeg|png|webp|jfif)$/i.test(previewUri || "");
 
   const esPdf =
     mimeType === "application/pdf" || /\.pdf$/i.test(previewUri || "");
@@ -202,7 +298,13 @@ function DocumentoEstadoCard({
   const subirArchivo = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/jpeg", "image/png", "image/webp"],
+        type: [
+          "application/pdf",
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "image/webp",
+        ],
         multiple: false,
         copyToCacheDirectory: true,
       });
@@ -214,7 +316,8 @@ function DocumentoEstadoCard({
       const formData = new FormData();
 
       formData.append("idUsuario", String(idUsuario));
-      formData.append("nombreDocumento", titulo);
+      formData.append("nombreDocumento", documentoRequerido.titulo);
+      formData.append("tipo", documentoRequerido.key);
 
       if (Platform.OS === "web") {
         const webFile = (archivo as any).file;
@@ -229,7 +332,7 @@ function DocumentoEstadoCard({
           return;
         }
 
-        formData.append("archivo", webFile);
+        formData.append("archivo", webFile, archivo.name);
       } else {
         formData.append("archivo", {
           uri: archivo.uri,
@@ -243,7 +346,7 @@ function DocumentoEstadoCard({
       await httpClient.postFormData("/api/documentos-estudiante", formData);
 
       setLocal({
-        archivoNombre: archivo.name || titulo,
+        archivoNombre: archivo.name || documentoRequerido.titulo,
         previewUri: archivo.uri,
         mimeType: archivo.mimeType || null,
       });
@@ -251,7 +354,7 @@ function DocumentoEstadoCard({
       Toast.show({
         type: "success",
         text1: "Documento subido",
-        text2: titulo,
+        text2: documentoRequerido.titulo,
       });
 
       await onDocumentoSubido();
@@ -294,7 +397,7 @@ function DocumentoEstadoCard({
 
           <View style={styles.docTitleBox}>
             <ThemedText style={styles.docTitle} numberOfLines={1}>
-              {titulo}
+              {documentoRequerido.titulo}
             </ThemedText>
 
             <View
@@ -311,7 +414,7 @@ function DocumentoEstadoCard({
         </View>
 
         <ThemedText style={styles.docDescription} numberOfLines={1}>
-          {descripcion}
+          {documentoRequerido.descripcion}
         </ThemedText>
 
         <View
@@ -346,7 +449,10 @@ function DocumentoEstadoCard({
         )}
 
         {previewUri && esPdf && Platform.OS === "web" && (
-          <PdfPreview uri={previewUri} title={archivoNombre || titulo} />
+          <PdfPreview
+            uri={previewUri}
+            title={archivoNombre || documentoRequerido.titulo}
+          />
         )}
 
         {previewUri && esPdf && Platform.OS !== "web" && (
