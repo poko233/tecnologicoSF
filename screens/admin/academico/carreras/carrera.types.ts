@@ -9,6 +9,7 @@ export interface Carrera {
   cargaHoraria: string
   costo: number
   costo_matricula?: number
+  nota_aprobacion?: number
   denominacionTitutloProfesional: string
   cuota_mensual?: number
   cuotas_por_anio?: number
