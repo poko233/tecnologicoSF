@@ -16,6 +16,8 @@ export interface Grupo {
   cupos: number;
   tipo?: string | null;
   estado: "activo" | "inactivo";
+  fecha_inicio: string; // formato YYYY-MM-DD
+  fecha_fin: string; // formato YYYY-MM-DD
   horarios: Horario[];
   creadoEn?: string;
   actualizadoEn?: string;

@@ -1,6 +1,7 @@
 // screens/admin/academico/grupos/GrupoForm.tsx
 import { gestionesService } from "@/screens/gestiones/services/gestiones.service";
 import { Gestion } from "@/screens/gestiones/types/gestiones.types";
+import FormDateInput from "@/screens/inscripcion/components/FormDateInput";
 import { useTheme } from "@theme";
 import { ChevronDown } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -77,12 +78,15 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     idGestion: undefined as number | undefined,
     gestionNombre: "",
     cupos: "",
+    fecha_inicio: "",
+    fecha_fin: "",
     activo: true,
   });
 
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [cuposError, setCuposError] = useState("");
   const [horariosError, setHorariosError] = useState("");
+  const [fechasError, setFechasError] = useState("");
 
   // Selectores de hora individuales
   const [timePickerVisible, setTimePickerVisible] = useState(false);
@@ -128,6 +132,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         idGestion: initialData.idGestion,
         gestionNombre: initialData.gestionNombre ?? "",
         cupos: String(initialData.cupos ?? ""),
+        fecha_inicio: convertirFechaParaMostrar(initialData.fecha_inicio ?? ""),
+        fecha_fin: convertirFechaParaMostrar(initialData.fecha_fin ?? ""),
         activo: initialData.estado === "activo",
       });
 
@@ -148,6 +154,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         idGestion: undefined,
         gestionNombre: "",
         cupos: "",
+        fecha_inicio: "",
+        fecha_fin: "",
         activo: true,
       });
 
@@ -156,6 +164,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
     setCuposError("");
     setHorariosError("");
+    setFechasError("");
     setIsFixedSchedule(false);
     setFixedSelectedDays([]);
   }, [initialData]);
@@ -268,6 +277,22 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     setTimePickerVisible(true);
   };
 
+  // Función para convertir formato DD/MM/YYYY a YYYY-MM-DD
+  const convertirFechaParaBackend = (fechaDD_MM_YYYY: string): string => {
+    if (!fechaDD_MM_YYYY) return "";
+    const parts = fechaDD_MM_YYYY.split("/");
+    if (parts.length !== 3) return fechaDD_MM_YYYY; // Ya está en formato correcto
+    return `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+  };
+
+  // Función para convertir formato YYYY-MM-DD a DD/MM/YYYY
+  const convertirFechaParaMostrar = (fechaYYYY_MM_DD: string): string => {
+    if (!fechaYYYY_MM_DD) return "";
+    const parts = fechaYYYY_MM_DD.split("-");
+    if (parts.length !== 3) return fechaYYYY_MM_DD; // Ya está en formato DD/MM/YYYY
+    return `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
+  };
+
   const validarHorarios = () => {
     for (const horario of horarios) {
       if (!horario.dia) {
@@ -300,6 +325,25 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
       return;
     }
 
+    if (!form.fecha_inicio) {
+      setFechasError("La fecha de inicio es obligatoria.");
+      return;
+    }
+
+    if (!form.fecha_fin) {
+      setFechasError("La fecha de fin es obligatoria.");
+      return;
+    }
+
+    // Convertir fechas a formato comparable YYYY-MM-DD
+    const fechaInicioBackend = convertirFechaParaBackend(form.fecha_inicio);
+    const fechaFinBackend = convertirFechaParaBackend(form.fecha_fin);
+
+    if (fechaFinBackend < fechaInicioBackend) {
+      setFechasError("La fecha de fin debe ser posterior a la fecha de inicio.");
+      return;
+    }
+
     const errorHorario = validarHorarios();
 
     if (errorHorario) {
@@ -309,6 +353,7 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
     setCuposError("");
     setHorariosError("");
+    setFechasError("");
     setSaving(true);
 
     try {
@@ -320,6 +365,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         cupos: Number(form.cupos),
         estado: form.activo ? "activo" : "inactivo",
         tipo: "Curso",
+        fecha_inicio: fechaInicioBackend,
+        fecha_fin: fechaFinBackend,
         horarios: horarios.map(({ dia, horaInicio, horaFin }) => ({
           dia,
           horaInicio: normalizarHora(horaInicio),
@@ -468,6 +515,35 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
             </Text>
           ) : null}
         </View>
+      </View>
+
+      {/* Fecha inicio y Fecha fin */}
+      <View style={styles.row2}>
+        <FormDateInput
+          label="Fecha inicio"
+          placeholder="dd/mm/aaaa"
+          value={form.fecha_inicio}
+          onChangeText={(text) => {
+            setForm((f) => ({ ...f, fecha_inicio: text }));
+            setFechasError("");
+          }}
+          error={fechasError}
+          required
+        />
+
+        <View style={{ width: 12 }} />
+
+        <FormDateInput
+          label="Fecha fin"
+          placeholder="dd/mm/aaaa"
+          value={form.fecha_fin}
+          onChangeText={(text) => {
+            setForm((f) => ({ ...f, fecha_fin: text }));
+            setFechasError("");
+          }}
+          error={fechasError}
+          required
+        />
       </View>
 
       {/* Horarios */}
