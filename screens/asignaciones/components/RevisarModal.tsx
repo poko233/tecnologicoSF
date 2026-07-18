@@ -158,7 +158,6 @@ export default function RevisarModal({
 
       setDocumentos(documentosUnicos);
     } catch (error) {
-      console.error("ERROR CARGANDO DOCUMENTOS:", error);
       setDocumentos([]);
     } finally {
       setLoadingDocs(false);

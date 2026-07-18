@@ -1,4 +1,3 @@
-// screens/convalidacion/steps/Paso1DatosEstudiante.tsx
 import FormDateInput from '@/screens/inscripcion/components/FormDateInput';
 import { useTheme } from '@theme';
 import React from 'react';
@@ -46,10 +45,7 @@ export function Paso1DatosEstudiante() {
     }
   };
 
-  // ❌ ANTES: aquí había un `if (loadingData) return <LoadingScreen />` que
-  //    bloqueaba TODO el formulario. Se quitó para que el usuario pueda
-  //    empezar a escribir de inmediato.
-
+  
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>
@@ -79,7 +75,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Expedido */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             EXPEDIDO *
@@ -92,7 +87,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Nombres */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             NOMBRES *
@@ -113,7 +107,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Apellido Paterno */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             APELLIDO PATERNO *
@@ -134,7 +127,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Apellido Materno */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             APELLIDO MATERNO
@@ -155,7 +147,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Género */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             GÉNERO *
@@ -168,7 +159,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Fecha de Nacimiento */}
         <View style={styles.field}>
           <FormDateInput
             label="Fecha de nacimiento"
@@ -192,7 +182,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Email */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             EMAIL
@@ -215,7 +204,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Teléfono */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             TELÉFONO
@@ -237,7 +225,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Celular */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             CELULAR
@@ -259,7 +246,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Dirección */}
         <View style={[styles.field, styles.fieldFull]}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             DIRECCIÓN
@@ -280,7 +266,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Matrícula — generada automáticamente por el backend */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             Nº DE MATRÍCULA
@@ -313,7 +298,6 @@ export function Paso1DatosEstudiante() {
           </View>
         </View>
 
-        {/* Carrera Destino — 👇 aquí sí importa loadingData, porque depende de la API */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             CARRERA DESTINO *
@@ -351,7 +335,6 @@ export function Paso1DatosEstudiante() {
           )}
         </View>
 
-        {/* Gestión — 👇 mismo caso */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             GESTIÓN *
@@ -389,7 +372,6 @@ export function Paso1DatosEstudiante() {
           )}
         </View>
 
-        {/* Tipo */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             TIPO DE CONVALIDACIÓN *
@@ -402,7 +384,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Institución de Origen */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             INSTITUCIÓN DE ORIGEN *
@@ -423,7 +404,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Carrera de Origen */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             CARRERA DE ORIGEN *
@@ -444,7 +424,6 @@ export function Paso1DatosEstudiante() {
           />
         </View>
 
-        {/* Motivo */}
         <View style={[styles.field, styles.fieldFull]}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
             MOTIVO DE LA SOLICITUD
@@ -470,7 +449,6 @@ export function Paso1DatosEstudiante() {
         </View>
       </View>
 
-      {/* Botón Siguiente */}
       <View style={styles.buttonContainer}>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
@@ -479,7 +457,7 @@ export function Paso1DatosEstudiante() {
             styles.button,
             { backgroundColor: theme.colors.primary },
           ]}
-          disabled={loading || loadingData} // 👈 evita avanzar si aún no llegó carrera/gestión
+          disabled={loading || loadingData} 
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" size="small" />

@@ -359,7 +359,6 @@ function DocumentoEstadoCard({
 
       await onDocumentoSubido();
     } catch (error) {
-      console.error(error);
 
       Toast.show({
         type: "error",

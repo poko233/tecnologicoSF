@@ -299,8 +299,6 @@ export default function PasoCuotas({ idEstudiante, onFinish }: Props) {
 
         setTotalCuotasEditable(totalExistente.toFixed(2));
       }
-    } catch (error) {
-      console.error(error);
     } finally {
       setCargandoCuotas(false);
     }

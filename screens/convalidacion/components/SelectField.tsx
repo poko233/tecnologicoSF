@@ -1,4 +1,3 @@
-// screens/convalidacion/components/SelectField.tsx
 import { useTheme } from '@theme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';

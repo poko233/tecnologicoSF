@@ -110,7 +110,6 @@ export default function PasoAcademico({
 
       setCarreras(filtradas);
     } catch (error) {
-      console.error("ERROR CARRERAS:", error);
 
       Toast.show({
         type: "error",
@@ -139,7 +138,6 @@ export default function PasoAcademico({
 
       setMaterias(materiasDisponibles);
     } catch (error) {
-      console.error(error);
 
       Toast.show({
         type: "error",
@@ -164,7 +162,6 @@ export default function PasoAcademico({
 
       setGrupos(response.grupos ?? []);
     } catch (error) {
-      console.error(error);
 
       Toast.show({
         type: "error",
@@ -282,7 +279,6 @@ export default function PasoAcademico({
 
       onFinish?.();
     } catch (error) {
-      console.error(error);
 
       Toast.show({
         type: "error",

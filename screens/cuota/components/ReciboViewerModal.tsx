@@ -99,7 +99,6 @@ export const ReciboViewerModal: React.FC<ReciboViewerModalProps> = ({
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Error cargando recibo:", err);
         if (!revoked) {
           setLoading(false);
           setError(true);
@@ -122,7 +121,6 @@ export const ReciboViewerModal: React.FC<ReciboViewerModalProps> = ({
     try {
       await Share.share({ url: reciboUrl });
     } catch (e) {
-      console.error("Error al compartir:", e);
     }
   };
 

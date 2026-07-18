@@ -1,4 +1,3 @@
-// screens/convalidacion/hooks/usePaso4Pago.ts
 import { useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -33,7 +32,6 @@ export function usePaso4Pago(solicitudId: number | null) {
       const response = await convalidacionService.getCuota(solicitudId);
       setCuota(response.data);
 
-      // Si hay cuota, actualizar formData con los valores
       if (response.data) {
         setFormData(prev => ({
           ...prev,
@@ -41,7 +39,6 @@ export function usePaso4Pago(solicitudId: number | null) {
         }));
       }
     } catch (error: any) {
-      console.error('Error cargando cuota:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',
@@ -58,7 +55,6 @@ export function usePaso4Pago(solicitudId: number | null) {
   try {
     setLoading(true);
 
-    // 1. Crear cuota si no existe
     if (!cuota || !cuota.id) {
       await convalidacionService.crearCuota(solicitudId, {
         arancel_por_materia: formData.arancel_por_materia,
@@ -68,15 +64,12 @@ export function usePaso4Pago(solicitudId: number | null) {
       });
     }
 
-    // 2. Registrar el pago
     await convalidacionService.registrarPago(solicitudId, {
       metodo: formData.metodo,
       comprobante: formData.comprobante,
       fecha_pago: formData.fecha_pago.toISOString().split('T')[0],
     });
 
-    // 3. ← NUEVO: Resolver la solicitud automáticamente
-    // Esto crea CarreraUsuario, NotaFinal e HistorialAcademico
     await convalidacionService.resolverSolicitud(solicitudId, {
       estado: 'aprobada',
       observacion_resolucion: 'Solicitud procesada con pago registrado',

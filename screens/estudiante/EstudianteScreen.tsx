@@ -169,7 +169,6 @@ export default function EstudianteScreen() {
         nuevaVentana.close();
       }
 
-      console.error(error);
 
       Toast.show({
         type: "error",
