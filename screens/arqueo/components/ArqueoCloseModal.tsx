@@ -1,7 +1,7 @@
 // screens/arqueo/components/ArqueoCloseModal.tsx
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/theme/useTheme";
-import { formatDateTimeNatural } from "@/utils/dateHelpers"; // ✅ Usamos la función con hora
+import { formatDateTimeNatural } from "@/utils/dateHelpers"; //  Usamos la función con hora
 import { BlurView } from "expo-blur";
 import { AlertTriangle, X } from "lucide-react-native";
 import { AnimatePresence, MotiView } from "moti";

@@ -6,7 +6,7 @@ QR_KEY = QR_KEY.replace(/[^0-9a-fA-F]/g, "");
 
 if (!QR_KEY || QR_KEY.length !== 64) {
   console.error(
-    `🔐 QR_KEY inválida (longitud ${QR_KEY.length}, se esperaban 64 caracteres hex)`,
+    `QR_KEY inválida (longitud ${QR_KEY.length}, se esperaban 64 caracteres hex)`,
   );
 }
 

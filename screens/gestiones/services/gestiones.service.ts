@@ -9,7 +9,7 @@ import {
 } from "../types/gestiones.types";
 
 export const gestionesService = {
-  // ✅ Agregamos el parámetro signal opcional
+  //  Agregamos el parámetro signal opcional
   listar: (
     filters: GestionFilters = {},
     signal?: AbortSignal,
@@ -21,7 +21,7 @@ export const gestionesService = {
     if (filters.page) params.append("page", String(filters.page));
     const query = params.toString();
 
-    // ✅ Pasamos el signal al httpClient
+    //  Pasamos el signal al httpClient
     return httpClient.getAuth<GestionesResponse>(
       `/api/gestiones${query ? `?${query}` : ""}`,
       undefined,

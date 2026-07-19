@@ -1,7 +1,7 @@
 // screens/arqueo/components/ArqueoRow.tsx
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/theme/useTheme";
-import { formatDateTimeNatural } from "@/utils/dateHelpers"; // ✅ CAMBIO DE IMPORTACIÓN
+import { formatDateTimeNatural } from "@/utils/dateHelpers"; //  CAMBIO DE IMPORTACIÓN
 import { Eye } from "lucide-react-native";
 import { MotiPressable } from "moti/interactions";
 import React from "react";
@@ -17,7 +17,7 @@ interface ArqueoRowProps {
 export function ArqueoRow({ arqueo, onDetail }: ArqueoRowProps) {
   const { theme } = useTheme();
 
-  // ✅ Ahora usa formatDateTimeNatural para mostrar fecha + hora
+  //  Ahora usa formatDateTimeNatural para mostrar fecha + hora
   const fechaApertura = arqueo.fecha_apertura
     ? formatDateTimeNatural(arqueo.fecha_apertura)
     : "—";
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: "center",
-    gap: 12, // ✅ ¡Este es el truco mágico para separar las columnas!
+    gap: 12,
   },
   badge: {
     paddingHorizontal: 8,

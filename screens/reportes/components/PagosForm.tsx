@@ -199,7 +199,6 @@ export function PagosForm({
                   page,
                   signal,
                 );
-                // ✅ CORRECCIÓN: Construimos el meta manualmente, igual que en estudiantes
                 return {
                   data: res.grupos.data,
                   meta: {

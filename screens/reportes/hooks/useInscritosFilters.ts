@@ -28,7 +28,7 @@ export function useInscritosFilters() {
     }));
   }, []);
 
-  // ✅ NUEVO: Seleccionar o deseleccionar todas las carreras
+  // Seleccionar o deseleccionar todas las carreras
   const toggleAllCarreras = useCallback((allIds: number[]) => {
     setFilters((prev) => ({
       ...prev,
@@ -74,7 +74,7 @@ export function useInscritosFilters() {
   return {
     filters,
     toggleCarrera,
-    toggleAllCarreras, // ✅ Exportado
+    toggleAllCarreras,
     setTurno,
     setGestion,
     setSemestre,

@@ -89,7 +89,7 @@ export default function ArqueoOpenModal({
                 animate={{ opacity: 1, scale: 1, translateY: 0 }}
                 exit={{ opacity: 0, scale: 0.95, translateY: -10 }}
                 transition={{ type: "spring", damping: 32, stiffness: 200 }}
-                // ✅ Animación de salida RÁPIDA para evitar el retraso de 1 segundo
+                //  Animación de salida RÁPIDA para evitar el retraso de 1 segundo
                 exitTransition={{
                   type: "timing",
                   duration: 180,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     borderRadius: 24,
     borderWidth: 1,
-    overflow: "hidden", // ✅ Mantenemos el hidden para que los bordes sean perfectos
+    overflow: "hidden", //  Mantenemos el hidden para que los bordes sean perfectos
     elevation: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
   },
-  // ✅ Estilos del Selector
+  //  Estilos del Selector
   selectTrigger: {
     borderWidth: 1,
     borderRadius: 12,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     overflow: "hidden",
-    zIndex: 999, // ✅ Se pone por encima de todo
+    zIndex: 999, //  Se pone por encima de todo
     elevation: 10,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,

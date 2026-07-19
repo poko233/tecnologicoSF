@@ -505,7 +505,7 @@ export default function DatePickerModal({
   }, [yearsArray, searchQuery]);
 
   // Efecto para hacer scroll CENTRADO al año seleccionado SOLO al abrir el modal
-  // 🔄 UNIFICADO: Controla la apertura, limpia la búsqueda, actualiza el año y centra el scroll
+  // UNIFICADO: Controla la apertura, limpia la búsqueda, actualiza el año y centra el scroll
   useEffect(() => {
     if (visible) {
       // 1. Determinar cuál es el año objetivo a mostrar
@@ -544,7 +544,7 @@ export default function DatePickerModal({
       return () => clearTimeout(timer);
     }
   }, [visible, initialYear, yearsArray]);
-  // ⭐ CORRECCIÓN: Eliminado el useMemo ilegal dentro del .map()
+  //CORRECCIÓN: Eliminado el useMemo ilegal dentro del .map()
   const renderYearPicker = () => (
     <>
       <View style={styles.searchContainer}>
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
     minWidth: 50,
   },
 
-  // 🔽 ESTILOS MODO YEAR 🔽
+  //  ESTILOS MODO YEAR
   yearContent: {
     padding: 24,
   },
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // 🔽 PIE DE PÁGINA 🔽
+  // PIE DE PÁGINA
   footer: {
     paddingHorizontal: 24,
     paddingVertical: 20,
@@ -1041,15 +1041,15 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   yearCancelBtn: {
-    width: "100%", // ✨ Hace que el botón ocupe todo el 50% del recuadro izquierdo
-    height: 54, // 🚀 Incrementamos la altura (antes 48) para darle más cuerpo
+    width: "100%", //  Hace que el botón ocupe todo el 50% del recuadro izquierdo
+    height: 54, //  Incrementamos la altura (antes 48) para darle más cuerpo
     borderRadius: 16, // Bordes redondeados más modernos acordes al nuevo tamaño
     alignItems: "center",
     justifyContent: "center",
   },
   yearApplyBtn: {
-    width: "100%", // ✨ Hace que el botón ocupe todo el 50% del recuadro derecho
-    height: 54, // 🚀 Incrementamos la altura (antes 48)
+    width: "100%", //  Hace que el botón ocupe todo el 50% del recuadro derecho
+    height: 54, //  Incrementamos la altura (antes 48)
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",

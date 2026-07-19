@@ -7,7 +7,7 @@ interface ArqueoState {
   activeArqueo: Arqueo | null;
   loading: boolean;
   error: string | null;
-  _hasFetched: boolean; // 🔥 Flag para evitar peticiones duplicadas
+  _hasFetched: boolean; //  Flag para evitar peticiones duplicadas
   fetchActiveArqueo: () => Promise<void>;
   openArqueo: (turno: string, saldoAnterior: number) => Promise<Arqueo>;
   closeArqueo: (id: number, conteo: Conteo) => Promise<Arqueo>;
@@ -21,7 +21,7 @@ export const useArqueoStore = create<ArqueoState>((set, get) => ({
   _hasFetched: false,
 
   fetchActiveArqueo: async () => {
-    // 🔥 Si ya se hizo la primera carga, no hacemos nada
+    //  Si ya se hizo la primera carga, no hacemos nada
     if (get()._hasFetched) return;
 
     set({ loading: true, error: null });

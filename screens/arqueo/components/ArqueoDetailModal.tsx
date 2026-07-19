@@ -1,7 +1,7 @@
 // screens/arqueo/components/ArqueoDetailModal.tsx
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/theme/useTheme";
-import { formatDateTimeNatural } from "@/utils/dateHelpers"; // ✅ Con hora
+import { formatDateTimeNatural } from "@/utils/dateHelpers"; //  Con hora
 import { BlurView } from "expo-blur";
 import { X } from "lucide-react-native";
 import { MotiPressable } from "moti/interactions";

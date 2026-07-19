@@ -15,7 +15,7 @@ export const useArqueo = () => {
 
   const hasMounted = useRef(false);
 
-  // 🔥 Solo se ejecuta una vez, incluso si el componente se desmonta y vuelve a montar
+  //  Solo se ejecuta una vez, incluso si el componente se desmonta y vuelve a montar
   useEffect(() => {
     if (!hasMounted.current) {
       hasMounted.current = true;

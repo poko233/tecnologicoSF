@@ -8,7 +8,7 @@ interface UseRemoteSearchProps<T> {
   ) => Promise<{
     data: T[];
     meta: { current_page: number; last_page: number; total: number };
-    next_page_url: string | null; // ✅ El backend devuelve next_page_url
+    next_page_url: string | null;
   }>;
 }
 
@@ -42,7 +42,6 @@ export function useRemoteSearch<T>({ fetchItems }: UseRemoteSearchProps<T>) {
           isLoadMore ? [...prev, ...response.data] : response.data,
         );
         setTotal(response.meta.total);
-        // ✅ VERIFICACIÓN DEFINITIVA: Usamos next_page_url
         setHasNextPage(!!response.next_page_url);
         setPage(response.meta.current_page);
       } catch (error: any) {

@@ -327,7 +327,7 @@ export function ArqueoHistoryHeader({
                       : "Rango"}
                   </ThemedText>
                 </Pressable>
-                {/* 🆕 Botón de limpiar fecha */}
+                {/*  Botón de limpiar fecha */}
                 {(fechaAperturaFrom || fechaAperturaTo) && (
                   <MotiPressable
                     onPress={() => onFechaAperturaChange("", "")}
@@ -369,7 +369,7 @@ export function ArqueoHistoryHeader({
                       : "Rango"}
                   </ThemedText>
                 </Pressable>
-                {/* 🆕 Botón de limpiar fecha */}
+                {/*  Botón de limpiar fecha */}
                 {(fechaCierreFrom || fechaCierreTo) && (
                   <MotiPressable
                     onPress={() => onFechaCierreChange("", "")}

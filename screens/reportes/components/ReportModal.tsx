@@ -13,7 +13,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import Toast from "react-native-toast-message"; // ✅ Asegurar importación
+import Toast from "react-native-toast-message";
 import { useInscritosFilters } from "../hooks/useInscritosFilters";
 import { usePagosFilters } from "../hooks/usePagosFilters";
 import { reportesService } from "../services/reportes.service";
@@ -58,7 +58,7 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
   const isCentralizador = reportType === "centralizador";
   const isInscritos = reportType === "carrera";
   const isListaGrupo = reportType === "lista-grupo";
-  const isPagos = reportType === "pagos"; // ✅ NUEVO
+  const isPagos = reportType === "pagos";
 
   useEffect(() => {
     if (!visible) return;

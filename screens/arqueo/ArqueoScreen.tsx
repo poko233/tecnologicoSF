@@ -109,7 +109,7 @@ export default function ArqueoScreen() {
     loadArqueos(1);
   }, [loadArqueos]);
 
-  // ✅ Carga de transacciones SIN parámetro de página
+  //  Carga de transacciones SIN parámetro de página
   useEffect(() => {
     if (activeTab === "ingresos") loadTransacciones("INGRESO");
     else if (activeTab === "egresos") loadTransacciones("EGRESO");

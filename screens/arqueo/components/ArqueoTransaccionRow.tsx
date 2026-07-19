@@ -60,7 +60,7 @@ export function ArqueoTransaccionRow({
     setShowMenu((prev) => !prev);
   };
 
-  // 🔥 NUEVO: Acción directa sin preguntas ni Alert
+  //  NUEVO: Acción directa sin preguntas ni Alert
   const handleActionPress = () => {
     setShowMenu(false);
     onUpdateEstado(nuevoEstado);

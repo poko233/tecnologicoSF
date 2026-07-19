@@ -18,7 +18,7 @@ export function TiposTransaccionTab() {
   const [formVisible, setFormVisible] = useState(false);
   const [tipoEdit, setTipoEdit] = useState<TipoTransaccion | null>(null);
 
-  // 🟢 Nuevo estado para controlar qué fila se está eliminando
+  // Nuevo estado para controlar qué fila se está eliminando
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadTipos = async () => {
@@ -45,7 +45,7 @@ export function TiposTransaccionTab() {
     // Evitar doble clic mientras se está eliminando esta fila
     if (deletingId === id) return;
 
-    setDeletingId(id); // 🟢 Activamos el spinner para este ID
+    setDeletingId(id); //  Activamos el spinner para este ID
     try {
       await tipoTransaccionService.delete(id);
       Toast.show({ type: "success", text1: "Éxito", text2: "Tipo eliminado" });
@@ -57,7 +57,7 @@ export function TiposTransaccionTab() {
         text2: err.message || "Error al eliminar",
       });
     } finally {
-      setDeletingId(null); // 🔴 Desactivamos el spinner
+      setDeletingId(null); //  Desactivamos el spinner
     }
   };
 
@@ -97,7 +97,7 @@ export function TiposTransaccionTab() {
           <Pencil size={18} color={theme.colors.primary} />
         </MotiPressable>
 
-        {/* 🔥 Botón de Eliminar - Se convierte en Spinner mientras carga */}
+        {/*  Botón de Eliminar - Se convierte en Spinner mientras carga */}
         {deletingId === item.id ? (
           <ActivityIndicator size="small" color={theme.colors.destructive} />
         ) : (

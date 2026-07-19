@@ -34,7 +34,7 @@ export function ArqueoTransaccionForm({
   tipo,
 }: ArqueoTransaccionFormProps) {
   const { theme } = useTheme();
-  const [loadingTipos, setLoadingTipos] = useState(false); // 🔥 Nuevo estado
+  const [loadingTipos, setLoadingTipos] = useState(false); //  Nuevo estado
   const [tipos, setTipos] = useState<TipoTransaccion[]>([]);
 
   // Campos del formulario
@@ -46,7 +46,7 @@ export function ArqueoTransaccionForm({
   const [detalle, setDetalle] = useState("");
   const [comprobante, setComprobante] = useState("");
 
-  // 🔥 Manejo del botón de retroceso en Android
+  //  Manejo del botón de retroceso en Android
   useEffect(() => {
     const onBackPress = () => {
       if (visible) {
@@ -70,7 +70,7 @@ export function ArqueoTransaccionForm({
   }, [visible]);
 
   const loadTipos = async () => {
-    setLoadingTipos(true); // 🔥 Iniciamos el skeleton
+    setLoadingTipos(true); //  Iniciamos el skeleton
     try {
       const response = await transaccionService.getTiposTransaccion();
       setTipos(response.data.filter((t) => t.tipo === tipo));
@@ -81,7 +81,7 @@ export function ArqueoTransaccionForm({
         text2: "No se pudieron cargar los tipos de transacción",
       });
     } finally {
-      setLoadingTipos(false); // 🔥 Finalizamos el skeleton
+      setLoadingTipos(false); //  Finalizamos el skeleton
     }
   };
 
@@ -178,7 +178,7 @@ export function ArqueoTransaccionForm({
                     Tipo de Transacción
                   </ThemedText>
 
-                  {/* 🔥 Condicional: Skeleton o Select */}
+                  {/*  Condicional: Skeleton o Select */}
                   {loadingTipos ? (
                     <MotiView
                       from={{ opacity: 0 }}

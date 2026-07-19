@@ -49,7 +49,7 @@ export function InscritosForm({
   const [carrerasModalVisible, setCarrerasModalVisible] = useState(false);
   const [gestionModalVisible, setGestionModalVisible] = useState(false);
 
-  // ✅ Reemplazo de Skeleton por ActivityIndicator
+  //  Reemplazo de Skeleton por ActivityIndicator
   if (loading || !filtrosData) {
     return (
       <View style={styles.loadingContainer}>
@@ -121,7 +121,7 @@ export function InscritosForm({
                 key={t.valor}
                 label={t.etiqueta}
                 selected={filters.turno === t.valor}
-                // ⭐ Si ya está seleccionado, envía null (deselecciona)
+                //  Si ya está seleccionado, envía null (deselecciona)
                 onToggle={() =>
                   onSetTurno(filters.turno === t.valor ? null : t.valor)
                 }
@@ -131,7 +131,7 @@ export function InscritosForm({
           </View>
         </View>
 
-        {/* ✅ PERIODO ACADÉMICO EN UNA SOLA FILA (2 COLUMNAS) */}
+        {/*  PERIODO ACADÉMICO EN UNA SOLA FILA (2 COLUMNAS) */}
         <View style={{ flexDirection: "row", gap: 16, marginBottom: 16 }}>
           {/* Columna Izquierda: Toggle */}
           <View style={{ flex: 1, gap: 6 }}>
@@ -178,7 +178,6 @@ export function InscritosForm({
                 animate={({ pressed }) => ({ scale: pressed ? 0.95 : 1 })}
                 transition={{ type: "timing", duration: 100 }}
               >
-                {/* ⭐ selectable={false} evita la selección de texto */}
                 <Text
                   style={[styles.numberBtnText, { color: c.text }]}
                   selectable={false}
@@ -205,7 +204,6 @@ export function InscritosForm({
                 animate={({ pressed }) => ({ scale: pressed ? 0.95 : 1 })}
                 transition={{ type: "timing", duration: 100 }}
               >
-                {/* ⭐ selectable={false} evita la selección de texto */}
                 <Text
                   style={[styles.numberBtnText, { color: c.text }]}
                   selectable={false}
@@ -250,14 +248,13 @@ export function InscritosForm({
           multiple={true}
         />
 
-        {/* ✅ MODAL DE GESTIÓN - CON CIERRE AUTOMÁTICO AL SELECCIONAR "TODAS" */}
+        {/*  MODAL DE GESTIÓN - CON CIERRE AUTOMÁTICO AL SELECCIONAR "TODAS" */}
         <SelectorModal
           visible={gestionModalVisible}
           title="Seleccionar gestión"
           options={gestionOptions}
           selectedIds={filters.idGestion !== null ? [filters.idGestion] : []}
           onToggle={(id) => onSetGestion(Number(id))}
-          // ⭐ Ahora al hacer clic en "Todas las gestiones", se cierra el modal automáticamente
           onSelectAll={() => {
             onSetGestion(null);
             setGestionModalVisible(false);

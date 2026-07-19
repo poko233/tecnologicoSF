@@ -34,7 +34,7 @@ export function YearPicker({ selected, onSelect }: YearPickerProps) {
 
   return (
     <>
-      {/* ✅ Convertimos todo el botón en Pressable para mejorar la experiencia de usuario */}
+      {/*  Convertimos todo el botón en Pressable para mejorar la experiencia de usuario */}
       <Pressable
         onPress={() => setVisible(true)}
         style={[
@@ -54,13 +54,13 @@ export function YearPicker({ selected, onSelect }: YearPickerProps) {
           {selected ?? "Año"}
         </ThemedText>
 
-        {/* ✅ Contenedor de acciones a la derecha: La X va antes que la flecha */}
+        {/*  Contenedor de acciones a la derecha: La X va antes que la flecha */}
         <View style={styles.rightActions}>
           <View style={styles.clearWrapper}>
             {selected !== undefined && (
               <Pressable
                 onPress={(e) => {
-                  e.stopPropagation(); // 🛑 Evita que se abra el modal al presionar la X
+                  e.stopPropagation(); //  Evita que se abra el modal al presionar la X
                   handleClear();
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -90,13 +90,12 @@ const styles = StyleSheet.create({
   trigger: {
     flexDirection: "row",
     alignItems: "center",
-    // 🌟 CAMBIO: Quitamos 'space-between' para que el contenido no se vaya a los extremos
-    gap: 8, // ✨ Espacio perfecto y fijo entre el texto y los íconos
+    gap: 8,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    alignSelf: "flex-start", // 🚀 Hace que el botón solo ocupe el ancho de su contenido
+    alignSelf: "flex-start",
   },
   rightActions: {
     flexDirection: "row",
@@ -104,7 +103,6 @@ const styles = StyleSheet.create({
     gap: 6, // Espacio entre la X y la flecha cuando la X aparezca
   },
   clearWrapper: {
-    // 🌟 CAMBIO: Eliminamos el 'width: 20' que causaba el hueco fantasma
     alignItems: "center",
     justifyContent: "center",
   },

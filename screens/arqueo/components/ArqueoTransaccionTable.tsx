@@ -16,7 +16,7 @@ interface ArqueoTransaccionTableProps {
   tipo: "INGRESO" | "EGRESO";
   onUpdateEstado: (id: number, nuevoEstado: "VALIDO" | "ANULADO") => void;
   updatingId: number | null;
-  arqueoId: number | null; // 🆕 Nueva prop para saber si hay arqueo
+  arqueoId: number | null; //  Nueva prop para saber si hay arqueo
 }
 
 export function ArqueoTransaccionTable({
@@ -25,7 +25,7 @@ export function ArqueoTransaccionTable({
   tipo,
   onUpdateEstado,
   updatingId,
-  arqueoId, // 🆕
+  arqueoId,
 }: ArqueoTransaccionTableProps) {
   const { theme } = useTheme();
   const safeTransacciones = transacciones || [];
@@ -122,7 +122,7 @@ export function ArqueoTransaccionTable({
     </View>
   );
 
-  // ✅ Renderizado de skeletons cuando no hay datos
+  //  Renderizado de skeletons cuando no hay datos
   const renderSkeletonRows = () =>
     Array.from({ length: 5 }).map((_, i) => (
       <View
@@ -204,7 +204,7 @@ export function ArqueoTransaccionTable({
       </View>
     ));
 
-  // ✅ Fila de carga al final de la lista (con las mismas columnas)
+  //  Fila de carga al final de la lista (con las mismas columnas)
   const ListFooter = () => {
     if (loading && safeTransacciones.length > 0) {
       return (
@@ -337,7 +337,7 @@ export function ArqueoTransaccionTable({
           </MotiView>
         )}
         contentContainerStyle={styles.contentContainer}
-        // 🟢 Mensaje condicional según si hay arqueo activo o no
+        //  Mensaje condicional según si hay arqueo activo o no
         ListEmptyComponent={
           !loading && safeTransacciones.length === 0 ? (
             <View style={styles.empty}>

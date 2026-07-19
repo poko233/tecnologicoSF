@@ -3,7 +3,6 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
 import Toast from "react-native-toast-message";
-// ✅ AÑADIDAS LAS IMPORTACIONES DE TIPOS QUE FALTABAN
 import {
   InscritosDownloadParams,
   InscritosFiltrosResponse,
@@ -149,7 +148,7 @@ export const reportesService = {
     const res = await httpClient.getAuth<{ data: PagosFiltrosResponse }>(
       `/api/reportes/pagos/filtros?search=${encodeURIComponent(search)}&page=${page}`,
       "Error al cargar filtros de pagos",
-      signal, // ✅ Pasamos la señal al httpClient
+      signal,
     );
     return res.data;
   },
@@ -163,7 +162,7 @@ export const reportesService = {
     const res = await httpClient.getAuth<any>(
       `/api/cuota/search?search=${encodeURIComponent(search)}&page=${page}&per_page=${perPage}`,
       "Error al buscar estudiantes",
-      signal, // ✅ Pasamos la señal al httpClient
+      signal,
     );
     return res;
   },

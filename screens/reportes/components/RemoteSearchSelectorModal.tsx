@@ -59,7 +59,6 @@ export function RemoteSearchSelectorModal<T>({
 
   const initialLoadDoneRef = useRef(false);
 
-  // ✅ Cargar automáticamente la primera página al abrir el modal (solo la primera vez)
   useEffect(() => {
     if (
       visible &&
@@ -72,7 +71,6 @@ export function RemoteSearchSelectorModal<T>({
     }
   }, [visible, items.length, loading, doSearch]);
 
-  // ✅ Resetear el flag al cerrar el modal y cancelar peticiones
   useEffect(() => {
     if (!visible) {
       initialLoadDoneRef.current = false;
@@ -149,7 +147,6 @@ export function RemoteSearchSelectorModal<T>({
                       </TouchableOpacity>
                     </View>
 
-                    {/* ✅ BUSCADOR SIN ICONO Y CON PADDING CORREGIDO */}
                     <View
                       style={[
                         styles.searchContainer,
@@ -170,7 +167,7 @@ export function RemoteSearchSelectorModal<T>({
                               borderColor: c.border,
                               borderWidth: 1.5,
                               borderRadius: 8,
-                              paddingHorizontal: 12, // ✅ Padding normal sin icono
+                              paddingHorizontal: 12,
                               paddingVertical: 8,
                               backgroundColor: c.backgroundSecondary,
                               flex: 1,
@@ -325,7 +322,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: 10,
   },
-  // ✅ Estilos searchIcon y searchInputWrapper eliminados porque ya no hay icono
   searchInput: {
     flex: 1,
     fontSize: 14,

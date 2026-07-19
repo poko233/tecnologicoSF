@@ -41,7 +41,7 @@ export const ArqueoStatusDot = ({
   return (
     <>
       <View style={[styles.container, { bottom: 4, right: 4 }]}>
-        {/* ✅ Pasamos el onPress al Tooltip, y el círculo ya no está envuelto en otro Pressable */}
+        {/* Pasamos el onPress al Tooltip, y el círculo ya no está envuelto en otro Pressable */}
         <Tooltip message={tooltipMessage} position="top" onPress={handlePress}>
           <View
             style={[

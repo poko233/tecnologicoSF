@@ -145,7 +145,7 @@ export function EditGestionModal({
                   </View>
 
                   <View style={styles.form}>
-                    {/* ✨ 1. Etiqueta con texto secundario reactivo */}
+                    {/*  1. Etiqueta con texto secundario reactivo */}
                     <ThemedText
                       style={[
                         styles.label,
@@ -169,7 +169,7 @@ export function EditGestionModal({
 
                     <View style={styles.row}>
                       <View style={{ flex: 1 }}>
-                        {/* ✨ 1. Etiqueta con texto secundario reactivo */}
+                        {/*  1. Etiqueta con texto secundario reactivo */}
                         <ThemedText
                           style={[
                             styles.label,
@@ -194,7 +194,7 @@ export function EditGestionModal({
                       </View>
                       <View style={{ flex: 1 }}>
                         <View style={styles.labelRow}>
-                          {/* ✨ 1. Etiqueta con texto secundario reactivo */}
+                          {/*  1. Etiqueta con texto secundario reactivo */}
                           <ThemedText
                             style={[
                               styles.label,
@@ -233,7 +233,7 @@ export function EditGestionModal({
                                   color:
                                     p === periodo
                                       ? theme.colors.primaryForeground
-                                      : theme.colors.textTertiary, // ✨ 2. textTertiary para mejor contraste
+                                      : theme.colors.textTertiary, // 2. textTertiary para mejor contraste
                                   fontSize: 12,
                                 }}
                               >
@@ -247,7 +247,7 @@ export function EditGestionModal({
 
                     <View style={styles.row}>
                       <View style={{ flex: 1 }}>
-                        {/* ✨ 1. Etiqueta con texto secundario reactivo */}
+                        {/*  1. Etiqueta con texto secundario reactivo */}
                         <ThemedText
                           style={[
                             styles.label,
@@ -272,7 +272,7 @@ export function EditGestionModal({
                         </Pressable>
                       </View>
                       <View style={{ flex: 1 }}>
-                        {/* ✨ 1. Etiqueta con texto secundario reactivo */}
+                        {/*  1. Etiqueta con texto secundario reactivo */}
                         <ThemedText
                           style={[
                             styles.label,
@@ -394,7 +394,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textTransform: "uppercase",
     marginBottom: 4,
-    // ✨ 3. Se eliminó 'color: "inherit"'
   },
   labelRow: {
     flexDirection: "row",

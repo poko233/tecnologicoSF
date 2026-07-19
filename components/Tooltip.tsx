@@ -19,7 +19,7 @@ interface TooltipProps {
   icon?: React.ReactNode;
   position?: TooltipPosition;
   children?: React.ReactNode;
-  onPress?: () => void; // 🔥 Nueva prop para manejar el clic desde fuera
+  onPress?: () => void; //  Nueva prop para manejar el clic desde fuera
 }
 
 /**
@@ -61,7 +61,7 @@ export function Tooltip({
     }
   };
 
-  // 📌 Estilos del wrapper: si hay children, no forzamos tamaño; si no, usamos el estilo por defecto
+  //  Estilos del wrapper: si hay children, no forzamos tamaño; si no, usamos el estilo por defecto
   const wrapperStyle = children
     ? styles.iconWrapperNatural
     : styles.iconWrapperDefault;
@@ -76,7 +76,7 @@ export function Tooltip({
         },
       ]}
     >
-      {/* 🔥 Un único Pressable que maneja hover Y clic */}
+      {/*  Un único Pressable que maneja hover Y clic */}
       <Pressable
         onHoverIn={() => setVisible(true)}
         onHoverOut={() => setVisible(false)}
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // 🟢 Estilo por defecto (cuando no hay children)
+  //  Estilo por defecto (cuando no hay children)
   iconWrapperDefault: {
     minWidth: 20,
     minHeight: 20,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 4,
   },
-  // 🔵 Estilo natural (cuando se pasan children) – sin tamaño forzado
+  //  Estilo natural (cuando se pasan children) – sin tamaño forzado
   iconWrapperNatural: {
     justifyContent: "center",
     alignItems: "center",

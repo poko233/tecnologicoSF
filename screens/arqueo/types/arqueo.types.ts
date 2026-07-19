@@ -85,6 +85,6 @@ export interface Arqueo {
   usuario: string | UsuarioData;
   created_at: string;
   pagos?: Pago[];
-  ingresos?: Ingreso[]; // 🆕
-  egresos?: Egreso[]; // 🆕
+  ingresos?: Ingreso[];
+  egresos?: Egreso[];
 }
