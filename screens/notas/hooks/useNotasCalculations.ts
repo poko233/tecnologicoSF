@@ -13,7 +13,8 @@ export function useNotasCalculations(
       validScores.reduce((sum, s) => sum + s, 0) / validScores.length;
     const notaAcademica = promedio * 0.9;
     const notaFinal = Math.min(notaAcademica + notaAsistencia, 100);
-    const notaFinalRedondeada = Math.round(notaFinal * 100) / 100;
+    const notaFinalRedondeada = Math.round(notaFinal);
+
     const estado =
       notaFinalRedondeada >= 51
         ? ("Aprobado" as const)
