@@ -8,9 +8,10 @@ interface ModuloCardProps {
   modulo: Modulo;
   onEdit: (modulo: Modulo) => void;
   onDelete: (id: number) => void;
+  isDragging?: boolean;
 }
 
-export function ModuloCard({ modulo, onEdit, onDelete }: ModuloCardProps) {
+export function ModuloCard({ modulo, onEdit, onDelete, isDragging = false }: ModuloCardProps) {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const { theme } = useTheme();
   const c = theme.colors;
@@ -21,10 +22,31 @@ export function ModuloCard({ modulo, onEdit, onDelete }: ModuloCardProps) {
   
 
   return (
-    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: c.card,
+          borderColor: isDragging ? c.primary : c.border,
+          borderWidth: isDragging ? 2 : 0.5,
+        },
+      ]}
+    >
+      {/* Badge de posición */}
+      <View style={[styles.posicionBadge, { backgroundColor: c.primary }]}>
+        <Text style={[styles.posicionText, { color: c.primaryForeground }]}>
+          {modulo.posicion}
+        </Text>
+      </View>
+
+      {/* Icono de drag */}
+      <View style={styles.dragHandle}>
+        <Ionicons name="reorder-two-outline" size={20} color={c.muted} />
+      </View>
+
       {/* Icono */}
       <View style={styles.iconWrap}>
-        <Ionicons name={ionicon} size={24} color={c.text} />
+        <Ionicons name={iconicon} size={24} color={c.text} />
       </View>
 
       {/* Info */}
@@ -38,10 +60,12 @@ export function ModuloCard({ modulo, onEdit, onDelete }: ModuloCardProps) {
           </Text>
         ) : null}
         {modulo.formularios !== undefined && (
-          <Text style={[styles.badge, { color: c.muted }]}>
-            {modulo.formularios.length} formulario
-            {modulo.formularios.length !== 1 ? "s" : ""}
-          </Text>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+            <Text style={[styles.badge, { color: c.muted }]}>
+              📋 {modulo.formularios.length} formulario
+              {modulo.formularios.length !== 1 ? "s" : ""}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -94,6 +118,32 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
     gap: 12,
+    position: "relative",
+  },
+  posicionBadge: {
+    position: "absolute",
+    top: -8,
+    left: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  posicionText: {
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  dragHandle: {
+    width: 24,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconWrap: {
     width: 44,
