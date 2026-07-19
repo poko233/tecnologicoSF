@@ -1,4 +1,5 @@
 // components/Sidebar/SidebarHeader.tsx
+import { ArqueoStatusDot } from "@/screens/arqueo/components/ArqueoStatusDot";
 import {
   BookOpen,
   Briefcase,
@@ -103,19 +104,9 @@ export const SidebarHeader = () => {
               </View>
             )}
           </View>
-          {/* Punto verde */}
-          <View
-            style={{
-              position: "absolute",
-              bottom: 2,
-              right: 2,
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: "#10B981",
-              borderWidth: 2,
-              borderColor: theme.colors.card ?? theme.colors.background,
-            }}
+
+          <ArqueoStatusDot
+            borderColor={theme.colors.card ?? theme.colors.background}
           />
         </View>
 

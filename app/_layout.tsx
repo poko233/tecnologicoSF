@@ -1,5 +1,6 @@
 // app/_layout.tsx
 import { injectGlobalScrollbar } from "@/components/globalScrollbar";
+import { useArqueo } from "@/screens/arqueo/hooks/useArqueo";
 import { Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
@@ -20,6 +21,7 @@ function AppContent() {
   // El drawer solo se monta si hay usuario, no estamos en la raíz y NO es estudiante
   const isStudent = user?.roles?.includes("Estudiante");
   const showDrawer = !!user && pathname !== "/" && !isStudent;
+  useArqueo();
 
   React.useEffect(() => {
     injectGlobalScrollbar({

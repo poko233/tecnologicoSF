@@ -117,6 +117,18 @@ export const httpClient = {
   deleteAuth: <T>(path: string, fallback = "Error al eliminar datos") =>
     request<T>(path, { method: "DELETE" }, true, fallback),
 
+  patchAuth: <T>(
+    path: string,
+    body: unknown,
+    fallback = "Error al actualizar datos",
+  ) =>
+    request<T>(
+      path,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+      fallback,
+    ),
+
   async postFormData<T>(url: string, formData: FormData): Promise<T> {
     const token = await getToken();
 
@@ -161,7 +173,9 @@ export const httpClient = {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       let msg = "Error al descargar";
-      try { msg = JSON.parse(text).message ?? msg; } catch {}
+      try {
+        msg = JSON.parse(text).message ?? msg;
+      } catch {}
       throw new Error(msg);
     }
     return res;
@@ -169,9 +183,9 @@ export const httpClient = {
 
   async patchFormData<T>(url: string, formData: FormData): Promise<T> {
     const token = await getToken();
-  
+
     formData.append("_method", "PATCH");
-  
+
     const response = await fetch(`${BASE_URL}${url}`, {
       method: "POST",
       headers: {
@@ -180,17 +194,17 @@ export const httpClient = {
       },
       body: formData,
     });
-  
+
     const text = await response.text();
-  
+
     let data: any = null;
-  
+
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
       data = text;
     }
-  
+
     if (!response.ok) {
       throw {
         status: response.status,
@@ -198,7 +212,7 @@ export const httpClient = {
         errors: data?.errors,
       };
     }
-  
+
     return data;
   },
 };
