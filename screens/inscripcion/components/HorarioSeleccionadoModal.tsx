@@ -1,21 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import {
-    Alert,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
-    useWindowDimensions,
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
 import {
-    GrupoSeleccionado,
-    HorarioGrupo,
+  GrupoSeleccionado,
+  HorarioGrupo,
 } from "../types/inscripcion.types";
 
 type Props = {
@@ -439,7 +439,6 @@ export default function HorarioSeleccionadoModal({
       orientation: Print.Orientation.landscape,
     });
   } catch (error) {
-    console.error(error);
     Alert.alert("Error", "No se pudo exportar el horario a PDF.");
   }
 };

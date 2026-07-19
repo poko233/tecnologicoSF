@@ -1,4 +1,3 @@
-// screens/convalidacion/hooks/usePaso3Materias.ts
 import { useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import { convalidacionService } from '../services/convalidacionService';
@@ -33,7 +32,6 @@ export function usePaso3Materias(
       setMaterias((materiasRes as any).materias || (materiasRes as any).data || []);
       setDetalles((detallesRes as any).data || (detallesRes as any).detalles || []);
     } catch (error: any) {
-      console.error('Error cargando datos del paso 3:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',

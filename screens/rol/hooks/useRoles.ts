@@ -28,7 +28,6 @@ export function useRoles() {
 
       setRoles(response.roles ?? []);
     } catch (error) {
-      console.error("Error cargando roles:", error);
 
       Toast.show({
         type: "error",
@@ -59,7 +58,6 @@ export function useRoles() {
       await fetchRoles();
       return true;
     } catch (error: any) {
-      console.error("Error creando rol:", error);
 
       Toast.show({
         type: "error",
@@ -92,8 +90,6 @@ export function useRoles() {
       await fetchRoles();
       return true;
     } catch (error: any) {
-      console.error("Error actualizando rol:", error);
-
       Toast.show({
         type: "error",
         text1: "Error",

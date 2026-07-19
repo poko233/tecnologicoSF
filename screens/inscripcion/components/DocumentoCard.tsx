@@ -144,7 +144,6 @@ export default function DocumentoCard({
         text2: titulo,
       });
     } catch (error) {
-      console.error(error);
 
       limpiarDocumentoLocal();
 

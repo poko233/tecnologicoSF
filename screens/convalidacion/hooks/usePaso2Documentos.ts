@@ -1,4 +1,3 @@
-// screens/convalidacion/hooks/usePaso2Documentos.ts
 import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
@@ -89,13 +88,10 @@ export function usePaso2Documentos(solicitudId: number | null) {
       const formData = new FormData();
       formData.append('tipo', tipo);
 
-      // En web, file.file existe y es un File real
-      // En móvil, necesitamos crear el objeto con uri, name, type
+      
       if (file.file) {
-        // Web: usar el File directamente
         formData.append('archivo', file.file, file.name);
       } else {
-        // Móvil: usar el formato { uri, name, type }
         formData.append('archivo', {
           uri: file.uri,
           name: file.name,
@@ -117,7 +113,6 @@ export function usePaso2Documentos(solicitudId: number | null) {
         text2: 'El archivo se cargó correctamente',
       });
     } catch (error: any) {
-      console.error('Error subiendo documento:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',

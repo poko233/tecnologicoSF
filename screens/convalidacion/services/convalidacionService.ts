@@ -1,4 +1,3 @@
-// screens/convalidacion/services/convalidacionService.ts
 import { httpClient } from '@http';
 import type {
   Carrera,
@@ -11,7 +10,6 @@ import type {
 } from '../types';
 
 export const convalidacionService = {
-  // Paso 1 - Datos del estudiante
   getCarreras: () => httpClient.getAuth<{ data: Carrera[] }>('/api/carreras'),
 
   getGestiones: () => httpClient.getAuth<{ data: Gestion[] }>('/api/gestiones'),
@@ -26,7 +24,6 @@ export const convalidacionService = {
       data
     ),
 
-  // Paso 2 - Documentos
   getDocumentos: (id: number) =>
     httpClient.getAuth<{ data: Documento[] }>(
       `/api/convalidacion/solicitudes/${id}/documentos`
@@ -43,7 +40,6 @@ export const convalidacionService = {
       `/api/convalidacion/solicitudes/${id}/documentos/${docId}`
     ),
 
-  // Paso 3 - Materias a convalidar
   getMateriasCarrera: (idCarrera: number) =>
     httpClient.getAuth<{ materias: MateriaDestino[] }>(
       `/api/carreras/${idCarrera}/materias`
@@ -65,7 +61,6 @@ export const convalidacionService = {
       `/api/convalidacion/solicitudes/${id}/detalles/${detalleId}`
     ),
 
-  // Paso 4 - Pago
   getCuota: (id: number) =>
     httpClient.getAuth<{ data: Cuota }>(
       `/api/convalidacion/solicitudes/${id}/cuota`
@@ -83,7 +78,6 @@ export const convalidacionService = {
       data
     ),
 
-  // Paso 5 - Resolución académica
   getSolicitud: (id: number) =>
     httpClient.getAuth<{ success: boolean; data: any }>(
       `/api/convalidacion/solicitudes/${id}`

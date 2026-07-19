@@ -111,7 +111,6 @@ export default function SubirDocumentosPendientesModal({
 
       setDocumentosServidor(Array.isArray(docs) ? docs : []);
     } catch (error) {
-      console.error("ERROR CARGANDO DOCUMENTOS EXISTENTES:", error);
       setDocumentosServidor([]);
     } finally {
       setCargando(false);
@@ -403,8 +402,6 @@ function DocumentoPendienteCard({
 
       onDocumentoChange(documentoSeleccionado);
     } catch (error) {
-      console.error(error);
-
       Toast.show({
         type: "error",
         text1: "Error",
@@ -478,7 +475,6 @@ function DocumentoPendienteCard({
         text2: titulo,
       });
     } catch (error: any) {
-      console.error("ERROR SUBIENDO DOCUMENTO:", error);
 
       Toast.show({
         type: "error",

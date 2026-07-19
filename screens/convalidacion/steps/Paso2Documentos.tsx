@@ -1,4 +1,3 @@
-// screens/convalidacion/steps/Paso2Documentos.tsx
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@theme';
@@ -203,7 +202,6 @@ function DocumentoConvalidacionCard({
         )}
       </View>
 
-      {/* Preview imagen */}
       {previewUri && esImagen && (
         <Image
           source={{ uri: previewUri }}
@@ -211,7 +209,6 @@ function DocumentoConvalidacionCard({
         />
       )}
 
-      {/* Preview PDF web */}
       {previewUri && esPdf && Platform.OS === 'web' && (
         <iframe
           src={previewUri}
@@ -220,7 +217,6 @@ function DocumentoConvalidacionCard({
         />
       )}
 
-      {/* Preview PDF móvil */}
       {previewUri && esPdf && Platform.OS !== 'web' && (
         <Pressable onPress={abrirArchivo} style={{
           borderWidth: 1, borderColor: theme.colors.border,
@@ -237,7 +233,6 @@ function DocumentoConvalidacionCard({
         </Pressable>
       )}
 
-      {/* Ver archivo completo */}
       {previewUri && (
         <Pressable onPress={abrirArchivo} style={{
           height: 46, borderRadius: 14, borderWidth: 1,
@@ -251,7 +246,6 @@ function DocumentoConvalidacionCard({
         </Pressable>
       )}
 
-      {/* Eliminar */}
       {existeArchivo && (
         <Pressable onPress={eliminarArchivo} style={{
           height: 46, borderRadius: 14, borderWidth: 1,
@@ -266,7 +260,6 @@ function DocumentoConvalidacionCard({
         </Pressable>
       )}
 
-      {/* Subir */}
       <Pressable
         disabled={subiendo}
         onPress={subirArchivo}
@@ -339,7 +332,6 @@ export function Paso2Documentos() {
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={{ gap: 24 }}>
-        {/* Título */}
         <View>
           <ThemedText style={{ fontSize: 28, fontWeight: '900', color: theme.colors.text }}>
             Carga de Documentos
@@ -349,7 +341,6 @@ export function Paso2Documentos() {
           </ThemedText>
         </View>
 
-        {/* Contador */}
         <View style={{
           borderWidth: 1,
           borderColor: todosCargados ? theme.colors.primary : theme.colors.border,
@@ -390,7 +381,6 @@ export function Paso2Documentos() {
           ))}
         </View>
 
-        {/* Validación institucional */}
         <View style={{
           borderWidth: 1, borderColor: theme.colors.border,
           backgroundColor: theme.colors.card, borderRadius: 16, padding: 18,
@@ -404,7 +394,6 @@ export function Paso2Documentos() {
           </ThemedText>
         </View>
 
-        {/* Navegación */}
         <View style={{ flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', gap: 14 }}>
           <Pressable
             onPress={retrocederPaso}

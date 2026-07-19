@@ -191,7 +191,6 @@ export default function AsignacionesScreen() {
       const url = `${BASE_URL}/api/inscripcion/formulario-registro/${estudiante.id}/pdf`;
       await Linking.openURL(url);
     } catch (error) {
-      console.error(error);
 
       Toast.show({
         type: "error",

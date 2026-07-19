@@ -66,7 +66,6 @@ export function decryptQrData(qrData: string): number | null {
 
     const jsonString = decrypted.toString(CryptoJS.enc.Utf8);
     if (!jsonString) {
-      console.error("🔐 [CRYPTO_DEBUG] No se pudo convertir a UTF-8");
       return null;
     }
 
@@ -76,7 +75,6 @@ export function decryptQrData(qrData: string): number | null {
     }
     return null;
   } catch (error) {
-    console.error("❌ Error al desencriptar QR:", error);
     return null;
   }
 }

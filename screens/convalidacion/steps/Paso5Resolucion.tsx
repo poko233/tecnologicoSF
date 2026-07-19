@@ -1,4 +1,3 @@
-// screens/convalidacion/steps/Paso5Resolucion.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@theme';
 import React, { useEffect, useState } from 'react';
@@ -36,7 +35,6 @@ export function Paso5Resolucion() {
       const response = await convalidacionService.getSolicitud(solicitudId);
       const solicitud = response.data;
 
-      // Mapea los detalles al formato que espera la UI
       setResolucion({
         detalles: solicitud.detalles.map((d: any) => ({
           nombre: d.materia_destino?.nombreMateria || d.materia_origen_nombre,
@@ -48,8 +46,6 @@ export function Paso5Resolucion() {
           observacion: d.observacion,
         })),
         observacion_resolucion: solicitud.observacion_resolucion,
-        // numero_resolucion: null,
-        // docente_revisor: null,
         creditos_incorporados: 0,
         materias_acreditadas: 0,
       });
@@ -114,7 +110,6 @@ export function Paso5Resolucion() {
         RESOLUCIÓN ACADÉMICA
       </Text>
 
-      {/* Tabla de materias */}
       <View
         style={[
           styles.table,
@@ -124,7 +119,6 @@ export function Paso5Resolucion() {
           },
         ]}
       >
-        {/* Header */}
         <View style={styles.tableHeader}>
           <Text
             style={[
@@ -152,7 +146,6 @@ export function Paso5Resolucion() {
           </Text>
         </View>
 
-        {/* Rows */}
         {resolucion.detalles.map((detalle, index) => (
           <View
             key={index}
@@ -203,7 +196,6 @@ export function Paso5Resolucion() {
         ))}
       </View>
 
-      {/* Observación de la comisión */}
       <Text style={[styles.label, { color: theme.colors.textMuted }]}>
         OBSERVACIÓN DE LA COMISIÓN
       </Text>
@@ -226,7 +218,6 @@ export function Paso5Resolucion() {
         placeholderTextColor={theme.colors.textMuted}
       />
 
-      {/* Nº de Resolución y Docente Revisor */}
       <View style={styles.row}>
         <View style={styles.halfField}>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
@@ -269,7 +260,6 @@ export function Paso5Resolucion() {
         </View>
       </View>
 
-      {/* Alerta de historial actualizado */}
       {resolucion.materias_acreditadas > 0 && (
         <View
           style={[
@@ -290,7 +280,6 @@ export function Paso5Resolucion() {
         </View>
       )}
 
-      {/* Navegación */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           onPress={retrocederPaso}

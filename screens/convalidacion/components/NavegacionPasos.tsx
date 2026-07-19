@@ -1,4 +1,3 @@
-// screens/convalidacion/components/NavegacionPasos.tsx
 import { useTheme } from '@theme';
 import React from 'react';
 import {

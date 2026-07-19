@@ -198,7 +198,6 @@ export default function EditarEstudianteModal({
 
       setDocumentos(documentosUnicos);
     } catch (error) {
-      console.error("ERROR CARGANDO DOCUMENTOS:", error);
       setDocumentos([]);
     } finally {
       setLoadingDocs(false);
@@ -613,7 +612,6 @@ function DocumentoEditableCard({
 
       onDocumentoSubido();
     } catch (error: any) {
-      console.error("ERROR ACTUALIZANDO DOCUMENTO:", error);
 
       Toast.show({
         type: "error",

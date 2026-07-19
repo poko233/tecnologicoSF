@@ -496,10 +496,6 @@ export const CuotasTable: React.FC<Props> = ({
                                 alert("El recibo aún no está disponible.");
                               }
                             } catch (error) {
-                              console.error(
-                                "Error al buscar el recibo:",
-                                error,
-                              );
                               alert("Error al buscar el recibo.");
                             }
                           }}
