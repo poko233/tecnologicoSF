@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   TextInput,
   View,
   useWindowDimensions,
@@ -12,42 +14,187 @@ import {
 
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
-
-import { createEstudiantesTableStyles } from "../styles/estudiantesTable.styles";
 import {
-  CarreraFiltro,
-  EstudianteTabla,
-  estaInscrito,
-  formatearFecha,
-  nombreCompleto,
-  obtenerAnioInscripcion,
-  obtenerIniciales,
-  obtenerLabelNivelPorRegimen,
-  obtenerNivelTexto,
-  obtenerNivelesCarrera,
-} from "../utils/estudiantesTable.utils";
+  CarreraAsignacion,
+  Estudiante,
+} from "../types/asignaciones.types";
 
 type Props = {
-  estudiantes: EstudianteTabla[];
-  carreras: CarreraFiltro[];
+  estudiantes: Estudiante[];
+  carreras: CarreraAsignacion[];
   carreraSeleccionadaId: number | null;
+  nivelSeleccionadoId: number | null;
   loading: boolean;
   loadingCarreras: boolean;
   onSeleccionarCarrera: (
     idCarrera: number,
-    nivel?: number,
+    nivel?: number | null,
   ) => Promise<void> | void;
-  onInscribir: (estudiante: EstudianteTabla) => void;
-  onVerPdf: (estudiante: EstudianteTabla) => void;
+  onInscribir: (estudiante: Estudiante) => void;
+  onVerPdf: (estudiante: Estudiante) => void;
+};
+
+type EstadoVisual = {
+  key: "completo" | "agregar" | "pendientes" | "listo" | "revision";
+  label: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  background: string;
+  border: string;
+  avatarBg: string;
 };
 
 const ITEMS_PER_PAGE = 10;
-const styles = createEstudiantesTableStyles();
+
+function toBoolean(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
+function nombreCompleto(estudiante: Estudiante): string {
+  return `${estudiante.nombres ?? ""} ${estudiante.apellidoPaterno ?? ""} ${
+    estudiante.apellidoMaterno ?? ""
+  }`
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function iniciales(nombre: string): string {
+  const partes = nombre.split(" ").filter(Boolean);
+  if (partes.length === 0) return "E";
+  if (partes.length === 1) return partes[0].slice(0, 1).toUpperCase();
+  return `${partes[0].slice(0, 1)}${partes[1].slice(0, 1)}`.toUpperCase();
+}
+
+function formatearFecha(fecha?: string | null): string {
+  if (!fecha) return "Sin fecha";
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) return fecha;
+
+  const limpia = String(fecha).split("T")[0].split(" ")[0];
+  const partes = limpia.split("-");
+
+  if (partes.length !== 3) return limpia;
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+function nivelesCarrera(carrera: CarreraAsignacion | null): number[] {
+  const source = Array.isArray(carrera?.nivelesAcademicos)
+    ? carrera.nivelesAcademicos
+    : [];
+
+  return Array.from(
+    new Set(
+      source
+        .map((nivel) => Number(nivel))
+        .filter((nivel) => Number.isFinite(nivel) && nivel > 0),
+    ),
+  ).sort((a, b) => a - b);
+}
+
+function labelNivel(
+  carrera: CarreraAsignacion | null,
+  nivel: number | null,
+): string {
+  if (!nivel) return "Seleccionar nivel";
+
+  const tipoNivel = String(carrera?.tipoNivel ?? "").trim();
+  if (tipoNivel) return `${tipoNivel} ${nivel}`;
+
+  const regimen = String(carrera?.regimen ?? "").toUpperCase();
+  if (regimen.includes("ANUAL")) return `Año ${nivel}`;
+  if (regimen.includes("MENSUAL")) return `Mes ${nivel}`;
+
+  return `Semestre ${nivel}`;
+}
+
+function estadoVisual(
+  estudiante: Estudiante,
+  isDark: boolean,
+  primary: string,
+): EstadoVisual {
+  const completo = toBoolean(estudiante.inscripcionCompletaNivel);
+  const inscrito = toBoolean(estudiante.yaInscrito);
+  const puede = toBoolean(estudiante.puedeInscribir);
+  const pendientes = Number(estudiante.materiasPendientesAnterioresCount ?? 0);
+  const inscritas = Number(estudiante.totalMateriasInscritasNivel ?? 0);
+  const disponibles = Number(estudiante.totalMateriasDisponiblesNivel ?? 0);
+
+  if (completo) {
+    return {
+      key: "completo",
+      label: "Nivel completo",
+      description: `${inscritas} materia${inscritas === 1 ? "" : "s"} inscrita${
+        inscritas === 1 ? "" : "s"} · inscripción editable`,
+      icon: "checkmark-done-circle",
+      color: isDark ? "#86EFAC" : "#15803D",
+      background: isDark ? "rgba(22,163,74,0.17)" : "#DCFCE7",
+      border: isDark ? "rgba(74,222,128,0.42)" : "#86EFAC",
+      avatarBg: isDark ? "rgba(74,222,128,0.22)" : "#BBF7D0",
+    };
+  }
+
+  if (inscrito && puede) {
+    return {
+      key: "agregar",
+      label: "Puede agregar materias",
+      description: `${inscritas} inscrita${inscritas === 1 ? "" : "s"} · ${
+        disponibles
+      } disponible${disponibles === 1 ? "" : "s"}`,
+      icon: "checkbox-outline",
+      color: isDark ? "#C4B5FD" : "#6D28D9",
+      background: isDark ? "rgba(124,58,237,0.16)" : "#EDE9FE",
+      border: isDark ? "rgba(196,181,253,0.42)" : "#C4B5FD",
+      avatarBg: isDark ? "rgba(124,58,237,0.23)" : "#DDD6FE",
+    };
+  }
+
+  if (puede && pendientes > 0) {
+    return {
+      key: "pendientes",
+      label: "Con pendientes anteriores",
+      description: `${pendientes} materia${pendientes === 1 ? "" : "s"} sin nota aprobatoria`,
+      icon: "warning",
+      color: isDark ? "#FBBF24" : "#B45309",
+      background: isDark ? "rgba(245,158,11,0.18)" : "#FEF3C7",
+      border: isDark ? "rgba(251,191,36,0.48)" : "#FCD34D",
+      avatarBg: isDark ? "rgba(245,158,11,0.23)" : "#FDE68A",
+    };
+  }
+
+  if (puede) {
+    return {
+      key: "listo",
+      label: "Listo para inscribirse",
+      description: `${disponibles} materia${disponibles === 1 ? "" : "s"} disponible${
+        disponibles === 1 ? "" : "s"
+      }`,
+      icon: "school",
+      color: primary,
+      background: isDark ? "rgba(59,130,246,0.18)" : "#DBEAFE",
+      border: isDark ? "rgba(96,165,250,0.45)" : "#93C5FD",
+      avatarBg: isDark ? "rgba(59,130,246,0.22)" : "#BFDBFE",
+    };
+  }
+
+  return {
+    key: "revision",
+    label: "Sin materias disponibles",
+    description: "Revise grupos, cupos o gestión activa",
+    icon: "alert-circle-outline",
+    color: isDark ? "#CBD5E1" : "#64748B",
+    background: isDark ? "rgba(255,255,255,0.055)" : "#F1F5F9",
+    border: isDark ? "rgba(255,255,255,0.12)" : "#CBD5E1",
+    avatarBg: isDark ? "rgba(255,255,255,0.08)" : "#E2E8F0",
+  };
+}
 
 export default function EstudiantesTable({
   estudiantes,
   carreras,
   carreraSeleccionadaId,
+  nivelSeleccionadoId,
   loading,
   loadingCarreras,
   onSeleccionarCarrera,
@@ -56,57 +203,33 @@ export default function EstudiantesTable({
 }: Props) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
-
   const isMobile = width < 760;
   const isCompact = width < 1120;
-  const compactActions = width < 970;
-
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [selectorCarreraVisible, setSelectorCarreraVisible] = useState(false);
-  const [selectorNivelVisible, setSelectorNivelVisible] = useState(false);
-  const [nivelSeleccionado, setNivelSeleccionado] = useState<number | null>(
-    null,
-  );
-  const [seleccionandoCarreraId, setSeleccionandoCarreraId] = useState<
-    number | null
-  >(null);
-  const [seleccionandoNivel, setSeleccionandoNivel] = useState<number | null>(
-    null,
-  );
 
   const isDark =
     theme.colors.background.toLowerCase().includes("0") ||
     theme.colors.card.toLowerCase().includes("1");
-
+  const strongText = isDark ? "#F8FAFC" : theme.colors.text;
+  const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
   const softCard = isDark
     ? "rgba(255,255,255,0.045)"
     : "rgba(15,23,42,0.035)";
-
   const softHeader = isDark
     ? "rgba(255,255,255,0.07)"
     : "rgba(15,23,42,0.06)";
-
-  const mutedBorder = isDark
+  const border = isDark
     ? "rgba(255,255,255,0.10)"
     : "rgba(15,23,42,0.10)";
 
-  const strongText = isDark ? "#F8FAFC" : theme.colors.text;
-  const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
-
-  const greenRowBackground = isDark
-    ? "rgba(22,163,74,0.17)"
-    : "#DCFCE7";
-
-  const greenRowBorder = isDark
-    ? "rgba(74,222,128,0.42)"
-    : "#86EFAC";
-
-  const greenText = isDark ? "#86EFAC" : "#15803D";
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [modalCarreraVisible, setModalCarreraVisible] = useState(false);
+  const [modalNivelVisible, setModalNivelVisible] = useState(false);
+  const [seleccionandoCarreraId, setSeleccionandoCarreraId] = useState<
+    number | null
+  >(null);
 
   const carreraSeleccionada = useMemo(() => {
-    if (!carreraSeleccionadaId) return null;
-
     return (
       carreras.find(
         (carrera) =>
@@ -115,1356 +238,798 @@ export default function EstudiantesTable({
     );
   }, [carreras, carreraSeleccionadaId]);
 
-  const nivelesCarrera = useMemo(() => {
-    return obtenerNivelesCarrera(carreraSeleccionada);
-  }, [carreraSeleccionada]);
-
-  const labelNivel = useMemo(() => {
-    return obtenerLabelNivelPorRegimen(carreraSeleccionada?.regimen);
-  }, [carreraSeleccionada?.regimen]);
-
-  const nivelSeleccionadoTexto = useMemo(() => {
-    if (!carreraSeleccionada || nivelSeleccionado === null) {
-      return "";
-    }
-
-    return obtenerNivelTexto(carreraSeleccionada, nivelSeleccionado);
-  }, [carreraSeleccionada, nivelSeleccionado]);
+  const niveles = useMemo(
+    () => nivelesCarrera(carreraSeleccionada),
+    [carreraSeleccionada],
+  );
 
   useEffect(() => {
     setSearch("");
     setPage(1);
-    setNivelSeleccionado(null);
-  }, [carreraSeleccionadaId]);
+  }, [carreraSeleccionadaId, nivelSeleccionadoId]);
+
+  const resumen = useMemo(() => {
+    return estudiantes.reduce(
+      (acc, estudiante) => {
+        const visual = estadoVisual(
+          estudiante,
+          isDark,
+          theme.colors.primary,
+        );
+        acc[visual.key] += 1;
+        return acc;
+      },
+      {
+        completo: 0,
+        agregar: 0,
+        pendientes: 0,
+        listo: 0,
+        revision: 0,
+      },
+    );
+  }, [estudiantes, isDark, theme.colors.primary]);
 
   const filtrados = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     if (!q) return estudiantes;
 
     return estudiantes.filter((estudiante) => {
-      const nombre = nombreCompleto(estudiante);
-
-      return (
-        nombre.toLowerCase().includes(q) ||
-        String(estudiante.ci ?? "").toLowerCase().includes(q) ||
-        String(estudiante.matricula ?? "").toLowerCase().includes(q) ||
-        String(estudiante.fechaInscripcion ?? "").toLowerCase().includes(q) ||
-        String(estudiante.email ?? "").toLowerCase().includes(q) ||
-        String(estudiante.celular ?? "").toLowerCase().includes(q)
+      const visual = estadoVisual(
+        estudiante,
+        isDark,
+        theme.colors.primary,
       );
+
+      return [
+        nombreCompleto(estudiante),
+        estudiante.ci,
+        estudiante.matricula,
+        estudiante.email,
+        estudiante.celular,
+        visual.label,
+        visual.description,
+      ].some((value) => String(value ?? "").toLowerCase().includes(q));
     });
-  }, [estudiantes, search]);
+  }, [estudiantes, search, isDark, theme.colors.primary]);
 
   const totalPages = Math.max(1, Math.ceil(filtrados.length / ITEMS_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
-
   const estudiantesPagina = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-
     return filtrados.slice(start, start + ITEMS_PER_PAGE);
   }, [filtrados, currentPage]);
 
   const seleccionarCarrera = async (idCarrera: number) => {
+    const carrera = carreras.find(
+      (item) => Number(item.idCarrera) === Number(idCarrera),
+    );
+    const nivel = nivelesCarrera(carrera ?? null)[0] ?? null;
+
     try {
       setSeleccionandoCarreraId(idCarrera);
-      setNivelSeleccionado(null);
-      await onSeleccionarCarrera(idCarrera);
-      setSelectorCarreraVisible(false);
-      setSelectorNivelVisible(true);
+      await onSeleccionarCarrera(idCarrera, nivel);
+      setModalCarreraVisible(false);
     } finally {
       setSeleccionandoCarreraId(null);
     }
   };
 
   const seleccionarNivel = async (nivel: number) => {
-    if (!carreraSeleccionada) return;
+    if (!carreraSeleccionadaId) return;
 
-    try {
-      setSeleccionandoNivel(nivel);
-      setNivelSeleccionado(nivel);
-      setSearch("");
-      setPage(1);
-
-      await onSeleccionarCarrera(Number(carreraSeleccionada.idCarrera), nivel);
-
-      setSelectorNivelVisible(false);
-    } finally {
-      setSeleccionandoNivel(null);
-    }
+    await onSeleccionarCarrera(carreraSeleccionadaId, nivel);
+    setModalNivelVisible(false);
   };
-
-  const limpiarBusqueda = () => {
-    setSearch("");
-    setPage(1);
-  };
-
-  const cambiarPaginaAnterior = () => {
-    setPage((prev) => Math.max(1, prev - 1));
-  };
-
-  const cambiarPaginaSiguiente = () => {
-    setPage((prev) => Math.min(totalPages, prev + 1));
-  };
-
-  const modalCarreras = (
-    <Modal
-      visible={selectorCarreraVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setSelectorCarreraVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <Pressable
-          style={styles.modalDismissArea}
-          onPress={() => setSelectorCarreraVisible(false)}
-        />
-
-        <View
-          style={[
-            styles.modalCard,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: mutedBorder,
-            },
-          ]}
-        >
-          <View style={styles.modalHeader}>
-            <View style={{ flex: 1 }}>
-              <ThemedText style={[styles.modalTitle, { color: strongText }]}>
-                Seleccionar carrera
-              </ThemedText>
-
-              <ThemedText style={[styles.modalSubtitle, { color: mutedText }]}>
-                Elige la carrera cuyos estudiantes deseas consultar.
-              </ThemedText>
-            </View>
-
-            <Pressable
-              style={[
-                styles.closeModalButton,
-                {
-                  backgroundColor: softCard,
-                  borderColor: mutedBorder,
-                },
-              ]}
-              onPress={() => setSelectorCarreraVisible(false)}
-            >
-              <Ionicons name="close" size={20} color={mutedText} />
-            </Pressable>
-          </View>
-
-          {loadingCarreras ? (
-            <View style={styles.modalLoading}>
-              <ActivityIndicator color={theme.colors.primary} />
-
-              <ThemedText style={[styles.modalLoadingText, { color: mutedText }]}>
-                Cargando carreras...
-              </ThemedText>
-            </View>
-          ) : carreras.length === 0 ? (
-            <View style={styles.modalLoading}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={34}
-                color={mutedText}
-              />
-
-              <ThemedText style={[styles.modalLoadingText, { color: mutedText }]}>
-                No existen carreras activas para mostrar.
-              </ThemedText>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.carrerasScroll}
-              contentContainerStyle={styles.carrerasContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {carreras.map((carrera) => {
-                const seleccionada =
-                  Number(carrera.idCarrera) === Number(carreraSeleccionadaId);
-
-                const cargando =
-                  seleccionandoCarreraId === Number(carrera.idCarrera);
-
-                return (
-                  <Pressable
-                    key={String(carrera.idCarrera)}
-                    disabled={cargando}
-                    onPress={() =>
-                      void seleccionarCarrera(Number(carrera.idCarrera))
-                    }
-                    style={({ pressed }) => [
-                      styles.carreraOption,
-                      {
-                        backgroundColor: seleccionada
-                          ? isDark
-                            ? "rgba(59,130,246,0.20)"
-                            : "#EFF6FF"
-                          : softCard,
-                        borderColor: seleccionada
-                          ? theme.colors.primary
-                          : mutedBorder,
-                        opacity: pressed || cargando ? 0.78 : 1,
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.carreraOptionIcon,
-                        {
-                          backgroundColor: seleccionada
-                            ? theme.colors.primary
-                            : isDark
-                              ? "rgba(255,255,255,0.08)"
-                              : "#E2E8F0",
-                        },
-                      ]}
-                    >
-                      {cargando ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Ionicons
-                          name={
-                            seleccionada
-                              ? "checkmark-circle"
-                              : "school-outline"
-                          }
-                          size={19}
-                          color={seleccionada ? "#FFFFFF" : mutedText}
-                        />
-                      )}
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <ThemedText
-                        style={[
-                          styles.carreraOptionTitle,
-                          { color: strongText },
-                        ]}
-                      >
-                        {carrera.nombreCarrera}
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.carreraOptionCode,
-                          { color: mutedText },
-                        ]}
-                      >
-                        {carrera.codigo
-                          ? `Código: ${carrera.codigo}`
-                          : "Carrera académica"}
-                      </ThemedText>
-                    </View>
-
-                    {seleccionada && !cargando && (
-                      <Ionicons
-                        name="checkmark"
-                        size={22}
-                        color={theme.colors.primary}
-                      />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const modalNiveles = (
-    <Modal
-      visible={selectorNivelVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setSelectorNivelVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <Pressable
-          style={styles.modalDismissArea}
-          onPress={() => setSelectorNivelVisible(false)}
-        />
-
-        <View
-          style={[
-            styles.modalCard,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: mutedBorder,
-            },
-          ]}
-        >
-          <View style={styles.modalHeader}>
-            <View style={{ flex: 1 }}>
-              <ThemedText style={[styles.modalTitle, { color: strongText }]}>
-                Seleccionar {labelNivel.toLowerCase()}
-              </ThemedText>
-
-              <ThemedText style={[styles.modalSubtitle, { color: mutedText }]}>
-                Las opciones salen de los niveles registrados en las materias de
-                la carrera.
-              </ThemedText>
-            </View>
-
-            <Pressable
-              style={[
-                styles.closeModalButton,
-                {
-                  backgroundColor: softCard,
-                  borderColor: mutedBorder,
-                },
-              ]}
-              onPress={() => setSelectorNivelVisible(false)}
-            >
-              <Ionicons name="close" size={20} color={mutedText} />
-            </Pressable>
-          </View>
-
-          {!carreraSeleccionada ? (
-            <View style={styles.modalLoading}>
-              <Ionicons name="school-outline" size={34} color={mutedText} />
-
-              <ThemedText style={[styles.modalLoadingText, { color: mutedText }]}>
-                Primero selecciona una carrera.
-              </ThemedText>
-            </View>
-          ) : nivelesCarrera.length === 0 ? (
-            <View style={styles.modalLoading}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={34}
-                color={mutedText}
-              />
-
-              <ThemedText style={[styles.modalLoadingText, { color: mutedText }]}>
-                Esta carrera no tiene niveles registrados en sus materias.
-              </ThemedText>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.carrerasScroll}
-              contentContainerStyle={styles.carrerasContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {nivelesCarrera.map((nivel) => {
-                const seleccionada = Number(nivel) === Number(nivelSeleccionado);
-                const cargando = Number(nivel) === Number(seleccionandoNivel);
-
-                return (
-                  <Pressable
-                    key={String(nivel)}
-                    disabled={cargando}
-                    onPress={() => void seleccionarNivel(Number(nivel))}
-                    style={({ pressed }) => [
-                      styles.carreraOption,
-                      {
-                        backgroundColor: seleccionada
-                          ? isDark
-                            ? "rgba(34,197,94,0.18)"
-                            : "#DCFCE7"
-                          : softCard,
-                        borderColor: seleccionada ? greenText : mutedBorder,
-                        opacity: pressed || cargando ? 0.78 : 1,
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.carreraOptionIcon,
-                        {
-                          backgroundColor: seleccionada
-                            ? greenText
-                            : isDark
-                              ? "rgba(255,255,255,0.08)"
-                              : "#E2E8F0",
-                        },
-                      ]}
-                    >
-                      {cargando ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Ionicons
-                          name={seleccionada ? "checkmark-circle" : "layers-outline"}
-                          size={19}
-                          color={seleccionada ? "#FFFFFF" : mutedText}
-                        />
-                      )}
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <ThemedText
-                        style={[
-                          styles.carreraOptionTitle,
-                          { color: strongText },
-                        ]}
-                      >
-                        {obtenerNivelTexto(carreraSeleccionada, nivel)}
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.carreraOptionCode,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Nivel registrado en materias activas
-                      </ThemedText>
-                    </View>
-
-                    {seleccionada && !cargando && (
-                      <Ionicons name="checkmark" size={22} color={greenText} />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-
-  if (!carreraSeleccionada) {
-    return (
-      <>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: mutedBorder,
-            },
-          ]}
-        >
-          <View style={styles.requiredCareerBox}>
-            <View
-              style={[
-                styles.requiredCareerIcon,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(59,130,246,0.18)"
-                    : "#DBEAFE",
-                },
-              ]}
-            >
-              <Ionicons
-                name="school-outline"
-                size={34}
-                color={theme.colors.primary}
-              />
-            </View>
-
-            <ThemedText
-              style={[styles.requiredCareerTitle, { color: strongText }]}
-            >
-              Selecciona una carrera
-            </ThemedText>
-
-            <ThemedText
-              style={[styles.requiredCareerSubtitle, { color: mutedText }]}
-            >
-              Primero debes elegir una carrera para cargar únicamente a sus
-              estudiantes.
-            </ThemedText>
-
-            <Pressable
-              disabled={loadingCarreras}
-              onPress={() => setSelectorCarreraVisible(true)}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                {
-                  backgroundColor: theme.colors.primary,
-                  opacity: pressed || loadingCarreras ? 0.75 : 1,
-                },
-              ]}
-            >
-              {loadingCarreras ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Ionicons name="school" size={18} color="#FFFFFF" />
-              )}
-
-              <ThemedText style={styles.primaryBtnText}>
-                {loadingCarreras
-                  ? "Cargando carreras..."
-                  : "Elegir carrera para visualizar alumnos"}
-              </ThemedText>
-            </Pressable>
-          </View>
-        </View>
-
-        {modalCarreras}
-      </>
-    );
-  }
-
-  if (nivelSeleccionado === null) {
-    return (
-      <>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: mutedBorder,
-            },
-          ]}
-        >
-          <View style={styles.requiredCareerBox}>
-            <View
-              style={[
-                styles.requiredCareerIcon,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(34,197,94,0.18)"
-                    : "#DCFCE7",
-                },
-              ]}
-            >
-              <Ionicons name="layers-outline" size={34} color={greenText} />
-            </View>
-
-            <ThemedText
-              style={[styles.requiredCareerTitle, { color: strongText }]}
-            >
-              Selecciona {labelNivel.toLowerCase()}
-            </ThemedText>
-
-            <ThemedText
-              style={[styles.requiredCareerSubtitle, { color: mutedText }]}
-            >
-              Carrera seleccionada: {carreraSeleccionada.nombreCarrera}. Ahora
-              elige el {labelNivel.toLowerCase()} que deseas consultar.
-            </ThemedText>
-
-            <View style={styles.requiredActions}>
-              <Pressable
-                onPress={() => setSelectorCarreraVisible(true)}
-                style={({ pressed }) => [
-                  styles.secondaryBtn,
-                  {
-                    borderColor: mutedBorder,
-                    backgroundColor: softCard,
-                    opacity: pressed ? 0.75 : 1,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="swap-horizontal-outline"
-                  size={18}
-                  color={mutedText}
-                />
-
-                <ThemedText style={[styles.secondaryBtnText, { color: mutedText }]}>
-                  Cambiar carrera
-                </ThemedText>
-              </Pressable>
-
-              <Pressable
-                onPress={() => setSelectorNivelVisible(true)}
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  {
-                    backgroundColor: theme.colors.primary,
-                    opacity: pressed ? 0.75 : 1,
-                  },
-                ]}
-              >
-                <Ionicons name="layers" size={18} color="#FFFFFF" />
-
-                <ThemedText style={styles.primaryBtnText}>
-                  Elegir {labelNivel.toLowerCase()}
-                </ThemedText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        {modalCarreras}
-        {modalNiveles}
-      </>
-    );
-  }
 
   return (
-    <>
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.card,
-            borderColor: mutedBorder,
-          },
-        ]}
-      >
-        <View style={[styles.header, isMobile && styles.headerMobile]}>
-          <View style={styles.titleBox}>
-            <View
-              style={[
-                styles.iconCircle,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(59,130,246,0.18)"
-                    : "#DBEAFE",
-                },
-              ]}
-            >
-              <Ionicons name="people" size={22} color={theme.colors.primary} />
-            </View>
-
-            <View style={styles.titleContent}>
-              <ThemedText style={[styles.title, { color: strongText }]}>
-                Estudiantes
-              </ThemedText>
-
-              <ThemedText style={[styles.subtitle, { color: mutedText }]}>
-                {filtrados.length} de {estudiantes.length} estudiantes en{" "}
-                {carreraSeleccionada.nombreCarrera} · {nivelSeleccionadoTexto}
-              </ThemedText>
-            </View>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: border,
+        },
+      ]}
+    >
+      <View style={styles.toolbar}>
+        <View style={styles.toolbarTitleBox}>
+          <View
+            style={[
+              styles.toolbarIcon,
+              {
+                backgroundColor: isDark
+                  ? "rgba(59,130,246,0.18)"
+                  : "#DBEAFE",
+              },
+            ]}
+          >
+            <Ionicons
+              name="people-outline"
+              size={23}
+              color={theme.colors.primary}
+            />
           </View>
 
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={() => setSelectorCarreraVisible(true)}
-              style={({ pressed }) => [
-                styles.changeCareerButton,
-                {
-                  borderColor: theme.colors.primary,
-                  backgroundColor: isDark
-                    ? "rgba(59,130,246,0.13)"
-                    : "#EFF6FF",
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Ionicons
-                name="swap-horizontal-outline"
-                size={17}
-                color={theme.colors.primary}
-              />
+          <View style={styles.toolbarTitleText}>
+            <ThemedText style={[styles.title, { color: strongText }]}>
+              Estudiantes por nivel
+            </ThemedText>
+            <ThemedText style={[styles.subtitle, { color: mutedText }]}>
+              Los estudiantes que todavía pueden agregar materias se mantienen
+              disponibles en la lista.
+            </ThemedText>
+          </View>
+        </View>
 
-              <ThemedText
-                numberOfLines={1}
-                style={[
-                  styles.changeCareerText,
-                  { color: theme.colors.primary },
-                ]}
-              >
+        <View style={styles.filterActions}>
+          <Pressable
+            onPress={() => setModalCarreraVisible(true)}
+            style={({ pressed }) => [
+              styles.filterButton,
+              {
+                backgroundColor: softCard,
+                borderColor: carreraSeleccionada
+                  ? theme.colors.primary
+                  : border,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <Ionicons
+              name="school-outline"
+              size={18}
+              color={carreraSeleccionada ? theme.colors.primary : mutedText}
+            />
+            <View style={styles.filterTextBox}>
+              <ThemedText style={[styles.filterLabel, { color: mutedText }]}>
                 Carrera
               </ThemedText>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setSelectorNivelVisible(true)}
-              style={({ pressed }) => [
-                styles.changeCareerButton,
-                {
-                  borderColor: greenText,
-                  backgroundColor: isDark
-                    ? "rgba(34,197,94,0.13)"
-                    : "#DCFCE7",
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="layers-outline" size={17} color={greenText} />
-
               <ThemedText
                 numberOfLines={1}
-                style={[styles.changeCareerText, { color: greenText }]}
+                style={[styles.filterValue, { color: strongText }]}
               >
-                {labelNivel}
+                {carreraSeleccionada?.nombreCarrera ?? "Seleccionar carrera"}
               </ThemedText>
-            </Pressable>
-          </View>
+            </View>
+            <Ionicons name="chevron-down" size={18} color={mutedText} />
+          </Pressable>
+
+          <Pressable
+            disabled={!carreraSeleccionada || niveles.length === 0}
+            onPress={() => setModalNivelVisible(true)}
+            style={({ pressed }) => [
+              styles.filterButton,
+              {
+                backgroundColor: softCard,
+                borderColor: nivelSeleccionadoId
+                  ? theme.colors.primary
+                  : border,
+                opacity:
+                  !carreraSeleccionada || niveles.length === 0
+                    ? 0.5
+                    : pressed
+                      ? 0.8
+                      : 1,
+              },
+            ]}
+          >
+            <Ionicons
+              name="layers-outline"
+              size={18}
+              color={nivelSeleccionadoId ? theme.colors.primary : mutedText}
+            />
+            <View style={styles.filterTextBox}>
+              <ThemedText style={[styles.filterLabel, { color: mutedText }]}>
+                Nivel
+              </ThemedText>
+              <ThemedText
+                numberOfLines={1}
+                style={[styles.filterValue, { color: strongText }]}
+              >
+                {labelNivel(carreraSeleccionada, nivelSeleccionadoId)}
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-down" size={18} color={mutedText} />
+          </Pressable>
         </View>
+      </View>
 
-        <View
-          style={[
-            styles.selectedCareerPill,
-            {
-              backgroundColor: isDark
-                ? "rgba(34,197,94,0.12)"
-                : "#DCFCE7",
-              borderColor: isDark
-                ? "rgba(74,222,128,0.34)"
-                : "#86EFAC",
-            },
-          ]}
-        >
-          <Ionicons name="school" size={16} color={greenText} />
-
-          <ThemedText style={[styles.selectedCareerText, { color: greenText }]}>
-            Carrera: {carreraSeleccionada.nombreCarrera}
-            {carreraSeleccionada.codigo
-              ? ` (${carreraSeleccionada.codigo})`
-              : ""}{" "}
-            · {nivelSeleccionadoTexto}
-          </ThemedText>
+      {carreraSeleccionada && nivelSeleccionadoId && (
+        <View style={styles.summaryRow}>
+          <SummaryChip
+            icon="checkmark-done-circle"
+            label="Completos"
+            value={resumen.completo}
+            color={isDark ? "#86EFAC" : "#15803D"}
+            backgroundColor={isDark ? "rgba(22,163,74,0.15)" : "#DCFCE7"}
+          />
+          <SummaryChip
+            icon="warning"
+            label="Con pendientes"
+            value={resumen.pendientes}
+            color={isDark ? "#FBBF24" : "#B45309"}
+            backgroundColor={isDark ? "rgba(245,158,11,0.15)" : "#FEF3C7"}
+          />
+          <SummaryChip
+            icon="school"
+            label="Listos"
+            value={resumen.listo}
+            color={theme.colors.primary}
+            backgroundColor={isDark ? "rgba(59,130,246,0.15)" : "#DBEAFE"}
+          />
         </View>
+      )}
 
+      <View style={styles.searchRow}>
         <View
           style={[
             styles.searchBox,
-            {
-              borderColor: mutedBorder,
-              backgroundColor: softCard,
-            },
+            { backgroundColor: softCard, borderColor: border },
           ]}
         >
-          <Ionicons name="search" size={18} color={mutedText} />
-
+          <Ionicons name="search-outline" size={20} color={mutedText} />
           <TextInput
-            placeholder="Buscar por nombre, CI, matrícula, correo o celular"
-            placeholderTextColor={mutedText}
             value={search}
             onChangeText={(value) => {
               setSearch(value);
               setPage(1);
             }}
+            placeholder="Buscar por nombre, CI, matrícula o estado..."
+            placeholderTextColor={mutedText}
             style={[styles.searchInput, { color: strongText }]}
           />
-
           {search.length > 0 && (
-            <Pressable onPress={limpiarBusqueda}>
+            <Pressable onPress={() => setSearch("")}>
               <Ionicons name="close-circle" size={20} color={mutedText} />
             </Pressable>
           )}
         </View>
 
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color={theme.colors.primary} />
+        <View
+          style={[
+            styles.countBadge,
+            {
+              backgroundColor: softCard,
+              borderColor: border,
+            },
+          ]}
+        >
+          <ThemedText style={[styles.countText, { color: strongText }]}>
+            {filtrados.length}
+          </ThemedText>
+          <ThemedText style={[styles.countLabel, { color: mutedText }]}>
+            resultado{filtrados.length === 1 ? "" : "s"}
+          </ThemedText>
+        </View>
+      </View>
 
-            <ThemedText style={[styles.loadingText, { color: mutedText }]}>
-              Cargando estudiantes...
-            </ThemedText>
-          </View>
-        ) : filtrados.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <View
-              style={[
-                styles.emptyIcon,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,255,255,0.06)"
-                    : "#F1F5F9",
-                },
-              ]}
-            >
-              <Ionicons name="people-outline" size={42} color={mutedText} />
+      {!carreraSeleccionadaId || !nivelSeleccionadoId ? (
+        <EmptyState
+          icon="options-outline"
+          title="Selecciona carrera y nivel"
+          text="Usa los filtros superiores para cargar los estudiantes del semestre, año o mes que deseas gestionar."
+          color={theme.colors.primary}
+          backgroundColor={softCard}
+          borderColor={border}
+          strongText={strongText}
+          mutedText={mutedText}
+        />
+      ) : loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <ThemedText style={[styles.loadingTitle, { color: strongText }]}>
+            Cargando estudiantes
+          </ThemedText>
+          <ThemedText style={[styles.loadingText, { color: mutedText }]}>
+            Revisando inscripciones y materias pendientes del nivel.
+          </ThemedText>
+        </View>
+      ) : filtrados.length === 0 ? (
+        <EmptyState
+          icon="people-outline"
+          title="No hay estudiantes"
+          text={
+            search
+              ? "No existen coincidencias con la búsqueda realizada."
+              : "No existen estudiantes con materias inscritas o disponibles en este nivel."
+          }
+          color="#F59E0B"
+          backgroundColor={softCard}
+          borderColor={border}
+          strongText={strongText}
+          mutedText={mutedText}
+        />
+      ) : (
+        <>
+          <View
+            style={[
+              styles.tableShell,
+              {
+                borderColor: border,
+                backgroundColor: isDark
+                  ? "rgba(15,23,42,0.42)"
+                  : "rgba(248,250,252,0.65)",
+              },
+            ]}
+          >
+            {!isMobile && (
+              <View
+                style={[
+                  styles.tableHeader,
+                  { backgroundColor: softHeader, borderColor: border },
+                ]}
+              >
+                {isCompact ? (
+                  <>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thStudentCompact,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Estudiante
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thDataCompact,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Registro y estado
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thActionsCompact,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Acciones
+                    </ThemedText>
+                  </>
+                ) : (
+                  <>
+                    <ThemedText
+                      style={[styles.th, styles.thCi, { color: mutedText }]}
+                    >
+                      CI
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thMatricula,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Matrícula
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thStudent,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Estudiante
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thStatus,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Estado académico
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thDate,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Fecha
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.th,
+                        styles.thActions,
+                        { color: mutedText },
+                      ]}
+                    >
+                      Acciones
+                    </ThemedText>
+                  </>
+                )}
+              </View>
+            )}
+
+            <View style={styles.rowsBox}>
+              {estudiantesPagina.map((estudiante) => {
+                const visual = estadoVisual(
+                  estudiante,
+                  isDark,
+                  theme.colors.primary,
+                );
+                const puedeGestionar = true;
+
+                if (isMobile) {
+                  return (
+                    <MobileCard
+                      key={estudiante.id}
+                      estudiante={estudiante}
+                      visual={visual}
+                      strongText={strongText}
+                      mutedText={mutedText}
+                      isDark={isDark}
+                      puedeGestionar={puedeGestionar}
+                      onInscribir={() => onInscribir(estudiante)}
+                      onVerPdf={() => onVerPdf(estudiante)}
+                    />
+                  );
+                }
+
+                return (
+                  <View
+                    key={estudiante.id}
+                    style={[
+                      styles.bodyRow,
+                      {
+                        backgroundColor: visual.background,
+                        borderColor: visual.border,
+                      },
+                    ]}
+                  >
+                    {isCompact ? (
+                      <>
+                        <View style={styles.studentCompactCell}>
+                          <StudentIdentity
+                            estudiante={estudiante}
+                            visual={visual}
+                            strongText={strongText}
+                            mutedText={mutedText}
+                          />
+                        </View>
+
+                        <View style={styles.dataCompactCell}>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[
+                              styles.compactPrimary,
+                              { color: strongText },
+                            ]}
+                          >
+                            CI: {estudiante.ci || "—"}
+                            {estudiante.expedido
+                              ? ` · ${estudiante.expedido}`
+                              : ""}
+                          </ThemedText>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.compactText, { color: mutedText }]}
+                          >
+                            Matrícula: {estudiante.matricula || "Sin matrícula"}
+                          </ThemedText>
+                          <StatusBadge visual={visual} />
+                        </View>
+
+                        <View style={styles.actionsCompactCell}>
+                          <ActionButton
+                            label="Editar"
+                            icon="create-outline"
+                            color={theme.colors.primary}
+                            disabled={false}
+                            onPress={() => onInscribir(estudiante)}
+                            isDark={isDark}
+                          />
+                          <ActionButton
+                            label="PDF"
+                            icon="document-text-outline"
+                            color="#16A34A"
+                            onPress={() => onVerPdf(estudiante)}
+                            isDark={isDark}
+                          />
+                        </View>
+                      </>
+                    ) : (
+                      <>
+                        <View style={styles.ciCell}>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.cellStrong, { color: strongText }]}
+                          >
+                            {estudiante.ci || "—"}
+                          </ThemedText>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.cellSmall, { color: mutedText }]}
+                          >
+                            {estudiante.expedido || "Sin expedido"}
+                          </ThemedText>
+                        </View>
+
+                        <View style={styles.matriculaCell}>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.cellStrong, { color: strongText }]}
+                          >
+                            {estudiante.matricula || "Sin matrícula"}
+                          </ThemedText>
+                        </View>
+
+                        <View style={styles.studentCell}>
+                          <StudentIdentity
+                            estudiante={estudiante}
+                            visual={visual}
+                            strongText={strongText}
+                            mutedText={mutedText}
+                          />
+                        </View>
+
+                        <View style={styles.statusCell}>
+                          <StatusBadge visual={visual} />
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.cellSmall, { color: mutedText }]}
+                          >
+                            {visual.description}
+                          </ThemedText>
+                        </View>
+
+                        <View style={styles.dateCell}>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.cellStrong, { color: strongText }]}
+                          >
+                            {formatearFecha(estudiante.fechaInscripcion)}
+                          </ThemedText>
+                        </View>
+
+                        <View style={styles.actionsCell}>
+                          <ActionButton
+                            label="Editar"
+                            icon="create-outline"
+                            color={theme.colors.primary}
+                            disabled={false}
+                            onPress={() => onInscribir(estudiante)}
+                            isDark={isDark}
+                          />
+                          <ActionButton
+                            label="PDF"
+                            icon="document-text-outline"
+                            color="#16A34A"
+                            onPress={() => onVerPdf(estudiante)}
+                            isDark={isDark}
+                          />
+                        </View>
+                      </>
+                    )}
+                  </View>
+                );
+              })}
             </View>
+          </View>
 
-            <ThemedText style={[styles.emptyTitle, { color: strongText }]}>
-              No hay estudiantes para esta selección
+          <View style={styles.pagination}>
+            <ThemedText style={[styles.paginationText, { color: mutedText }]}>
+              Página {currentPage} de {totalPages}
             </ThemedText>
 
-            <ThemedText style={[styles.emptyText, { color: mutedText }]}>
-              {search.trim()
-                ? "No existen coincidencias con la búsqueda realizada."
-                : "No existen estudiantes disponibles para la carrera y nivel seleccionados."}
+            <View style={styles.paginationActions}>
+              <PaginationButton
+                icon="chevron-back"
+                disabled={currentPage <= 1}
+                onPress={() => setPage((actual) => Math.max(1, actual - 1))}
+                backgroundColor={softCard}
+                borderColor={border}
+                color={strongText}
+              />
+              <PaginationButton
+                icon="chevron-forward"
+                disabled={currentPage >= totalPages}
+                onPress={() =>
+                  setPage((actual) => Math.min(totalPages, actual + 1))
+                }
+                backgroundColor={softCard}
+                borderColor={border}
+                color={strongText}
+              />
+            </View>
+          </View>
+        </>
+      )}
+
+      <SelectorModal
+        visible={modalCarreraVisible}
+        title="Seleccionar carrera"
+        subtitle="Elige la carrera cuyos estudiantes deseas consultar."
+        onClose={() => setModalCarreraVisible(false)}
+        backgroundColor={theme.colors.card}
+        borderColor={border}
+        strongText={strongText}
+        mutedText={mutedText}
+      >
+        {loadingCarreras ? (
+          <View style={styles.modalLoading}>
+            <ActivityIndicator color={theme.colors.primary} />
+            <ThemedText style={[styles.modalLoadingText, { color: mutedText }]}>
+              Cargando carreras...
             </ThemedText>
           </View>
         ) : (
-          <>
-            <View
-              style={[
-                styles.tableShell,
-                {
-                  borderColor: mutedBorder,
-                  backgroundColor: isDark
-                    ? "rgba(15,23,42,0.42)"
-                    : "rgba(248,250,252,0.65)",
-                },
-              ]}
-            >
-              {!isMobile && (
-                <View
-                  style={[
-                    styles.tableHeader,
-                    {
-                      backgroundColor: softHeader,
-                      borderColor: mutedBorder,
-                    },
-                  ]}
-                >
-                  {isCompact ? (
-                    <>
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thStudentCompact,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Estudiante
-                      </ThemedText>
+          carreras.map((carrera) => {
+            const seleccionada =
+              Number(carrera.idCarrera) === Number(carreraSeleccionadaId);
+            const cargando =
+              Number(seleccionandoCarreraId) === Number(carrera.idCarrera);
 
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thDataCompact,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Datos
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thActionsCompact,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Acciones
-                      </ThemedText>
-                    </>
-                  ) : (
-                    <>
-                      <ThemedText
-                        style={[styles.th, styles.thCi, { color: mutedText }]}
-                      >
-                        CI
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thMatricula,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Matrícula
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thStudent,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Estudiante
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thNivel,
-                          { color: mutedText },
-                        ]}
-                      >
-                        {labelNivel}
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thYear,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Año
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thContact,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Contacto
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.th,
-                          styles.thActions,
-                          { color: mutedText },
-                        ]}
-                      >
-                        Acciones
-                      </ThemedText>
-                    </>
-                  )}
-                </View>
-              )}
-
-              <View style={styles.rowsBox}>
-                {estudiantesPagina.map((item) => {
-                  const nombre = nombreCompleto(item);
-                  const inscrito = estaInscrito(item.yaInscrito);
-                  const anio = obtenerAnioInscripcion(item);
-
-                  const backgroundColor = inscrito
-                    ? greenRowBackground
-                    : softCard;
-
-                  const borderColor = inscrito
-                    ? greenRowBorder
-                    : mutedBorder;
-
-                  if (isMobile) {
-                    return (
-                      <MobileStudentCard
-                        key={item.id}
-                        item={item}
-                        nombre={nombre}
-                        nivel={nivelSeleccionadoTexto}
-                        anio={anio}
-                        strongText={strongText}
-                        mutedText={mutedText}
-                        primary={theme.colors.primary}
-                        isDark={isDark}
-                        inscrito={inscrito}
-                        greenText={greenText}
-                        backgroundColor={backgroundColor}
-                        borderColor={borderColor}
-                        onInscribir={() => onInscribir(item)}
-                        onVerPdf={() => onVerPdf(item)}
-                      />
-                    );
-                  }
-
-                  return (
-                    <View
-                      key={item.id}
-                      style={[
-                        styles.row,
-                        {
-                          backgroundColor,
-                          borderColor,
-                        },
-                      ]}
-                    >
-                      {isCompact ? (
-                        <>
-                          <View style={styles.studentCompactCell}>
-                            <StudentIdentity
-                              nombre={nombre}
-                              email={item.email}
-                              primary={theme.colors.primary}
-                              isDark={isDark}
-                              strongText={strongText}
-                              mutedText={mutedText}
-                              inscrito={inscrito}
-                              greenText={greenText}
-                            />
-                          </View>
-
-                          <View style={styles.dataCompactCell}>
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[
-                                styles.compactDataPrimary,
-                                { color: strongText },
-                              ]}
-                            >
-                              CI: {item.ci || "—"}{" "}
-                              {item.expedido ? `· ${item.expedido}` : ""}
-                            </ThemedText>
-
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[
-                                styles.compactDataText,
-                                { color: mutedText },
-                              ]}
-                            >
-                              Matrícula: {item.matricula || "Sin matrícula"}
-                            </ThemedText>
-
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[
-                                styles.compactDataText,
-                                { color: mutedText },
-                              ]}
-                            >
-                              {nivelSeleccionadoTexto} · Año: {anio}
-                            </ThemedText>
-
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[
-                                styles.compactDataText,
-                                { color: mutedText },
-                              ]}
-                            >
-                              Celular: {item.celular || "Sin celular"}
-                            </ThemedText>
-                          </View>
-
-                          <View style={styles.actionsCompactCell}>
-                            <ActionButton
-                              label={inscrito ? "Inscrito" : "Inscribir"}
-                              icon={
-                                inscrito
-                                  ? "checkmark-circle"
-                                  : "school-outline"
-                              }
-                              color={
-                                inscrito ? "#16A34A" : theme.colors.primary
-                              }
-                              isDark={isDark}
-                              compact={compactActions}
-                              disabled={inscrito}
-                              onPress={() => onInscribir(item)}
-                            />
-
-                            <ActionButton
-                              label="PDF"
-                              icon="document-text-outline"
-                              color="#16A34A"
-                              isDark={isDark}
-                              compact={compactActions}
-                              onPress={() => onVerPdf(item)}
-                            />
-                          </View>
-                        </>
-                      ) : (
-                        <>
-                          <View style={styles.ciCell}>
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[styles.ciText, { color: strongText }]}
-                            >
-                              {item.ci || "—"}
-                            </ThemedText>
-
-                            {item.expedido && (
-                              <ThemedText
-                                numberOfLines={1}
-                                style={[
-                                  styles.smallText,
-                                  { color: mutedText },
-                                ]}
-                              >
-                                {item.expedido}
-                              </ThemedText>
-                            )}
-                          </View>
-
-                          <View style={styles.matriculaCell}>
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[
-                                styles.matriculaText,
-                                { color: strongText },
-                              ]}
-                            >
-                              {item.matricula || "Sin matrícula"}
-                            </ThemedText>
-                          </View>
-
-                          <View style={styles.studentCell}>
-                            <StudentIdentity
-                              nombre={nombre}
-                              email={item.email}
-                              primary={theme.colors.primary}
-                              isDark={isDark}
-                              strongText={strongText}
-                              mutedText={mutedText}
-                              inscrito={inscrito}
-                              greenText={greenText}
-                            />
-                          </View>
-
-                          <View style={styles.nivelCell}>
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[styles.normalText, { color: strongText }]}
-                            >
-                              {nivelSeleccionadoTexto}
-                            </ThemedText>
-                          </View>
-
-                          <View style={styles.yearCell}>
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[styles.normalText, { color: strongText }]}
-                            >
-                              {anio}
-                            </ThemedText>
-                          </View>
-
-                          <View style={styles.contactCell}>
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[styles.normalText, { color: strongText }]}
-                            >
-                              {item.celular || "Sin celular"}
-                            </ThemedText>
-
-                            <ThemedText
-                              numberOfLines={1}
-                              style={[
-                                styles.smallText,
-                                { color: mutedText },
-                              ]}
-                            >
-                              {item.email || "Sin correo"}
-                            </ThemedText>
-                          </View>
-
-                          <View style={styles.actionsCell}>
-                            <ActionButton
-                              label={inscrito ? "Inscrito" : "Inscribir"}
-                              icon={
-                                inscrito
-                                  ? "checkmark-circle"
-                                  : "school-outline"
-                              }
-                              color={
-                                inscrito ? "#16A34A" : theme.colors.primary
-                              }
-                              isDark={isDark}
-                              compact={false}
-                              disabled={inscrito}
-                              onPress={() => onInscribir(item)}
-                            />
-
-                            <ActionButton
-                              label="PDF"
-                              icon="document-text-outline"
-                              color="#16A34A"
-                              isDark={isDark}
-                              compact={false}
-                              onPress={() => onVerPdf(item)}
-                            />
-                          </View>
-                        </>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View
-              style={[styles.pagination, isMobile && styles.paginationMobile]}
-            >
-              <View>
-                <ThemedText style={[styles.pageText, { color: strongText }]}>
-                  Página {currentPage} de {totalPages}
-                </ThemedText>
-
-                <ThemedText style={[styles.pageSubText, { color: mutedText }]}>
-                  Mostrando {estudiantesPagina.length} de {filtrados.length}
-                </ThemedText>
-              </View>
-
-              <View style={styles.pageActions}>
-                <Pressable
-                  disabled={currentPage === 1}
-                  onPress={cambiarPaginaAnterior}
-                  style={({ pressed }) => [
-                    styles.pageBtn,
-                    {
-                      borderColor: mutedBorder,
-                      backgroundColor:
-                        currentPage === 1 ? softCard : theme.colors.primary,
-                      opacity: pressed ? 0.78 : currentPage === 1 ? 0.55 : 1,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={18}
-                    color={currentPage === 1 ? mutedText : "#FFFFFF"}
-                  />
-
-                  <ThemedText
-                    style={[
-                      styles.pageBtnText,
-                      {
-                        color: currentPage === 1 ? mutedText : "#FFFFFF",
-                      },
-                    ]}
-                  >
-                    Anterior
-                  </ThemedText>
-                </Pressable>
-
-                <Pressable
-                  disabled={currentPage === totalPages}
-                  onPress={cambiarPaginaSiguiente}
-                  style={({ pressed }) => [
-                    styles.pageBtn,
-                    {
-                      borderColor: mutedBorder,
-                      backgroundColor:
-                        currentPage === totalPages
-                          ? softCard
-                          : theme.colors.primary,
-                      opacity:
-                        pressed || currentPage === totalPages ? 0.65 : 1,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.pageBtnText,
-                      {
-                        color:
-                          currentPage === totalPages ? mutedText : "#FFFFFF",
-                      },
-                    ]}
-                  >
-                    Siguiente
-                  </ThemedText>
-
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={currentPage === totalPages ? mutedText : "#FFFFFF"}
-                  />
-                </Pressable>
-              </View>
-            </View>
-          </>
+            return (
+              <SelectorOption
+                key={carrera.idCarrera}
+                title={carrera.nombreCarrera}
+                subtitle={`${carrera.codigo ?? "Sin código"} · ${
+                  carrera.regimen ?? "Sin régimen"
+                } · Nota mínima ${Number(carrera.notaAprobacion ?? 51)}`}
+                selected={seleccionada}
+                loading={cargando}
+                icon="school-outline"
+                primary={theme.colors.primary}
+                strongText={strongText}
+                mutedText={mutedText}
+                backgroundColor={softCard}
+                selectedBackground={
+                  isDark ? "rgba(59,130,246,0.20)" : "#EFF6FF"
+                }
+                borderColor={border}
+                onPress={() => void seleccionarCarrera(carrera.idCarrera)}
+              />
+            );
+          })
         )}
-      </View>
+      </SelectorModal>
 
-      {modalCarreras}
-      {modalNiveles}
-    </>
+      <SelectorModal
+        visible={modalNivelVisible}
+        title="Seleccionar nivel"
+        subtitle="Puede consultar e inscribir materias del nivel que necesite."
+        onClose={() => setModalNivelVisible(false)}
+        backgroundColor={theme.colors.card}
+        borderColor={border}
+        strongText={strongText}
+        mutedText={mutedText}
+      >
+        {niveles.map((nivel) => (
+          <SelectorOption
+            key={nivel}
+            title={labelNivel(carreraSeleccionada, nivel)}
+            subtitle="Nivel registrado en las materias activas de la carrera"
+            selected={Number(nivelSeleccionadoId) === Number(nivel)}
+            icon="layers-outline"
+            primary={theme.colors.primary}
+            strongText={strongText}
+            mutedText={mutedText}
+            backgroundColor={softCard}
+            selectedBackground={
+              isDark ? "rgba(59,130,246,0.20)" : "#EFF6FF"
+            }
+            borderColor={border}
+            onPress={() => void seleccionarNivel(nivel)}
+          />
+        ))}
+      </SelectorModal>
+    </View>
   );
 }
 
 function StudentIdentity({
-  nombre,
-  email,
-  primary,
-  isDark,
+  estudiante,
+  visual,
   strongText,
   mutedText,
-  inscrito,
-  greenText,
 }: {
-  nombre: string;
-  email?: string | null;
-  primary: string;
-  isDark: boolean;
+  estudiante: Estudiante;
+  visual: EstadoVisual;
   strongText: string;
   mutedText: string;
-  inscrito: boolean;
-  greenText: string;
 }) {
+  const nombre = nombreCompleto(estudiante);
+
   return (
-    <View style={styles.studentBox}>
-      <View
-        style={[
-          styles.avatar,
-          {
-            backgroundColor: inscrito
-              ? isDark
-                ? "rgba(74,222,128,0.22)"
-                : "#BBF7D0"
-              : isDark
-                ? "rgba(59,130,246,0.18)"
-                : "#DBEAFE",
-          },
-        ]}
-      >
-        <ThemedText
-          style={[
-            styles.avatarText,
-            {
-              color: inscrito ? greenText : primary,
-            },
-          ]}
-        >
-          {obtenerIniciales(nombre)}
+    <View style={styles.identity}>
+      <View style={[styles.avatar, { backgroundColor: visual.avatarBg }]}>
+        <ThemedText style={[styles.avatarText, { color: visual.color }]}>
+          {iniciales(nombre)}
         </ThemedText>
       </View>
-
-      <View style={styles.studentIdentityText}>
+      <View style={styles.identityText}>
         <ThemedText
           numberOfLines={1}
           style={[styles.nameText, { color: strongText }]}
         >
           {nombre || "Sin nombre"}
         </ThemedText>
-
-        {inscrito ? (
-          <View
-            style={[
-              styles.enrolledBadge,
-              {
-                backgroundColor: isDark
-                  ? "rgba(74,222,128,0.18)"
-                  : "#BBF7D0",
-              },
-            ]}
-          >
-            <Ionicons name="checkmark-circle" size={12} color={greenText} />
-
-            <ThemedText
-              style={[
-                styles.enrolledBadgeText,
-                {
-                  color: greenText,
-                },
-              ]}
-            >
-              Ya inscrito
-            </ThemedText>
-          </View>
-        ) : email ? (
-          <ThemedText
-            numberOfLines={1}
-            style={[styles.smallText, { color: mutedText }]}
-          >
-            {email}
-          </ThemedText>
-        ) : (
-          <ThemedText
-            numberOfLines={1}
-            style={[styles.smallText, { color: mutedText }]}
-          >
-            Pendiente de inscripción
-          </ThemedText>
-        )}
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.cellSmall, { color: mutedText }]}
+        >
+          {estudiante.email || estudiante.celular || "Sin contacto"}
+        </ThemedText>
       </View>
     </View>
   );
 }
 
-function MobileStudentCard({
-  item,
-  nombre,
-  nivel,
-  anio,
+function StatusBadge({ visual }: { visual: EstadoVisual }) {
+  return (
+    <View
+      style={[
+        styles.statusBadge,
+        { backgroundColor: `${visual.color}20` },
+      ]}
+    >
+      <Ionicons name={visual.icon} size={14} color={visual.color} />
+      <ThemedText
+        numberOfLines={1}
+        style={[styles.statusBadgeText, { color: visual.color }]}
+      >
+        {visual.label}
+      </ThemedText>
+    </View>
+  );
+}
+
+function ActionButton({
+  label,
+  icon,
+  color,
+  onPress,
+  disabled = false,
+  isDark,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  onPress: () => void;
+  disabled?: boolean;
+  isDark: boolean;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        {
+          backgroundColor: isDark ? `${color}22` : `${color}14`,
+          borderColor: `${color}55`,
+          opacity: disabled ? 0.52 : pressed ? 0.76 : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={16} color={color} />
+      <ThemedText style={[styles.actionText, { color }]}>{label}</ThemedText>
+    </Pressable>
+  );
+}
+
+function MobileCard({
+  estudiante,
+  visual,
   strongText,
   mutedText,
-  primary,
   isDark,
-  inscrito,
-  greenText,
-  backgroundColor,
-  borderColor,
+  puedeGestionar,
   onInscribir,
   onVerPdf,
 }: {
-  item: EstudianteTabla;
-  nombre: string;
-  nivel: string;
-  anio: string;
+  estudiante: Estudiante;
+  visual: EstadoVisual;
   strongText: string;
   mutedText: string;
-  primary: string;
   isDark: boolean;
-  inscrito: boolean;
-  greenText: string;
-  backgroundColor: string;
-  borderColor: string;
+  puedeGestionar: boolean;
   onInscribir: () => void;
   onVerPdf: () => void;
 }) {
@@ -1472,96 +1037,49 @@ function MobileStudentCard({
     <View
       style={[
         styles.mobileCard,
-        {
-          backgroundColor,
-          borderColor,
-        },
+        { backgroundColor: visual.background, borderColor: visual.border },
       ]}
     >
       <StudentIdentity
-        nombre={nombre}
-        email={item.email}
-        primary={primary}
-        isDark={isDark}
+        estudiante={estudiante}
+        visual={visual}
         strongText={strongText}
         mutedText={mutedText}
-        inscrito={inscrito}
-        greenText={greenText}
       />
 
-      <View style={[styles.mobileDivider, { backgroundColor: borderColor }]} />
-
-      <View style={styles.mobileInfoGrid}>
-        <MobileInfo
-          label="CI"
-          value={`${item.ci || "—"}${
-            item.expedido ? ` · ${item.expedido}` : ""
-          }`}
-          strongText={strongText}
-          mutedText={mutedText}
-        />
-
-        <MobileInfo
-          label="Matrícula"
-          value={item.matricula || "Sin matrícula"}
-          strongText={strongText}
-          mutedText={mutedText}
-        />
-
-        <MobileInfo
-          label="Nivel"
-          value={nivel}
-          strongText={strongText}
-          mutedText={mutedText}
-        />
-
-        <MobileInfo
-          label="Año"
-          value={anio}
-          strongText={strongText}
-          mutedText={mutedText}
-        />
-
-        <MobileInfo
-          label="Celular"
-          value={item.celular || "Sin celular"}
-          strongText={strongText}
-          mutedText={mutedText}
-        />
-
-        <MobileInfo
-          label="Fecha inscripción"
-          value={formatearFecha(item.fechaInscripcion)}
-          strongText={strongText}
-          mutedText={mutedText}
-        />
+      <View style={styles.mobileDetails}>
+        <MobileDetail label="CI" value={estudiante.ci || "—"} strongText={strongText} mutedText={mutedText} />
+        <MobileDetail label="Matrícula" value={estudiante.matricula || "Sin matrícula"} strongText={strongText} mutedText={mutedText} />
+        <MobileDetail label="Fecha" value={formatearFecha(estudiante.fechaInscripcion)} strongText={strongText} mutedText={mutedText} />
       </View>
+
+      <StatusBadge visual={visual} />
+      <ThemedText style={[styles.mobileDescription, { color: mutedText }]}>
+        {visual.description}
+      </ThemedText>
 
       <View style={styles.mobileActions}>
         <ActionButton
-          label={inscrito ? "Inscrito" : "Inscribir"}
-          icon={inscrito ? "checkmark-circle" : "school-outline"}
-          color={inscrito ? "#16A34A" : primary}
-          isDark={isDark}
-          compact={false}
-          disabled={inscrito}
+          label="Editar materias"
+          icon="create-outline"
+          color={visual.color}
+          disabled={false}
           onPress={onInscribir}
+          isDark={isDark}
         />
-
         <ActionButton
           label="Ver PDF"
           icon="document-text-outline"
           color="#16A34A"
-          isDark={isDark}
-          compact={false}
           onPress={onVerPdf}
+          isDark={isDark}
         />
       </View>
     </View>
   );
 }
 
-function MobileInfo({
+function MobileDetail({
   label,
   value,
   strongText,
@@ -1573,14 +1091,13 @@ function MobileInfo({
   mutedText: string;
 }) {
   return (
-    <View style={styles.mobileInfoItem}>
-      <ThemedText style={[styles.mobileInfoLabel, { color: mutedText }]}>
+    <View style={styles.mobileDetail}>
+      <ThemedText style={[styles.mobileDetailLabel, { color: mutedText }]}>
         {label}
       </ThemedText>
-
       <ThemedText
         numberOfLines={1}
-        style={[styles.mobileInfoValue, { color: strongText }]}
+        style={[styles.mobileDetailValue, { color: strongText }]}
       >
         {value}
       </ThemedText>
@@ -1588,47 +1105,696 @@ function MobileInfo({
   );
 }
 
-function ActionButton({
-  label,
+function SummaryChip({
   icon,
+  label,
+  value,
   color,
-  isDark,
-  compact,
-  disabled = false,
-  onPress,
+  backgroundColor,
 }: {
-  label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: number;
   color: string;
-  isDark: boolean;
-  compact: boolean;
-  disabled?: boolean;
+  backgroundColor: string;
+}) {
+  return (
+    <View style={[styles.summaryChip, { backgroundColor }]}>
+      <Ionicons name={icon} size={16} color={color} />
+      <ThemedText style={[styles.summaryValue, { color }]}>{value}</ThemedText>
+      <ThemedText style={[styles.summaryLabel, { color }]}>{label}</ThemedText>
+    </View>
+  );
+}
+
+function PaginationButton({
+  icon,
+  disabled,
+  onPress,
+  backgroundColor,
+  borderColor,
+  color,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  disabled: boolean;
   onPress: () => void;
+  backgroundColor: string;
+  borderColor: string;
+  color: string;
 }) {
   return (
     <Pressable
       disabled={disabled}
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      onPress={disabled ? undefined : onPress}
+      onPress={onPress}
       style={({ pressed }) => [
-        styles.actionBtn,
-        compact && styles.actionBtnCompact,
+        styles.paginationButton,
         {
-          backgroundColor: isDark ? `${color}26` : `${color}14`,
-          borderColor: isDark ? `${color}66` : `${color}38`,
-          opacity: disabled ? 0.64 : pressed ? 0.78 : 1,
-          transform: [{ scale: pressed && !disabled ? 0.97 : 1 }],
+          backgroundColor,
+          borderColor,
+          opacity: disabled ? 0.42 : pressed ? 0.75 : 1,
         },
       ]}
     >
-      <Ionicons name={icon} size={14} color={color} />
-
-      {!compact && (
-        <ThemedText numberOfLines={1} style={[styles.actionText, { color }]}>
-          {label}
-        </ThemedText>
-      )}
+      <Ionicons name={icon} size={19} color={color} />
     </Pressable>
   );
 }
+
+function SelectorModal({
+  visible,
+  title,
+  subtitle,
+  onClose,
+  backgroundColor,
+  borderColor,
+  strongText,
+  mutedText,
+  children,
+}: {
+  visible: boolean;
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  backgroundColor: string;
+  borderColor: string;
+  strongText: string;
+  mutedText: string;
+  children: ReactNode;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <Pressable style={styles.modalDismiss} onPress={onClose} />
+        <View
+          style={[
+            styles.modalCard,
+            { backgroundColor, borderColor },
+          ]}
+        >
+          <View style={[styles.modalHeader, { borderBottomColor: borderColor }]}>
+            <View style={styles.modalHeaderText}>
+              <ThemedText style={[styles.modalTitle, { color: strongText }]}>
+                {title}
+              </ThemedText>
+              <ThemedText
+                style={[styles.modalSubtitle, { color: mutedText }]}
+              >
+                {subtitle}
+              </ThemedText>
+            </View>
+            <Pressable onPress={onClose} style={styles.modalClose}>
+              <Ionicons name="close" size={23} color={mutedText} />
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalContent}
+            showsVerticalScrollIndicator
+          >
+            {children}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function SelectorOption({
+  title,
+  subtitle,
+  selected,
+  loading = false,
+  icon,
+  primary,
+  strongText,
+  mutedText,
+  backgroundColor,
+  selectedBackground,
+  borderColor,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  selected: boolean;
+  loading?: boolean;
+  icon: keyof typeof Ionicons.glyphMap;
+  primary: string;
+  strongText: string;
+  mutedText: string;
+  backgroundColor: string;
+  selectedBackground: string;
+  borderColor: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      disabled={loading}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.selectorOption,
+        {
+          backgroundColor: selected ? selectedBackground : backgroundColor,
+          borderColor: selected ? primary : borderColor,
+          opacity: loading || pressed ? 0.76 : 1,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.selectorIcon,
+          { backgroundColor: selected ? primary : `${primary}18` },
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={selected ? "#FFFFFF" : primary} />
+        ) : (
+          <Ionicons
+            name={selected ? "checkmark-circle" : icon}
+            size={21}
+            color={selected ? "#FFFFFF" : primary}
+          />
+        )}
+      </View>
+      <View style={styles.selectorText}>
+        <ThemedText
+          numberOfLines={2}
+          style={[styles.selectorTitle, { color: strongText }]}
+        >
+          {title}
+        </ThemedText>
+        <ThemedText
+          numberOfLines={2}
+          style={[styles.selectorSubtitle, { color: mutedText }]}
+        >
+          {subtitle}
+        </ThemedText>
+      </View>
+      <Ionicons
+        name={selected ? "checkmark" : "chevron-forward"}
+        size={21}
+        color={selected ? primary : mutedText}
+      />
+    </Pressable>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  text,
+  color,
+  backgroundColor,
+  borderColor,
+  strongText,
+  mutedText,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+  color: string;
+  backgroundColor: string;
+  borderColor: string;
+  strongText: string;
+  mutedText: string;
+}) {
+  return (
+    <View
+      style={[
+        styles.emptyState,
+        { backgroundColor, borderColor },
+      ]}
+    >
+      <Ionicons name={icon} size={44} color={color} />
+      <ThemedText style={[styles.emptyTitle, { color: strongText }]}>
+        {title}
+      </ThemedText>
+      <ThemedText style={[styles.emptyText, { color: mutedText }]}>
+        {text}
+      </ThemedText>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 18,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 3,
+  },
+  toolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 14,
+  },
+  toolbarTitleBox: {
+    flex: 1,
+    minWidth: 280,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  toolbarIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toolbarTitleText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  subtitle: {
+    marginTop: 3,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  filterActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  filterButton: {
+    width: 270,
+    minHeight: 54,
+    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  filterTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  filterLabel: {
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  filterValue: {
+    marginTop: 2,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+  },
+  summaryChip: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  searchBox: {
+    flex: 1,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  countBadge: {
+    minWidth: 100,
+    minHeight: 50,
+    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countText: {
+    fontSize: 16,
+    lineHeight: 18,
+    fontWeight: "900",
+  },
+  countLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  loadingBox: {
+    minHeight: 290,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  loadingTitle: {
+    marginTop: 6,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  emptyState: {
+    minHeight: 270,
+    borderWidth: 1,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  emptyTitle: {
+    marginTop: 10,
+    fontSize: 19,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  emptyText: {
+    maxWidth: 520,
+    marginTop: 5,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  tableShell: {
+    borderWidth: 1,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  tableHeader: {
+    minHeight: 48,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  th: {
+    paddingHorizontal: 8,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  thCi: { width: "10%" },
+  thMatricula: { width: "14%" },
+  thStudent: { width: "25%" },
+  thStatus: { width: "23%" },
+  thDate: { width: "11%" },
+  thActions: { width: "17%", textAlign: "right" },
+  thStudentCompact: { width: "35%" },
+  thDataCompact: { width: "38%" },
+  thActionsCompact: { width: "27%", textAlign: "right" },
+  rowsBox: {
+    padding: 10,
+    gap: 9,
+  },
+  bodyRow: {
+    minHeight: 94,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderWidth: 1,
+    borderRadius: 17,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ciCell: { width: "10%", paddingHorizontal: 8 },
+  matriculaCell: { width: "14%", paddingHorizontal: 8 },
+  studentCell: { width: "25%", paddingHorizontal: 8 },
+  statusCell: { width: "23%", paddingHorizontal: 8, gap: 5 },
+  dateCell: { width: "11%", paddingHorizontal: 8 },
+  actionsCell: {
+    width: "17%",
+    paddingHorizontal: 8,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  studentCompactCell: { width: "35%", paddingHorizontal: 8 },
+  dataCompactCell: { width: "38%", paddingHorizontal: 8, gap: 4 },
+  actionsCompactCell: {
+    width: "27%",
+    paddingHorizontal: 8,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  identity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+  },
+  avatar: {
+    width: 43,
+    height: 43,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  identityText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nameText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  cellStrong: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  cellSmall: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  compactPrimary: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  compactText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  statusBadge: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    minHeight: 28,
+    paddingHorizontal: 9,
+    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  statusBadgeText: {
+    flexShrink: 1,
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  actionButton: {
+    minHeight: 36,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  actionText: {
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  mobileCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    gap: 12,
+  },
+  mobileDetails: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  mobileDetail: {
+    minWidth: "30%",
+    flex: 1,
+  },
+  mobileDetailLabel: {
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  mobileDetailValue: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  mobileDescription: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  mobileActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  pagination: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  paginationText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  paginationActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  paginationButton: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    padding: 18,
+    backgroundColor: "rgba(2,6,23,0.78)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalDismiss: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 720,
+    maxHeight: "82%",
+    borderWidth: 1,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  modalHeader: {
+    padding: 18,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  modalHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  modalTitle: {
+    fontSize: 21,
+    fontWeight: "900",
+  },
+  modalSubtitle: {
+    marginTop: 3,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+  modalClose: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalScroll: {
+    flexGrow: 0,
+  },
+  modalContent: {
+    padding: 14,
+    gap: 9,
+  },
+  modalLoading: {
+    minHeight: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  modalLoadingText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  selectorOption: {
+    minHeight: 78,
+    padding: 13,
+    borderWidth: 1,
+    borderRadius: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+  },
+  selectorIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectorText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  selectorTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  selectorSubtitle: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+});

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
@@ -14,45 +15,59 @@ import { useTheme } from "../../../theme/useTheme";
 import {
   CarreraEstudiante,
   Estudiante,
-  MateriaBloqueadaPrerequisito,
+  GrupoDisponible,
+  InscripcionDetalle,
   MateriaPendienteAnterior,
   MateriaSemestreUno,
+  SeleccionMateriaInscripcion,
   TurnoInscripcion,
 } from "../types/asignaciones.types";
+import ConfirmarInscripcionModal from "./ConfirmarInscripcionModal";
+import SelectDropdown, { SelectOption } from "./SelectDropdown";
 
 type Props = {
   visible: boolean;
   estudiante: Estudiante | null;
   carreras: CarreraEstudiante[];
+  inscripcionesActuales: InscripcionDetalle[];
   materias: MateriaSemestreUno[];
   materiasPendientesAnteriores: MateriaPendienteAnterior[];
-  materiasBloqueadasPrerequisito: MateriaBloqueadaPrerequisito[];
   loading: boolean;
   loadingMaterias: boolean;
-  inscribiendo: boolean;
+  guardando: boolean;
+  carreraInicialId?: number | null;
+  nivelInicial?: number | null;
+  notaAprobacion?: number | null;
   onClose: () => void;
-  onSelectCarrera: (idCarrera: number) => void | Promise<void>;
+  onLoadMaterias: (
+    idCarrera: number,
+    nivel: number,
+  ) => void | Promise<void>;
   onConfirm: (
     idCarrera: number,
-    turno: TurnoInscripcion,
+    agregar: SeleccionMateriaInscripcion[],
+    quitar: SeleccionMateriaInscripcion[],
   ) => void | Promise<void>;
 };
 
-type PasoModal = "carrera" | "inscripcion";
+type MateriaVisual = MateriaSemestreUno & {
+  inscripcionActual: SeleccionMateriaInscripcion | null;
+  adicion: SeleccionMateriaInscripcion | null;
+  retiro: SeleccionMateriaInscripcion | null;
+  grupoDisponible: GrupoDisponible | null;
+  seleccionFinal: SeleccionMateriaInscripcion | null;
+  marcada: boolean;
+  puedeAlternar: boolean;
+};
 
 const TURNOS: TurnoInscripcion[] = ["Mañana", "Tarde", "Noche"];
 
-function normalizarTurno(turno?: string | null): TurnoInscripcion | "" {
-  const value = String(turno ?? "").trim().toLowerCase();
-
-  if (value === "mañana" || value === "manana") return "Mañana";
-  if (value === "tarde") return "Tarde";
-  if (value === "noche") return "Noche";
-
-  return "";
+function toNumber(value: unknown, fallback = 0): number {
+  const numero = Number(value);
+  return Number.isFinite(numero) ? numero : fallback;
 }
 
-function nombreCompleto(estudiante: Estudiante | null) {
+function nombreCompleto(estudiante: Estudiante | null): string {
   if (!estudiante) return "";
 
   return `${estudiante.nombres ?? ""} ${estudiante.apellidoPaterno ?? ""} ${
@@ -62,1201 +77,1184 @@ function nombreCompleto(estudiante: Estudiante | null) {
     .trim();
 }
 
+function obtenerNiveles(carrera?: CarreraEstudiante | null): number[] {
+  const source = Array.isArray(carrera?.nivelesAcademicos)
+    ? carrera.nivelesAcademicos
+    : [];
+
+  return Array.from(
+    new Set(
+      source
+        .map((nivel) => Number(nivel))
+        .filter((nivel) => Number.isFinite(nivel) && nivel > 0),
+    ),
+  ).sort((a, b) => a - b);
+}
+
+function textoNivel(
+  carrera: CarreraEstudiante | null,
+  nivel: number | null,
+): string {
+  if (!nivel) return "Nivel";
+
+  const tipoNivel = String(carrera?.tipoNivel ?? "").trim();
+  if (tipoNivel) return `${tipoNivel} ${nivel}`;
+
+  const regimen = String(carrera?.regimen ?? "").toUpperCase();
+
+  if (regimen.includes("ANUAL")) return `Año ${nivel}`;
+  if (regimen.includes("MENSUAL")) return `Mes ${nivel}`;
+
+  return `Semestre ${nivel}`;
+}
+
+function esTurno(value: unknown): value is TurnoInscripcion {
+  return TURNOS.includes(value as TurnoInscripcion);
+}
+
+function elegirGrupo(
+  materia: MateriaSemestreUno,
+  turno: TurnoInscripcion | null,
+): GrupoDisponible | null {
+  if (!turno) return null;
+
+  const grupos = Array.isArray(materia.gruposDisponibles)
+    ? materia.gruposDisponibles
+    : [];
+
+  return (
+    grupos
+      .filter(
+        (grupo) =>
+          grupo.turno === turno &&
+          (toNumber(grupo.cupos) > 0 || Boolean(grupo.estudianteYaEnGrupo)),
+      )
+      .sort((a, b) => {
+        if (Boolean(a.estudianteYaEnGrupo) !== Boolean(b.estudianteYaEnGrupo)) {
+          return a.estudianteYaEnGrupo ? -1 : 1;
+        }
+
+        if (toNumber(a.cupos) !== toNumber(b.cupos)) {
+          return toNumber(b.cupos) - toNumber(a.cupos);
+        }
+
+        return toNumber(a.idGrupo) - toNumber(b.idGrupo);
+      })[0] ?? null
+  );
+}
+
+function notaPendiente(materia: MateriaPendienteAnterior): string {
+  const nota =
+    materia.notaEfectivaHistorial ??
+    materia.segundaInstanciaNotaHistorial ??
+    materia.notaFinalHistorial;
+
+  return nota === null || nota === undefined
+    ? "Sin nota final"
+    : `Nota ${Number(nota)}`;
+}
+
+function inscripcionASeleccion(
+  inscripcion: InscripcionDetalle,
+  carrera: CarreraEstudiante | null,
+): SeleccionMateriaInscripcion | null {
+  if (!esTurno(inscripcion.turno)) return null;
+
+  return {
+    idMateria: Number(inscripcion.idMateria),
+    idGrupoMateriaDocente: Number(inscripcion.idGrupoMateriaDocente),
+    idGrupo: Number(inscripcion.idGrupo),
+    nombreMateria: inscripcion.nombreMateria,
+    codigoMateria: inscripcion.codigoMateria,
+    nivel: Number(inscripcion.semestre),
+    nivelLabel: textoNivel(carrera, Number(inscripcion.semestre)),
+    turno: inscripcion.turno,
+    nombreGrupo: inscripcion.nombreGrupo,
+    codigoGrupo: inscripcion.codigoGrupo,
+    paralelo: inscripcion.paralelo,
+    cupos: 0,
+  };
+}
+
+function crearSeleccion(
+  materia: MateriaSemestreUno,
+  grupo: GrupoDisponible,
+  carrera: CarreraEstudiante | null,
+  nivel: number,
+  turno: TurnoInscripcion,
+): SeleccionMateriaInscripcion {
+  return {
+    idMateria: Number(materia.idMateria),
+    idGrupoMateriaDocente: Number(grupo.idGrupoMateriaDocente),
+    idGrupo: Number(grupo.idGrupo),
+    nombreMateria: materia.nombreMateria,
+    codigoMateria: materia.codigoMateria,
+    nivel,
+    nivelLabel: textoNivel(carrera, nivel),
+    turno,
+    nombreGrupo: grupo.nombreGrupo,
+    codigoGrupo: grupo.codigoGrupo,
+    paralelo: grupo.paralelo,
+    cupos: Number(grupo.cupos),
+  };
+}
+
 export default function InscribirModal({
   visible,
   estudiante,
   carreras,
+  inscripcionesActuales,
   materias,
   materiasPendientesAnteriores,
-  materiasBloqueadasPrerequisito,
   loading,
   loadingMaterias,
-  inscribiendo,
+  guardando,
+  carreraInicialId,
+  nivelInicial,
+  notaAprobacion,
   onClose,
-  onSelectCarrera,
+  onLoadMaterias,
   onConfirm,
 }: Props) {
   const { theme } = useTheme();
+  const { width, height } = useWindowDimensions();
 
+  const isMobile = width < 720;
+  const isTablet = width < 1120;
   const isDark =
     theme.colors.background.toLowerCase().includes("0") ||
     theme.colors.card.toLowerCase().includes("1");
 
   const strongText = isDark ? "#F8FAFC" : theme.colors.text;
   const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
-  const modalBg = isDark ? "#111827" : theme.colors.card;
-
-  const softBg = isDark
+  const modalBackground = isDark ? "#111827" : theme.colors.card;
+  const panelBackground = isDark
     ? "rgba(255,255,255,0.045)"
     : "rgba(15,23,42,0.035)";
-
-  const softBgStrong = isDark
+  const panelStrong = isDark
     ? "rgba(255,255,255,0.075)"
-    : "rgba(15,23,42,0.055)";
-
-  const border = isDark
+    : "rgba(15,23,42,0.06)";
+  const borderColor = isDark
     ? "rgba(255,255,255,0.11)"
     : "rgba(15,23,42,0.11)";
 
-  const [paso, setPaso] = useState<PasoModal>("carrera");
-  const [carreraSeleccionada, setCarreraSeleccionada] =
-    useState<CarreraEstudiante | null>(null);
-  const [turnoSeleccionado, setTurnoSeleccionado] = useState<
-    TurnoInscripcion | ""
-  >("");
+  const initializedRef = useRef(false);
+
+  const [carreraSeleccionadaId, setCarreraSeleccionadaId] = useState<
+    number | null
+  >(null);
+  const [nivelSeleccionado, setNivelSeleccionado] = useState<number | null>(
+    null,
+  );
+  const [turnoSeleccionado, setTurnoSeleccionado] =
+    useState<TurnoInscripcion | null>(null);
+  const [agregar, setAgregar] = useState<SeleccionMateriaInscripcion[]>([]);
+  const [quitar, setQuitar] = useState<SeleccionMateriaInscripcion[]>([]);
+  const [confirmacionVisible, setConfirmacionVisible] = useState(false);
 
   useEffect(() => {
-    if (!visible) return;
-
-    setPaso("carrera");
-    setCarreraSeleccionada(null);
-    setTurnoSeleccionado("");
+    if (!visible) {
+      initializedRef.current = false;
+      setCarreraSeleccionadaId(null);
+      setNivelSeleccionado(null);
+      setTurnoSeleccionado(null);
+      setAgregar([]);
+      setQuitar([]);
+      setConfirmacionVisible(false);
+    }
   }, [visible]);
 
-  const cargandoDatos = loading || !estudiante;
+  useEffect(() => {
+    if (
+      !visible ||
+      loading ||
+      !estudiante ||
+      carreras.length === 0 ||
+      initializedRef.current
+    ) {
+      return;
+    }
 
-  const pendientesAnteriores = Array.isArray(materiasPendientesAnteriores)
-    ? materiasPendientesAnteriores
-    : [];
+    const carreraInicial =
+      carreras.find(
+        (carrera) => Number(carrera.idCarrera) === Number(carreraInicialId),
+      ) ?? carreras[0];
 
-  const bloqueadasPrerequisito = Array.isArray(materiasBloqueadasPrerequisito)
-    ? materiasBloqueadasPrerequisito
-    : [];
+    const niveles = obtenerNiveles(carreraInicial);
+    const preferido = Number(nivelInicial);
+    const primerNivel = niveles.includes(preferido)
+      ? preferido
+      : (niveles[0] ?? null);
 
-  const materiasConGrupoDelTurno = useMemo(() => {
+    initializedRef.current = true;
+    setCarreraSeleccionadaId(Number(carreraInicial.idCarrera));
+    setNivelSeleccionado(primerNivel);
+    setTurnoSeleccionado(null);
+    setAgregar([]);
+    setQuitar([]);
+
+    if (primerNivel) {
+      void onLoadMaterias(Number(carreraInicial.idCarrera), primerNivel);
+    }
+  }, [
+    visible,
+    loading,
+    estudiante,
+    carreras,
+    carreraInicialId,
+    nivelInicial,
+    onLoadMaterias,
+  ]);
+
+  const carreraSeleccionada = useMemo(
+    () =>
+      carreras.find(
+        (carrera) =>
+          Number(carrera.idCarrera) === Number(carreraSeleccionadaId),
+      ) ?? null,
+    [carreras, carreraSeleccionadaId],
+  );
+
+  const niveles = useMemo(
+    () => obtenerNiveles(carreraSeleccionada),
+    [carreraSeleccionada],
+  );
+
+  const notaMinima = toNumber(
+    carreraSeleccionada?.notaAprobacion ?? notaAprobacion,
+    51,
+  );
+
+  const carreraOptions = useMemo<SelectOption<number>[]>(
+    () =>
+      carreras.map((carrera) => ({
+        label: carrera.nombreCarrera,
+        value: Number(carrera.idCarrera),
+        description: carrera.codigo || carrera.regimen || undefined,
+        icon: "school-outline",
+      })),
+    [carreras],
+  );
+
+  const nivelOptions = useMemo<SelectOption<number>[]>(
+    () =>
+      niveles.map((nivel) => ({
+        label: textoNivel(carreraSeleccionada, nivel),
+        value: nivel,
+        description: `Materias correspondientes al nivel ${nivel}`,
+        icon: "layers-outline",
+      })),
+    [niveles, carreraSeleccionada],
+  );
+
+  const turnoOptions = useMemo<SelectOption<TurnoInscripcion>[]>(
+    () =>
+      TURNOS.map((turno) => ({
+        label: turno,
+        value: turno,
+        description: `Mostrar grupos del turno ${turno}`,
+        icon:
+          turno === "Mañana"
+            ? "sunny-outline"
+            : turno === "Tarde"
+              ? "partly-sunny-outline"
+              : "moon-outline",
+      })),
+    [],
+  );
+
+  const actualesPorMateria = useMemo(() => {
+    const map = new Map<number, SeleccionMateriaInscripcion>();
+
+    inscripcionesActuales
+      .filter(
+        (inscripcion) =>
+          !carreraSeleccionadaId ||
+          !inscripcion.idCarrera ||
+          Number(inscripcion.idCarrera) === Number(carreraSeleccionadaId),
+      )
+      .forEach((inscripcion) => {
+        const seleccion = inscripcionASeleccion(
+          inscripcion,
+          carreraSeleccionada,
+        );
+
+        if (seleccion) map.set(seleccion.idMateria, seleccion);
+      });
+
+    return map;
+  }, [inscripcionesActuales, carreraSeleccionadaId, carreraSeleccionada]);
+
+  const agregarPorMateria = useMemo(
+    () => new Map(agregar.map((item) => [item.idMateria, item])),
+    [agregar],
+  );
+
+  const quitarPorMateria = useMemo(
+    () => new Map(quitar.map((item) => [item.idMateria, item])),
+    [quitar],
+  );
+
+  const materiasVisuales = useMemo<MateriaVisual[]>(() => {
     return materias.map((materia) => {
-      const gruposDisponibles = Array.isArray(materia.gruposDisponibles)
-        ? materia.gruposDisponibles
-        : materia.grupoSeleccionado
-          ? [materia.grupoSeleccionado]
-          : [];
-
-      const grupoSeleccionado = turnoSeleccionado
-        ? gruposDisponibles.find(
-            (grupo) => normalizarTurno(grupo.turno) === turnoSeleccionado,
-          ) ?? null
-        : null;
+      const idMateria = Number(materia.idMateria);
+      const inscripcionActual = actualesPorMateria.get(idMateria) ?? null;
+      const adicion = agregarPorMateria.get(idMateria) ?? null;
+      const retiro = quitarPorMateria.get(idMateria) ?? null;
+      const grupoDisponible = elegirGrupo(materia, turnoSeleccionado);
+      const seleccionFinal = adicion ?? (inscripcionActual && !retiro
+        ? inscripcionActual
+        : null);
+      const marcada = Boolean(seleccionFinal);
 
       return {
         ...materia,
-        gruposDisponibles,
-        grupoSeleccionado,
+        inscripcionActual,
+        adicion,
+        retiro,
+        grupoDisponible,
+        seleccionFinal,
+        marcada,
+        puedeAlternar:
+          Boolean(inscripcionActual) ||
+          Boolean(adicion) ||
+          Boolean(retiro) ||
+          (Boolean(materia.seleccionable ?? true) &&
+            Boolean(turnoSeleccionado) &&
+            Boolean(grupoDisponible)),
       };
     });
-  }, [materias, turnoSeleccionado]);
+  }, [
+    materias,
+    actualesPorMateria,
+    agregarPorMateria,
+    quitarPorMateria,
+    turnoSeleccionado,
+  ]);
 
-  const materiasYaInscritas = materiasConGrupoDelTurno.filter(
-    (materia) => materia.yaInscrito,
-  );
+  const pendientes = Array.isArray(materiasPendientesAnteriores)
+    ? materiasPendientesAnteriores
+    : [];
 
-  const materiasPendientes = materiasConGrupoDelTurno.filter(
-    (materia) => !materia.yaInscrito && materia.grupoSeleccionado !== null,
-  );
+  const cambiarCarrera = async (idCarrera: number) => {
+    if (loadingMaterias || guardando) return;
 
-  const puedeInscribir =
-    carreraSeleccionada !== null &&
-    turnoSeleccionado !== "" &&
-    materiasPendientes.length > 0 &&
-    !loadingMaterias &&
-    !inscribiendo;
+    const carrera = carreras.find(
+      (item) => Number(item.idCarrera) === Number(idCarrera),
+    );
+    if (!carrera) return;
 
-  const seleccionarCarrera = async (carrera: CarreraEstudiante) => {
-    if (inscribiendo) return;
+    const nivelesCarrera = obtenerNiveles(carrera);
+    const nuevoNivel = nivelesCarrera[0] ?? null;
 
-    setCarreraSeleccionada(carrera);
-    setTurnoSeleccionado("");
-    setPaso("inscripcion");
+    setCarreraSeleccionadaId(Number(idCarrera));
+    setNivelSeleccionado(nuevoNivel);
+    setTurnoSeleccionado(null);
+    setAgregar([]);
+    setQuitar([]);
 
-    await onSelectCarrera(carrera.idCarrera);
+    if (nuevoNivel) await onLoadMaterias(Number(idCarrera), nuevoNivel);
   };
 
-  const volverACarreras = () => {
-    if (loadingMaterias || inscribiendo) return;
+  const cambiarNivel = async (nivel: number) => {
+    if (
+      !carreraSeleccionadaId ||
+      loadingMaterias ||
+      guardando ||
+      Number(nivelSeleccionado) === Number(nivel)
+    ) {
+      return;
+    }
 
-    setPaso("carrera");
-    setCarreraSeleccionada(null);
-    setTurnoSeleccionado("");
+    setNivelSeleccionado(Number(nivel));
+    await onLoadMaterias(carreraSeleccionadaId, Number(nivel));
   };
 
-  const confirmarInscripcion = async () => {
-    if (!carreraSeleccionada || !turnoSeleccionado || !puedeInscribir) return;
+  const alternarMateria = (materia: MateriaVisual) => {
+    if (guardando || !materia.puedeAlternar) return;
 
-    await onConfirm(carreraSeleccionada.idCarrera, turnoSeleccionado);
+    const idMateria = Number(materia.idMateria);
+
+    if (materia.adicion) {
+      setAgregar((actuales) =>
+        actuales.filter((item) => item.idMateria !== idMateria),
+      );
+      return;
+    }
+
+    if (materia.inscripcionActual && !materia.retiro) {
+      setQuitar((actuales) => [...actuales, materia.inscripcionActual!]);
+      return;
+    }
+
+    if (materia.inscripcionActual && materia.retiro) {
+      const mismoGrupo =
+        materia.grupoDisponible &&
+        Number(materia.grupoDisponible.idGrupoMateriaDocente) ===
+          Number(materia.inscripcionActual.idGrupoMateriaDocente);
+
+      if (!materia.grupoDisponible || mismoGrupo || !turnoSeleccionado) {
+        setQuitar((actuales) =>
+          actuales.filter((item) => item.idMateria !== idMateria),
+        );
+        return;
+      }
+    }
+
+    if (
+      !materia.grupoDisponible ||
+      !turnoSeleccionado ||
+      !nivelSeleccionado
+    ) {
+      return;
+    }
+
+    const seleccion = crearSeleccion(
+      materia,
+      materia.grupoDisponible,
+      carreraSeleccionada,
+      Number(nivelSeleccionado),
+      turnoSeleccionado,
+    );
+
+    setAgregar((actuales) => [
+      ...actuales.filter((item) => item.idMateria !== idMateria),
+      seleccion,
+    ]);
   };
 
-  const getIconoTurno = (
-    turno: TurnoInscripcion,
-  ): keyof typeof Ionicons.glyphMap => {
-    if (turno === "Mañana") return "sunny-outline";
-    if (turno === "Tarde") return "partly-sunny-outline";
-    return "moon-outline";
+  const totalCambios = agregar.length + quitar.length;
+  const totalFinalNivel = materiasVisuales.filter((materia) => materia.marcada)
+    .length;
+
+  const abrirConfirmacion = () => {
+    if (totalCambios === 0 || guardando) return;
+    setConfirmacionVisible(true);
   };
 
-  const getMateriaStatus = (materia: MateriaSemestreUno) => {
-    if (materia.yaInscrito) {
-      return {
-        status: "Inscrita",
-        color: "#22C55E",
-      };
-    }
-
-    if (materia.estadoAcademico === "reprobada") {
-      return {
-        status: "Reprobada",
-        color: "#EF4444",
-      };
-    }
-
-    if (materia.estadoAcademico === "abandono") {
-      return {
-        status: "Abandono",
-        color: "#F59E0B",
-      };
-    }
-
-    if (materia.estadoAcademico === "pendiente") {
-      return {
-        status: "Pendiente",
-        color: "#F59E0B",
-      };
-    }
-
-    return {
-      status: "Disponible",
-      color: theme.colors.primary,
-    };
+  const confirmarDefinitivamente = async () => {
+    if (!carreraSeleccionadaId || totalCambios === 0) return;
+    await onConfirm(carreraSeleccionadaId, agregar, quitar);
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={inscribiendo ? undefined : onClose}
-    >
-      <View style={styles.backdrop}>
-        <View
-          style={[
-            styles.modal,
-            {
-              backgroundColor: modalBg,
-              borderColor: border,
-            },
-          ]}
-        >
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View
-                style={[
-                  styles.headerIcon,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(239,68,68,0.18)"
-                      : "#FEE2E2",
-                  },
-                ]}
-              >
-                <Ionicons name="cube-outline" size={25} color="#EF4444" />
-              </View>
-
-              <View style={styles.headerText}>
-                <ThemedText style={[styles.title, { color: strongText }]}>
-                  Inscribir materias
-                </ThemedText>
-
-                <ThemedText
-                  numberOfLines={1}
-                  style={[styles.studentName, { color: mutedText }]}
-                >
-                  {cargandoDatos
-                    ? "Preparando datos..."
-                    : nombreCompleto(estudiante)}
-                </ThemedText>
-              </View>
-            </View>
-
-            <Pressable
-              onPress={onClose}
-              disabled={inscribiendo}
-              style={({ pressed }) => [
-                styles.closeBtn,
-                {
-                  backgroundColor: softBgStrong,
-                  opacity: pressed || inscribiendo ? 0.75 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="close" size={25} color={strongText} />
-            </Pressable>
-          </View>
-
-          {cargandoDatos ? (
-            <View style={styles.loadingBox}>
-              <View
-                style={[
-                  styles.loadingCircle,
-                  { backgroundColor: softBgStrong },
-                ]}
-              >
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-              </View>
-
-              <ThemedText style={[styles.loadingTitle, { color: strongText }]}>
-                Cargando datos
-              </ThemedText>
-
-              <ThemedText
-                style={[styles.loadingSubtitle, { color: mutedText }]}
-              >
-                Espere un momento...
-              </ThemedText>
-            </View>
-          ) : paso === "carrera" ? (
-            <View style={styles.body}>
-              <View
-                style={[
-                  styles.stepInfo,
-                  {
-                    backgroundColor: softBg,
-                    borderColor: border,
-                  },
-                ]}
-              >
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={guardando ? undefined : onClose}
+      >
+        <View style={styles.backdrop}>
+          <View
+            style={[
+              styles.modal,
+              isMobile && styles.modalMobile,
+              {
+                height: Math.min(height * 0.94, 900),
+                backgroundColor: modalBackground,
+                borderColor,
+              },
+            ]}
+          >
+            <View style={[styles.header, { borderBottomColor: borderColor }]}>
+              <View style={styles.headerIdentity}>
                 <View
                   style={[
-                    styles.stepIcon,
+                    styles.headerIcon,
                     {
                       backgroundColor: isDark
-                        ? "rgba(59,130,246,0.18)"
-                        : "#DBEAFE",
+                        ? "rgba(239,68,68,0.16)"
+                        : "#FEE2E2",
                     },
                   ]}
                 >
                   <Ionicons
-                    name="school-outline"
-                    size={22}
+                    name="create-outline"
+                    size={27}
                     color={theme.colors.primary}
                   />
                 </View>
 
-                <View style={styles.stepInfoText}>
-                  <ThemedText
-                    style={[styles.stepInfoTitle, { color: strongText }]}
-                  >
-                    Seleccione una carrera
+                <View style={styles.headerTextBox}>
+                  <ThemedText style={[styles.title, { color: strongText }]}>
+                    Editar inscripción
                   </ThemedText>
-
                   <ThemedText
-                    style={[styles.stepInfoSubtitle, { color: mutedText }]}
+                    numberOfLines={1}
+                    style={[styles.studentName, { color: mutedText }]}
                   >
-                    Primero elija la carrera para cargar las materias
-                    disponibles del estudiante.
+                    {nombreCompleto(estudiante)}
                   </ThemedText>
                 </View>
               </View>
 
-              <ScrollView
-                style={styles.carrerasList}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator
-              >
-                {carreras.length === 0 ? (
-                  <View
-                    style={[
-                      styles.emptyState,
-                      {
-                        backgroundColor: softBg,
-                        borderColor: border,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="school-outline"
-                      size={42}
-                      color={theme.colors.primary}
-                    />
-
-                    <ThemedText
-                      style={[styles.emptyTitle, { color: strongText }]}
-                    >
-                      No tiene carreras asignadas
-                    </ThemedText>
-
-                    <ThemedText
-                      style={[styles.emptyText, { color: mutedText }]}
-                    >
-                      El estudiante no cuenta con una carrera registrada.
-                    </ThemedText>
-                  </View>
-                ) : (
-                  carreras.map((carrera) => (
-                    <Pressable
-                      key={carrera.idCarrera}
-                      disabled={inscribiendo}
-                      onPress={() => seleccionarCarrera(carrera)}
-                      style={({ pressed }) => [
-                        styles.carreraCard,
-                        {
-                          backgroundColor: softBg,
-                          borderColor: border,
-                          opacity: pressed || inscribiendo ? 0.75 : 1,
-                        },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.carreraIcon,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(59,130,246,0.18)"
-                              : "#DBEAFE",
-                          },
-                        ]}
-                      >
-                        <Ionicons
-                          name="book-outline"
-                          size={22}
-                          color={theme.colors.primary}
-                        />
-                      </View>
-
-                      <View style={styles.carreraContent}>
-                        <ThemedText
-                          numberOfLines={2}
-                          style={[styles.carreraTitle, { color: strongText }]}
-                        >
-                          {carrera.nombreCarrera}
-                        </ThemedText>
-
-                        <ThemedText
-                          numberOfLines={1}
-                          style={[
-                            styles.carreraSubtitle,
-                            { color: mutedText },
-                          ]}
-                        >
-                          Código: {carrera.codigo ?? "Sin código"} · Régimen:{" "}
-                          {carrera.regimen ?? "Sin régimen"}
-                        </ThemedText>
-                      </View>
-
-                      <View style={styles.carreraAction}>
-                        <ThemedText
-                          style={[
-                            styles.carreraActionText,
-                            { color: theme.colors.primary },
-                          ]}
-                        >
-                          Elegir
-                        </ThemedText>
-
-                        <Ionicons
-                          name="chevron-forward"
-                          size={20}
-                          color={theme.colors.primary}
-                        />
-                      </View>
-                    </Pressable>
-                  ))
-                )}
-              </ScrollView>
-
-              <View style={[styles.footer, { borderTopColor: border }]}>
-                <Pressable
-                  onPress={onClose}
-                  disabled={inscribiendo}
-                  style={({ pressed }) => [
-                    styles.cancelBtn,
+              <View style={styles.headerRight}>
+                <View
+                  style={[
+                    styles.headerCounter,
                     {
-                      borderColor: border,
-                      backgroundColor: softBg,
-                      opacity: pressed || inscribiendo ? 0.75 : 1,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[styles.cancelText, { color: strongText }]}
-                  >
-                    Cancelar
-                  </ThemedText>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.body}>
-              <View
-                style={[
-                  styles.carreraSeleccionadaBox,
-                  {
-                    backgroundColor: softBg,
-                    borderColor: border,
-                  },
-                ]}
-              >
-                <View style={styles.carreraSeleccionadaLeft}>
-                  <View
-                    style={[
-                      styles.carreraSeleccionadaIcon,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(239,68,68,0.18)"
-                          : "#FEE2E2",
-                      },
-                    ]}
-                  >
-                    <Ionicons name="cube-outline" size={20} color="#EF4444" />
-                  </View>
-
-                  <View style={styles.carreraSeleccionadaText}>
-                    <ThemedText
-                      numberOfLines={1}
-                      style={[
-                        styles.carreraSeleccionadaLabel,
-                        { color: mutedText },
-                      ]}
-                    >
-                      Carrera seleccionada
-                    </ThemedText>
-
-                    <ThemedText
-                      numberOfLines={1}
-                      style={[
-                        styles.carreraSeleccionadaNombre,
-                        { color: strongText },
-                      ]}
-                    >
-                      {carreraSeleccionada?.nombreCarrera}
-                    </ThemedText>
-                  </View>
-                </View>
-
-                <Pressable
-                  onPress={volverACarreras}
-                  disabled={loadingMaterias || inscribiendo}
-                  style={({ pressed }) => [
-                    styles.cambiarCarreraBtn,
-                    {
-                      borderColor: border,
-                      backgroundColor: softBgStrong,
-                      opacity:
-                        pressed || loadingMaterias || inscribiendo ? 0.75 : 1,
+                      backgroundColor: isDark
+                        ? "rgba(59,130,246,0.16)"
+                        : "#EFF6FF",
                     },
                   ]}
                 >
                   <Ionicons
                     name="swap-horizontal-outline"
                     size={18}
-                    color={strongText}
+                    color={theme.colors.primary}
                   />
-
                   <ThemedText
-                    style={[styles.cambiarCarreraText, { color: strongText }]}
-                  >
-                    Cambiar
-                  </ThemedText>
-                </Pressable>
-              </View>
-
-              {loadingMaterias ? (
-                <View style={styles.loadingBox}>
-                  <View
                     style={[
-                      styles.loadingCircle,
-                      { backgroundColor: softBgStrong },
+                      styles.headerCounterText,
+                      { color: theme.colors.primary },
                     ]}
                   >
-                    <ActivityIndicator
-                      size="large"
-                      color={theme.colors.primary}
-                    />
-                  </View>
-
-                  <ThemedText
-                    style={[styles.loadingTitle, { color: strongText }]}
-                  >
-                    Cargando materias
-                  </ThemedText>
-
-                  <ThemedText
-                    style={[styles.loadingSubtitle, { color: mutedText }]}
-                  >
-                    Buscando grupos disponibles para esta carrera...
+                    {totalCambios} cambio{totalCambios === 1 ? "" : "s"}
                   </ThemedText>
                 </View>
-              ) : (
-                <>
-                  <ScrollView
-                    style={styles.contentScroll}
-                    contentContainerStyle={styles.contentScrollContent}
-                    showsVerticalScrollIndicator
-                    nestedScrollEnabled
-                  >
-                    {pendientesAnteriores.length > 0 && (
-                      <WarningBox
-                        title="Tiene materias pendientes anteriores"
-                        text="Puede avanzar e inscribirse al nivel seleccionado, pero todavía debe aprobar estas materias anteriores."
-                        strongText={strongText}
-                        mutedText={mutedText}
-                        isDark={isDark}
-                      >
-                        {pendientesAnteriores.map((materia) => (
-                          <MateriaPendienteAnteriorCard
-                            key={`pendiente-anterior-${materia.idMateria}`}
-                            materia={materia}
-                            strongText={strongText}
-                            mutedText={mutedText}
-                            backgroundColor={softBgStrong}
-                            borderColor={border}
-                          />
-                        ))}
-                      </WarningBox>
-                    )}
 
-                    {bloqueadasPrerequisito.length > 0 && (
-                      <WarningBox
-                        title="Materias bloqueadas por prerequisito"
-                        text="Estas materias no se inscribirán hasta que el estudiante apruebe su prerequisito."
-                        strongText={strongText}
-                        mutedText={mutedText}
-                        isDark={isDark}
+                <Pressable
+                  disabled={guardando}
+                  onPress={onClose}
+                  style={({ pressed }) => [
+                    styles.closeButton,
+                    {
+                      backgroundColor: panelStrong,
+                      opacity: pressed || guardando ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons name="close" size={26} color={strongText} />
+                </Pressable>
+              </View>
+            </View>
+
+            {loading ? (
+              <View style={styles.centerLoading}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <ThemedText style={[styles.loadingTitle, { color: strongText }]}>
+                  Cargando inscripción
+                </ThemedText>
+                <ThemedText style={[styles.loadingText, { color: mutedText }]}>
+                  Revisando materias registradas y grupos disponibles.
+                </ThemedText>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator
+              >
+                <View
+                  style={[
+                    styles.configurationCard,
+                    { backgroundColor: panelBackground, borderColor },
+                  ]}
+                >
+                  <View style={styles.configurationHeader}>
+                    <View style={styles.sectionHeading}>
+                      <ThemedText
+                        style={[styles.sectionTitle, { color: strongText }]}
                       >
-                        {bloqueadasPrerequisito.map((materia) => (
-                          <MateriaBloqueadaCard
-                            key={`bloqueada-${materia.idMateria}`}
-                            materia={materia}
-                            strongText={strongText}
-                            mutedText={mutedText}
-                            backgroundColor={softBgStrong}
-                            borderColor={border}
-                          />
-                        ))}
-                      </WarningBox>
-                    )}
+                        Carrera, nivel y turno
+                      </ThemedText>
+                      <ThemedText
+                        style={[styles.sectionDescription, { color: mutedText }]}
+                      >
+                        Las materias inscritas permanecen marcadas. Desmárcalas
+                        para retirarlas o marca nuevas para agregarlas.
+                      </ThemedText>
+                    </View>
 
                     <View
                       style={[
-                        styles.turnoCompactContainer,
+                        styles.minimumBadge,
                         {
-                          backgroundColor: softBg,
-                          borderColor: border,
+                          backgroundColor: isDark
+                            ? "rgba(245,158,11,0.13)"
+                            : "#FFFBEB",
                         },
                       ]}
                     >
-                      <View style={styles.turnoCompactHeader}>
-                        <View
-                          style={[
-                            styles.turnoIcon,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(239,68,68,0.18)"
-                                : "#FEE2E2",
-                            },
-                          ]}
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={19}
-                            color="#EF4444"
-                          />
-                        </View>
-
-                        <View style={styles.turnoHeaderText}>
-                          <ThemedText
-                            style={[styles.turnoTitle, { color: strongText }]}
-                          >
-                            Turno de inscripción
-                          </ThemedText>
-
-                          <ThemedText
-                            style={[
-                              styles.turnoSubtitle,
-                              { color: mutedText },
-                            ]}
-                          >
-                            Seleccione el turno en el que cursará el estudiante.
-                          </ThemedText>
-                        </View>
-                      </View>
-
-                      <View style={styles.turnosRow}>
-                        {TURNOS.map((turno) => {
-                          const seleccionado = turnoSeleccionado === turno;
-
-                          return (
-                            <Pressable
-                              key={turno}
-                              disabled={inscribiendo}
-                              onPress={() => setTurnoSeleccionado(turno)}
-                              style={({ pressed }) => [
-                                styles.turnoButtonCompact,
-                                {
-                                  backgroundColor: seleccionado
-                                    ? "#EF4444"
-                                    : softBgStrong,
-                                  borderColor: seleccionado ? "#EF4444" : border,
-                                  opacity: pressed || inscribiendo ? 0.76 : 1,
-                                },
-                              ]}
-                            >
-                              <Ionicons
-                                name={getIconoTurno(turno)}
-                                size={18}
-                                color={seleccionado ? "#FFFFFF" : mutedText}
-                              />
-
-                              <ThemedText
-                                style={[
-                                  styles.turnoButtonText,
-                                  {
-                                    color: seleccionado
-                                      ? "#FFFFFF"
-                                      : strongText,
-                                  },
-                                ]}
-                              >
-                                {turno}
-                              </ThemedText>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
+                      <Ionicons name="ribbon-outline" size={16} color="#D97706" />
+                      <ThemedText style={styles.minimumBadgeText}>
+                        Nota mínima {notaMinima}
+                      </ThemedText>
                     </View>
+                  </View>
 
-                    <View style={styles.materiasTopRow}>
-                      <View style={styles.materiasTopText}>
+                  <View style={styles.selectorsRow}>
+                    <SelectDropdown<number>
+                      label="Carrera"
+                      value={carreraSeleccionadaId}
+                      options={carreraOptions}
+                      placeholder="Selecciona una carrera"
+                      disabled={loadingMaterias || guardando}
+                      icon="school-outline"
+                      onChange={(value: number) => void cambiarCarrera(value)}
+                    />
+
+                    <SelectDropdown<number>
+                      label="Nivel académico"
+                      value={nivelSeleccionado}
+                      options={nivelOptions}
+                      placeholder="Selecciona un nivel"
+                      disabled={
+                        !carreraSeleccionadaId || loadingMaterias || guardando
+                      }
+                      icon="layers-outline"
+                      onChange={(value: number) => void cambiarNivel(value)}
+                    />
+
+                    <SelectDropdown<TurnoInscripcion>
+                      label="Turno"
+                      value={turnoSeleccionado}
+                      options={turnoOptions}
+                      placeholder="Selecciona un turno"
+                      disabled={loadingMaterias || guardando}
+                      icon="time-outline"
+                      onChange={(value: TurnoInscripcion) =>
+                        setTurnoSeleccionado(value)
+                      }
+                    />
+                  </View>
+                </View>
+
+                {totalCambios > 0 && (
+                  <View
+                    style={[
+                      styles.changesPanel,
+                      { backgroundColor: panelBackground, borderColor },
+                    ]}
+                  >
+                    <View style={styles.changesHeader}>
+                      <View style={styles.sectionHeading}>
                         <ThemedText
                           style={[styles.sectionTitle, { color: strongText }]}
                         >
-                          Materias que se van a inscribir
+                          Cambios pendientes
                         </ThemedText>
-
                         <ThemedText
-                          style={[
-                            styles.materiasInfoText,
-                            { color: mutedText },
-                          ]}
+                          style={[styles.sectionDescription, { color: mutedText }]}
                         >
-                          {turnoSeleccionado
-                            ? `Grupos activos disponibles para el turno ${turnoSeleccionado}.`
-                            : "Seleccione un turno para ver las materias disponibles."}
+                          Se aplicarán únicamente después de confirmar.
                         </ThemedText>
                       </View>
 
-                      <View style={styles.resumenChips}>
-                        <View
-                          style={[
-                            styles.resumenChip,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(239,68,68,0.18)"
-                                : "#FEE2E2",
-                            },
-                          ]}
+                      <Pressable
+                        disabled={guardando}
+                        onPress={() => {
+                          setAgregar([]);
+                          setQuitar([]);
+                        }}
+                        style={({ pressed }) => [
+                          styles.clearButton,
+                          {
+                            borderColor,
+                            backgroundColor: panelStrong,
+                            opacity: pressed ? 0.72 : 1,
+                          },
+                        ]}
+                      >
+                        <Ionicons name="refresh-outline" size={16} color="#EF4444" />
+                        <ThemedText style={styles.clearText}>Deshacer</ThemedText>
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.changeCounters}>
+                      <ChangeCounter
+                        icon="add-circle-outline"
+                        value={agregar.length}
+                        label="Por agregar"
+                        color="#16A34A"
+                        isDark={isDark}
+                      />
+                      <ChangeCounter
+                        icon="remove-circle-outline"
+                        value={quitar.length}
+                        label="Por retirar"
+                        color="#DC2626"
+                        isDark={isDark}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {!loadingMaterias && pendientes.length > 0 && (
+                  <View
+                    style={[
+                      styles.warningCard,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(245,158,11,0.10)"
+                          : "#FFFBEB",
+                        borderColor: isDark
+                          ? "rgba(245,158,11,0.34)"
+                          : "#FDE68A",
+                      },
+                    ]}
+                  >
+                    <View style={styles.warningHeader}>
+                      <Ionicons name="warning-outline" size={23} color="#F59E0B" />
+                      <View style={styles.warningTextBox}>
+                        <ThemedText
+                          style={[styles.warningTitle, { color: strongText }]}
                         >
-                          <ThemedText
-                            style={[
-                              styles.resumenChipNumber,
-                              { color: "#EF4444" },
-                            ]}
-                          >
-                            {turnoSeleccionado ? materiasPendientes.length : 0}
-                          </ThemedText>
-
-                          <ThemedText
-                            style={[
-                              styles.resumenChipLabel,
-                              { color: "#EF4444" },
-                            ]}
-                          >
-                            Pendientes
-                          </ThemedText>
-                        </View>
-
-                        <View
-                          style={[
-                            styles.resumenChip,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(34,197,94,0.16)"
-                                : "#DCFCE7",
-                            },
-                          ]}
+                          Pendientes de niveles anteriores
+                        </ThemedText>
+                        <ThemedText
+                          style={[styles.warningDescription, { color: mutedText }]}
                         >
-                          <ThemedText
-                            style={[
-                              styles.resumenChipNumber,
-                              { color: "#22C55E" },
-                            ]}
-                          >
-                            {materiasYaInscritas.length}
-                          </ThemedText>
-
-                          <ThemedText
-                            style={[
-                              styles.resumenChipLabel,
-                              { color: "#22C55E" },
-                            ]}
-                          >
-                            Inscritas
-                          </ThemedText>
-                        </View>
+                          No bloquean la edición, pero aún no alcanzaron la nota
+                          mínima.
+                        </ThemedText>
                       </View>
                     </View>
 
-                    <View style={styles.materiasContainer}>
-                      {!turnoSeleccionado ? (
-                        <View
-                          style={[
-                            styles.emptyState,
-                            {
-                              backgroundColor: softBg,
-                              borderColor: border,
-                            },
-                          ]}
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={38}
-                            color="#EF4444"
-                          />
-
-                          <ThemedText
-                            style={[styles.emptyTitle, { color: strongText }]}
-                          >
-                            Seleccione un turno
-                          </ThemedText>
-
-                          <ThemedText
-                            style={[styles.emptyText, { color: mutedText }]}
-                          >
-                            Debe seleccionar Mañana, Tarde o Noche antes de
-                            continuar.
-                          </ThemedText>
-                        </View>
-                      ) : materiasPendientes.length === 0 ? (
-                        <View
-                          style={[
-                            styles.emptyState,
-                            {
-                              backgroundColor: softBg,
-                              borderColor: border,
-                            },
-                          ]}
-                        >
-                          <Ionicons
-                            name="alert-circle-outline"
-                            size={38}
-                            color="#F59E0B"
-                          />
-
-                          <ThemedText
-                            style={[styles.emptyTitle, { color: strongText }]}
-                          >
-                            No hay materias disponibles
-                          </ThemedText>
-
-                          <ThemedText
-                            style={[styles.emptyText, { color: mutedText }]}
-                          >
-                            No existen grupos activos con cupos para el turno
-                            seleccionado o las materias ya están inscritas.
-                          </ThemedText>
-                        </View>
-                      ) : (
-                        materiasPendientes.map((materia) => {
-                          const estado = getMateriaStatus(materia);
-
-                          return (
-                            <MateriaCard
-                              key={`${materia.idCarrera}-${materia.idMateria}`}
-                              materia={materia}
-                              status={estado.status}
-                              statusColor={estado.color}
-                              backgroundColor={softBg}
-                              borderColor={border}
-                              strongText={strongText}
-                              mutedText={mutedText}
-                            />
-                          );
-                        })
-                      )}
-
-                      {materiasYaInscritas.length > 0 && (
-                        <>
-                          <View style={styles.inscritasMiniHeader}>
+                    <View style={styles.pendingList}>
+                      {pendientes.map((materia) => (
+                        <View key={materia.idMateria} style={styles.pendingItem}>
+                          <View style={styles.pendingDot} />
+                          <View style={styles.pendingTextBox}>
                             <ThemedText
+                              numberOfLines={1}
+                              style={[styles.pendingName, { color: strongText }]}
+                            >
+                              {materia.nombreMateria}
+                            </ThemedText>
+                            <ThemedText
+                              style={[styles.pendingMeta, { color: mutedText }]}
+                            >
+                              {textoNivel(
+                                carreraSeleccionada,
+                                Number(materia.semestre),
+                              )} · {notaPendiente(materia)}
+                            </ThemedText>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.subjectsHeader}>
+                  <View style={styles.sectionHeading}>
+                    <ThemedText
+                      style={[styles.subjectsTitle, { color: strongText }]}
+                    >
+                      Materias de {textoNivel(carreraSeleccionada, nivelSeleccionado)}
+                    </ThemedText>
+                    <ThemedText
+                      style={[styles.sectionDescription, { color: mutedText }]}
+                    >
+                      Las inscritas pueden desmarcarse en cualquier momento.
+                      Para agregar una nueva, selecciona primero su turno.
+                    </ThemedText>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.levelCount,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(59,130,246,0.14)"
+                          : "#EFF6FF",
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.levelCountText,
+                        { color: theme.colors.primary },
+                      ]}
+                    >
+                      {totalFinalNivel} activa{totalFinalNivel === 1 ? "" : "s"}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {loadingMaterias ? (
+                  <StateCard
+                    icon="sync-outline"
+                    color={theme.colors.primary}
+                    title="Cargando materias"
+                    description="Revisando grupos, cupos e inscripciones registradas."
+                    backgroundColor={panelBackground}
+                    borderColor={borderColor}
+                    strongText={strongText}
+                    mutedText={mutedText}
+                    loading
+                  />
+                ) : materiasVisuales.length === 0 ? (
+                  <StateCard
+                    icon="file-tray-outline"
+                    color={mutedText}
+                    title="No hay materias para mostrar"
+                    description="No existen materias activas para este nivel y gestión."
+                    backgroundColor={panelBackground}
+                    borderColor={borderColor}
+                    strongText={strongText}
+                    mutedText={mutedText}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.subjectGrid,
+                      isTablet && styles.subjectGridTablet,
+                      isMobile && styles.subjectGridMobile,
+                    ]}
+                  >
+                    {materiasVisuales.map((materia) => {
+                      const retirada = Boolean(materia.retiro && !materia.adicion);
+                      const cambiada = Boolean(materia.retiro && materia.adicion);
+                      const agregada = Boolean(materia.adicion && !materia.inscripcionActual);
+                      const inscrita = Boolean(
+                        materia.inscripcionActual &&
+                          !materia.retiro &&
+                          !materia.adicion,
+                      );
+
+                      const estado = cambiada
+                        ? "Cambiará de grupo"
+                        : retirada
+                          ? "Se retirará"
+                          : agregada
+                            ? "Se agregará"
+                            : inscrita
+                              ? "Inscrita"
+                              : "Disponible";
+
+                      const estadoColor = cambiada
+                        ? "#7C3AED"
+                        : retirada
+                          ? "#DC2626"
+                          : agregada
+                            ? "#16A34A"
+                            : inscrita
+                              ? "#059669"
+                              : theme.colors.primary;
+
+                      const seleccionMostrada =
+                        materia.adicion ??
+                        materia.inscripcionActual ??
+                        (materia.grupoDisponible && turnoSeleccionado && nivelSeleccionado
+                          ? crearSeleccion(
+                              materia,
+                              materia.grupoDisponible,
+                              carreraSeleccionada,
+                              Number(nivelSeleccionado),
+                              turnoSeleccionado,
+                            )
+                          : null);
+
+                      return (
+                        <Pressable
+                          key={materia.idMateria}
+                          disabled={!materia.puedeAlternar || guardando}
+                          onPress={() => alternarMateria(materia)}
+                          style={({ pressed }) => [
+                            styles.subjectCard,
+                            isTablet && styles.subjectCardTablet,
+                            isMobile && styles.subjectCardMobile,
+                            {
+                              backgroundColor: materia.marcada
+                                ? isDark
+                                  ? "rgba(5,150,105,0.12)"
+                                  : "#ECFDF5"
+                                : retirada
+                                  ? isDark
+                                    ? "rgba(220,38,38,0.10)"
+                                    : "#FEF2F2"
+                                  : panelBackground,
+                              borderColor: materia.marcada
+                                ? "#10B981"
+                                : retirada
+                                  ? "#EF4444"
+                                  : borderColor,
+                              opacity:
+                                !materia.puedeAlternar || guardando
+                                  ? 0.55
+                                  : pressed
+                                    ? 0.78
+                                    : 1,
+                            },
+                          ]}
+                        >
+                          <View style={styles.subjectTop}>
+                            <View
                               style={[
-                                styles.inscritasMiniTitle,
-                                { color: strongText },
+                                styles.subjectIcon,
+                                { backgroundColor: `${estadoColor}20` },
                               ]}
                             >
-                              Materias ya inscritas
+                              <Ionicons
+                                name={
+                                  retirada
+                                    ? "remove-outline"
+                                    : materia.marcada
+                                      ? "checkmark-done-outline"
+                                      : "book-outline"
+                                }
+                                size={22}
+                                color={estadoColor}
+                              />
+                            </View>
+
+                            <View style={styles.subjectTitleBox}>
+                              <ThemedText
+                                numberOfLines={2}
+                                style={[styles.subjectName, { color: strongText }]}
+                              >
+                                {materia.nombreMateria}
+                              </ThemedText>
+                              <ThemedText
+                                style={[styles.subjectCode, { color: mutedText }]}
+                              >
+                                {materia.codigoMateria}
+                              </ThemedText>
+                            </View>
+
+                            <View
+                              style={[
+                                styles.checkBox,
+                                {
+                                  backgroundColor: materia.marcada
+                                    ? "#10B981"
+                                    : "transparent",
+                                  borderColor: retirada
+                                    ? "#EF4444"
+                                    : materia.marcada
+                                      ? "#10B981"
+                                      : borderColor,
+                                },
+                              ]}
+                            >
+                              {materia.marcada && (
+                                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                              )}
+                            </View>
+                          </View>
+
+                          <View
+                            style={[
+                              styles.statusPill,
+                              { backgroundColor: `${estadoColor}18` },
+                            ]}
+                          >
+                            <ThemedText
+                              style={[styles.statusPillText, { color: estadoColor }]}
+                            >
+                              {estado}
                             </ThemedText>
                           </View>
 
-                          {materiasYaInscritas.map((materia) => (
-                            <MateriaCard
-                              key={`inscrita-${materia.idCarrera}-${materia.idMateria}`}
-                              materia={materia}
-                              status="Inscrita"
-                              statusColor="#22C55E"
-                              backgroundColor={softBg}
-                              borderColor={border}
-                              strongText={strongText}
-                              mutedText={mutedText}
-                            />
-                          ))}
-                        </>
-                      )}
-                    </View>
-                  </ScrollView>
-
-                  <View style={[styles.footer, { borderTopColor: border }]}>
-                    <Pressable
-                      onPress={volverACarreras}
-                      disabled={loadingMaterias || inscribiendo}
-                      style={({ pressed }) => [
-                        styles.cancelBtn,
-                        {
-                          borderColor: border,
-                          backgroundColor: softBg,
-                          opacity:
-                            pressed || loadingMaterias || inscribiendo
-                              ? 0.75
-                              : 1,
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[styles.cancelText, { color: strongText }]}
-                      >
-                        Volver
-                      </ThemedText>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={confirmarInscripcion}
-                      disabled={!puedeInscribir}
-                      style={({ pressed }) => [
-                        styles.confirmBtn,
-                        {
-                          backgroundColor: puedeInscribir
-                            ? "#EF4444"
-                            : isDark
-                              ? "rgba(255,255,255,0.12)"
-                              : "#CBD5E1",
-                          opacity: pressed ? 0.82 : 1,
-                        },
-                      ]}
-                    >
-                      {inscribiendo ? (
-                        <>
-                          <ActivityIndicator color="#FFFFFF" />
-
-                          <ThemedText style={styles.confirmText}>
-                            Inscribiendo...
-                          </ThemedText>
-                        </>
-                      ) : (
-                        <>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={19}
-                            color="#FFFFFF"
-                          />
-
-                          <ThemedText style={styles.confirmText}>
-                            Aceptar e inscribir
-                          </ThemedText>
-                        </>
-                      )}
-                    </Pressable>
+                          {seleccionMostrada ? (
+                            <View style={styles.groupMeta}>
+                              <MetaItem
+                                icon="layers-outline"
+                                text={seleccionMostrada.nivelLabel}
+                                color={mutedText}
+                              />
+                              <MetaItem
+                                icon="time-outline"
+                                text={seleccionMostrada.turno}
+                                color={mutedText}
+                              />
+                              <MetaItem
+                                icon="people-outline"
+                                text={`${seleccionMostrada.nombreGrupo} · Paralelo ${seleccionMostrada.paralelo}`}
+                                color={mutedText}
+                              />
+                            </View>
+                          ) : (
+                            <ThemedText
+                              style={[styles.noGroupText, { color: mutedText }]}
+                            >
+                              {turnoSeleccionado
+                                ? materia.motivoNoSeleccionable ??
+                                  "No existe un grupo utilizable para este turno."
+                                : "Selecciona un turno para agregar esta materia."}
+                            </ThemedText>
+                          )}
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                </>
-              )}
-            </View>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-}
+                )}
+              </ScrollView>
+            )}
 
-function WarningBox({
-  title,
-  text,
-  strongText,
-  mutedText,
-  isDark,
-  children,
-}: {
-  title: string;
-  text: string;
-  strongText: string;
-  mutedText: string;
-  isDark: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <View
-      style={[
-        styles.warningBox,
-        {
-          backgroundColor: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
-          borderColor: isDark ? "rgba(245,158,11,0.34)" : "#FDE68A",
-        },
-      ]}
-    >
-      <View style={styles.warningIcon}>
-        <Ionicons name="warning-outline" size={22} color="#F59E0B" />
-      </View>
-
-      <View style={styles.warningContent}>
-        <ThemedText style={[styles.warningTitle, { color: strongText }]}>
-          {title}
-        </ThemedText>
-
-        <ThemedText style={[styles.warningText, { color: mutedText }]}>
-          {text}
-        </ThemedText>
-
-        <View style={styles.previousList}>{children}</View>
-      </View>
-    </View>
-  );
-}
-
-function MateriaPendienteAnteriorCard({
-  materia,
-  strongText,
-  mutedText,
-  backgroundColor,
-  borderColor,
-}: {
-  materia: MateriaPendienteAnterior;
-  strongText: string;
-  mutedText: string;
-  backgroundColor: string;
-  borderColor: string;
-}) {
-  const nota =
-    materia.notaFinalHistorial !== null &&
-    materia.notaFinalHistorial !== undefined
-      ? `Nota: ${materia.notaFinalHistorial}`
-      : "Sin nota final";
-
-  const estado = materia.estadoNotaHistorial ?? "Pendiente";
-
-  return (
-    <View
-      style={[
-        styles.previousCard,
-        {
-          backgroundColor,
-          borderColor,
-        },
-      ]}
-    >
-      <View style={styles.previousIcon}>
-        <Ionicons name="alert-circle-outline" size={17} color="#F59E0B" />
-      </View>
-
-      <View style={styles.previousContent}>
-        <ThemedText
-          numberOfLines={1}
-          style={[styles.previousTitle, { color: strongText }]}
-        >
-          {materia.nombreMateria}
-        </ThemedText>
-
-        <ThemedText
-          numberOfLines={1}
-          style={[styles.previousText, { color: mutedText }]}
-        >
-          {materia.codigoMateria} · Nivel {materia.semestre} · {estado} · {nota}
-        </ThemedText>
-      </View>
-    </View>
-  );
-}
-
-function MateriaBloqueadaCard({
-  materia,
-  strongText,
-  mutedText,
-  backgroundColor,
-  borderColor,
-}: {
-  materia: MateriaBloqueadaPrerequisito;
-  strongText: string;
-  mutedText: string;
-  backgroundColor: string;
-  borderColor: string;
-}) {
-  return (
-    <View
-      style={[
-        styles.previousCard,
-        {
-          backgroundColor,
-          borderColor,
-        },
-      ]}
-    >
-      <View style={styles.previousIconDanger}>
-        <Ionicons name="lock-closed-outline" size={17} color="#EF4444" />
-      </View>
-
-      <View style={styles.previousContent}>
-        <ThemedText
-          numberOfLines={1}
-          style={[styles.previousTitle, { color: strongText }]}
-        >
-          {materia.nombreMateria}
-        </ThemedText>
-
-        <ThemedText
-          numberOfLines={2}
-          style={[styles.previousText, { color: mutedText }]}
-        >
-          Requiere aprobar: {materia.nombrePrerequisito ?? "Prerequisito"}{" "}
-          {materia.codigoPrerequisito
-            ? `(${materia.codigoPrerequisito})`
-            : ""}
-        </ThemedText>
-      </View>
-    </View>
-  );
-}
-
-function MateriaCard({
-  materia,
-  status,
-  statusColor,
-  backgroundColor,
-  borderColor,
-  strongText,
-  mutedText,
-}: {
-  materia: MateriaSemestreUno;
-  status: string;
-  statusColor: string;
-  backgroundColor: string;
-  borderColor: string;
-  strongText: string;
-  mutedText: string;
-}) {
-  const grupo = materia.grupoSeleccionado;
-
-  return (
-    <View
-      style={[
-        styles.materiaCard,
-        {
-          backgroundColor,
-          borderColor,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.materiaIcon,
-          {
-            backgroundColor: `${statusColor}22`,
-          },
-        ]}
-      >
-        <Ionicons
-          name={
-            status === "Inscrita" ? "checkmark-done-outline" : "book-outline"
-          }
-          size={21}
-          color={statusColor}
-        />
-      </View>
-
-      <View style={styles.materiaContent}>
-        <ThemedText
-          numberOfLines={2}
-          style={[styles.materiaTitle, { color: strongText }]}
-        >
-          {materia.nombreMateria}
-        </ThemedText>
-
-        <ThemedText
-          numberOfLines={2}
-          style={[styles.materiaSubtitle, { color: mutedText }]}
-        >
-          {materia.codigoMateria} · {materia.nombreCarrera}
-        </ThemedText>
-
-        {materia.notaFinalHistorial !== null &&
-          materia.notaFinalHistorial !== undefined && (
-            <ThemedText
-              numberOfLines={1}
-              style={[styles.historialText, { color: mutedText }]}
+            <View
+              style={[
+                styles.footer,
+                isMobile && styles.footerMobile,
+                { borderTopColor: borderColor },
+              ]}
             >
-              Última nota: {materia.notaFinalHistorial} ·{" "}
-              {materia.estadoNotaHistorial}
-            </ThemedText>
-          )}
+              <View style={styles.footerInfo}>
+                <ThemedText style={[styles.footerTitle, { color: strongText }]}>
+                  {totalCambios === 0
+                    ? "La inscripción está sin cambios"
+                    : `${totalCambios} cambio${totalCambios === 1 ? "" : "s"} pendiente${
+                        totalCambios === 1 ? "" : "s"
+                      }`}
+                </ThemedText>
+                <ThemedText
+                  style={[styles.footerDescription, { color: mutedText }]}
+                >
+                  Puedes volver a editarla después de guardar.
+                </ThemedText>
+              </View>
 
-        {grupo && (
-          <View style={styles.groupInfo}>
-            <View style={styles.groupChip}>
-              <Ionicons name="people-outline" size={13} color={mutedText} />
+              <View style={styles.footerActions}>
+                <Pressable
+                  disabled={guardando}
+                  onPress={onClose}
+                  style={({ pressed }) => [
+                    styles.cancelButton,
+                    {
+                      backgroundColor: panelStrong,
+                      borderColor,
+                      opacity: pressed || guardando ? 0.62 : 1,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={[styles.cancelButtonText, { color: strongText }]}
+                  >
+                    Cancelar
+                  </ThemedText>
+                </Pressable>
 
-              <ThemedText
-                numberOfLines={1}
-                style={[styles.groupText, { color: mutedText }]}
-              >
-                {grupo.nombreGrupo}
-              </ThemedText>
-            </View>
-
-            <View style={styles.groupChip}>
-              <Ionicons name="albums-outline" size={13} color={mutedText} />
-
-              <ThemedText style={[styles.groupText, { color: mutedText }]}>
-                Paralelo {grupo.paralelo}
-              </ThemedText>
-            </View>
-
-            <View style={styles.groupChip}>
-              <Ionicons name="time-outline" size={13} color={mutedText} />
-
-              <ThemedText style={[styles.groupText, { color: mutedText }]}>
-                {grupo.turno}
-              </ThemedText>
-            </View>
-
-            <View style={styles.groupChip}>
-              <Ionicons
-                name="people-circle-outline"
-                size={13}
-                color={mutedText}
-              />
-
-              <ThemedText style={[styles.groupText, { color: mutedText }]}>
-                Cupos: {grupo.cupos}
-              </ThemedText>
+                <Pressable
+                  disabled={totalCambios === 0 || guardando}
+                  onPress={abrirConfirmacion}
+                  style={({ pressed }) => [
+                    styles.confirmButton,
+                    {
+                      backgroundColor: theme.colors.primary,
+                      opacity:
+                        totalCambios === 0 || guardando
+                          ? 0.5
+                          : pressed
+                            ? 0.8
+                            : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons name="save-outline" size={20} color="#FFFFFF" />
+                  <ThemedText style={styles.confirmButtonText}>
+                    Revisar cambios ({totalCambios})
+                  </ThemedText>
+                </Pressable>
+              </View>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      <ConfirmarInscripcionModal
+        visible={confirmacionVisible}
+        estudiante={estudiante}
+        nombreCarrera={carreraSeleccionada?.nombreCarrera ?? ""}
+        agregar={agregar}
+        quitar={quitar}
+        guardando={guardando}
+        onClose={() => setConfirmacionVisible(false)}
+        onConfirm={confirmarDefinitivamente}
+      />
+    </>
+  );
+}
+
+function ChangeCounter({
+  icon,
+  value,
+  label,
+  color,
+  isDark,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: number;
+  label: string;
+  color: string;
+  isDark: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.changeCounter,
+        { backgroundColor: isDark ? `${color}1C` : `${color}10` },
+      ]}
+    >
+      <Ionicons name={icon} size={18} color={color} />
+      <ThemedText style={[styles.changeCounterValue, { color }]}>
+        {value}
+      </ThemedText>
+      <ThemedText style={[styles.changeCounterLabel, { color }]}>
+        {label}
+      </ThemedText>
+    </View>
+  );
+}
+
+function MetaItem({
+  icon,
+  text,
+  color,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+  color: string;
+}) {
+  return (
+    <View style={styles.metaItem}>
+      <Ionicons name={icon} size={14} color={color} />
+      <ThemedText numberOfLines={1} style={[styles.metaText, { color }]}>
+        {text}
+      </ThemedText>
+    </View>
+  );
+}
+
+function StateCard({
+  icon,
+  color,
+  title,
+  description,
+  backgroundColor,
+  borderColor,
+  strongText,
+  mutedText,
+  loading = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  title: string;
+  description: string;
+  backgroundColor: string;
+  borderColor: string;
+  strongText: string;
+  mutedText: string;
+  loading?: boolean;
+}) {
+  return (
+    <View style={[styles.stateCard, { backgroundColor, borderColor }]}>
+      <View style={[styles.stateIcon, { backgroundColor: `${color}20` }]}>
+        {loading ? (
+          <ActivityIndicator color={color} size="small" />
+        ) : (
+          <Ionicons name={icon} size={28} color={color} />
         )}
       </View>
-
-      <View
-        style={[
-          styles.statusBadge,
-          {
-            backgroundColor: `${statusColor}22`,
-          },
-        ]}
-      >
-        <ThemedText style={[styles.statusText, { color: statusColor }]}>
-          {status}
-        </ThemedText>
-      </View>
+      <ThemedText style={[styles.stateTitle, { color: strongText }]}>
+        {title}
+      </ThemedText>
+      <ThemedText style={[styles.stateDescription, { color: mutedText }]}>
+        {description}
+      </ThemedText>
     </View>
   );
 }
@@ -1264,514 +1262,246 @@ function MateriaCard({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(2,6,23,0.78)",
-    justifyContent: "center",
+    backgroundColor: "rgba(2,6,23,0.80)",
     alignItems: "center",
-    padding: 12,
+    justifyContent: "center",
+    padding: 14,
   },
   modal: {
-    width: "100%",
-    maxWidth: 1420,
-    height: "92%",
-    maxHeight: 920,
+    width: "96%",
+    maxWidth: 1500,
     borderRadius: 28,
     borderWidth: 1,
-    padding: 16,
+    overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.34,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 16,
+    shadowOpacity: 0.35,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 18 },
+    elevation: 20,
   },
-  body: {
-    flex: 1,
-    minHeight: 0,
+  modalMobile: {
+    width: "100%",
+    borderRadius: 20,
   },
   header: {
+    minHeight: 100,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
+    gap: 16,
+  },
+  headerIdentity: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    marginBottom: 10,
-  },
-  headerLeft: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 13,
-    minWidth: 0,
-  },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
   },
   headerIcon: {
     width: 58,
     height: 58,
-    borderRadius: 20,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: -0.5,
+  headerTextBox: { flex: 1, minWidth: 0 },
+  title: { fontSize: 28, fontWeight: "900", letterSpacing: -0.5 },
+  studentName: { marginTop: 4, fontSize: 14, fontWeight: "900" },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerCounter: {
+    minHeight: 48,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  studentName: {
-    marginTop: 3,
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: 0.3,
-  },
-  closeBtn: {
+  headerCounterText: { fontSize: 13, fontWeight: "900" },
+  closeButton: {
     width: 54,
     height: 54,
-    borderRadius: 18,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
-  loadingBox: {
+  centerLoading: {
     flex: 1,
-    minHeight: 260,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 50,
+    padding: 32,
   },
-  loadingCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  loadingTitle: {
-    fontSize: 17,
-    fontWeight: "900",
-  },
-  loadingSubtitle: {
-    marginTop: 5,
-    fontSize: 13,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  stepInfo: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
+  loadingTitle: { marginTop: 16, fontSize: 20, fontWeight: "900" },
+  loadingText: { marginTop: 6, fontSize: 13, fontWeight: "700", textAlign: "center" },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 22, gap: 18 },
+  configurationCard: { borderWidth: 1, borderRadius: 22, padding: 18 },
+  configurationHeader: {
     flexDirection: "row",
-    gap: 11,
-    alignItems: "center",
-    marginBottom: 14,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 14,
+    marginBottom: 16,
   },
-  stepIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepInfoText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  stepInfoTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  stepInfoSubtitle: {
-    marginTop: 3,
-    fontSize: 12.5,
-    fontWeight: "700",
-    lineHeight: 18,
-  },
-  carrerasList: {
-    flex: 1,
-    minHeight: 0,
-  },
-  listContent: {
-    paddingBottom: 14,
-  },
-  carreraCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 15,
-    marginBottom: 10,
+  sectionHeading: { flex: 1, minWidth: 0 },
+  sectionTitle: { fontSize: 18, fontWeight: "900" },
+  sectionDescription: { marginTop: 4, fontSize: 12.5, lineHeight: 18, fontWeight: "700" },
+  minimumBadge: {
+    minHeight: 38,
+    borderRadius: 999,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 7,
   },
-  carreraIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  carreraContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  carreraTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  carreraSubtitle: {
-    marginTop: 4,
-    fontSize: 12.5,
-    fontWeight: "700",
-  },
-  carreraAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  carreraActionText: {
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  carreraSeleccionadaBox: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 12,
-    marginBottom: 10,
+  minimumBadgeText: { color: "#D97706", fontSize: 11.5, fontWeight: "900" },
+  selectorsRow: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
+  changesPanel: { borderWidth: 1, borderRadius: 20, padding: 16 },
+  changesHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  carreraSeleccionadaLeft: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  carreraSeleccionadaIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  carreraSeleccionadaText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  carreraSeleccionadaLabel: {
-    fontSize: 11.5,
-    fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  carreraSeleccionadaNombre: {
-    marginTop: 2,
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  cambiarCarreraBtn: {
-    minHeight: 42,
+  clearButton: {
+    minHeight: 38,
     borderWidth: 1,
-    borderRadius: 13,
-    paddingHorizontal: 13,
+    borderRadius: 12,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 6,
   },
-  cambiarCarreraText: {
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  contentScroll: {
-    flex: 1,
-    minHeight: 0,
-  },
-  contentScrollContent: {
-    paddingBottom: 18,
-  },
-  warningBox: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 13,
-    flexDirection: "row",
-    gap: 11,
-    marginBottom: 12,
-  },
-  warningIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: "rgba(245,158,11,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  warningContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  warningTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  warningText: {
-    marginTop: 3,
-    fontSize: 12.5,
-    fontWeight: "800",
-    lineHeight: 18,
-  },
-  previousList: {
-    marginTop: 10,
-    gap: 8,
-  },
-  previousCard: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-  previousIcon: {
-    width: 31,
-    height: 31,
-    borderRadius: 10,
-    backgroundColor: "rgba(245,158,11,0.16)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  previousIconDanger: {
-    width: 31,
-    height: 31,
-    borderRadius: 10,
-    backgroundColor: "rgba(239,68,68,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  previousContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  previousTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  previousText: {
-    marginTop: 2,
-    fontSize: 11.7,
-    fontWeight: "800",
-  },
-  turnoCompactContainer: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 13,
-    marginBottom: 12,
-  },
-  turnoCompactHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
-  },
-  turnoHeaderText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  turnoIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  turnoTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  turnoSubtitle: {
-    marginTop: 2,
-    fontSize: 12.5,
-    fontWeight: "800",
-    lineHeight: 17,
-  },
-  turnosRow: {
-    flexDirection: "row",
-    gap: 9,
-    flexWrap: "wrap",
-  },
-  turnoButtonCompact: {
-    flex: 1,
-    minWidth: 125,
-    minHeight: 44,
-    borderWidth: 1,
+  clearText: { color: "#EF4444", fontSize: 11.5, fontWeight: "900" },
+  changeCounters: { marginTop: 14, flexDirection: "row", gap: 10, flexWrap: "wrap" },
+  changeCounter: {
+    minHeight: 42,
     borderRadius: 13,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 7,
   },
-  turnoButtonText: {
-    fontSize: 13,
-    fontWeight: "900",
+  changeCounterValue: { fontSize: 16, fontWeight: "900" },
+  changeCounterLabel: { fontSize: 11.5, fontWeight: "900" },
+  warningCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
+  warningHeader: { flexDirection: "row", alignItems: "flex-start", gap: 11 },
+  warningTextBox: { flex: 1 },
+  warningTitle: { fontSize: 14, fontWeight: "900" },
+  warningDescription: { marginTop: 3, fontSize: 11.5, lineHeight: 16, fontWeight: "700" },
+  pendingList: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  pendingItem: {
+    minWidth: 220,
+    flexGrow: 1,
+    flexBasis: 260,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: "rgba(245,158,11,0.08)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
   },
-  materiasTopRow: {
+  pendingDot: { width: 8, height: 8, borderRadius: 999, backgroundColor: "#F59E0B" },
+  pendingTextBox: { flex: 1, minWidth: 0 },
+  pendingName: { fontSize: 11.5, fontWeight: "900" },
+  pendingMeta: { marginTop: 2, fontSize: 10.5, fontWeight: "700" },
+  subjectsHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 10,
+    gap: 14,
   },
-  materiasTopText: {
-    flex: 1,
-    minWidth: 0,
+  subjectsTitle: { fontSize: 20, fontWeight: "900" },
+  levelCount: { borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
+  levelCountText: { fontSize: 11.5, fontWeight: "900" },
+  subjectGrid: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  subjectGridTablet: {},
+  subjectGridMobile: { flexDirection: "column" },
+  subjectCard: {
+    width: "32.35%",
+    minHeight: 205,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 16,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-    letterSpacing: -0.3,
-  },
-  materiasInfoText: {
-    marginTop: 3,
-    fontSize: 12.5,
-    fontWeight: "800",
-  },
-  resumenChips: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-  },
-  resumenChip: {
-    minWidth: 84,
-    minHeight: 48,
+  subjectCardTablet: { width: "48.8%" },
+  subjectCardMobile: { width: "100%" },
+  subjectTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  subjectIcon: {
+    width: 48,
+    height: 48,
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
   },
-  resumenChipNumber: {
-    fontSize: 17,
-    fontWeight: "900",
-  },
-  resumenChipLabel: {
-    marginTop: 1,
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  materiasContainer: {
-    paddingBottom: 4,
-  },
-  emptyState: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 28,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  emptyTitle: {
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  emptyText: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  inscritasMiniHeader: {
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  inscritasMiniTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  materiaCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 15,
-    marginBottom: 10,
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-  },
-  materiaIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+  subjectTitleBox: { flex: 1, minWidth: 0 },
+  subjectName: { fontSize: 15, lineHeight: 20, fontWeight: "900" },
+  subjectCode: { marginTop: 3, fontSize: 11.5, fontWeight: "800" },
+  checkBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
   },
-  materiaContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  materiaTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    lineHeight: 21,
-  },
-  materiaSubtitle: {
-    marginTop: 3,
-    fontSize: 13,
-    fontWeight: "800",
-    lineHeight: 18,
-  },
-  historialText: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  groupInfo: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 9,
-  },
-  groupChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    maxWidth: 240,
-  },
-  groupText: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  statusBadge: {
+  statusPill: {
+    alignSelf: "flex-start",
+    marginTop: 20,
     borderRadius: 999,
-    paddingHorizontal: 11,
+    paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "900",
+  statusPillText: { fontSize: 10.5, fontWeight: "900" },
+  groupMeta: { marginTop: 13, gap: 7 },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  metaText: { flex: 1, fontSize: 10.5, fontWeight: "800" },
+  noGroupText: { marginTop: 14, fontSize: 10.5, lineHeight: 15, fontWeight: "700" },
+  stateCard: {
+    minHeight: 230,
+    borderWidth: 1,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
   },
+  stateIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stateTitle: { marginTop: 14, fontSize: 18, fontWeight: "900" },
+  stateDescription: { marginTop: 5, fontSize: 12.5, fontWeight: "700", textAlign: "center" },
   footer: {
+    minHeight: 94,
     borderTopWidth: 1,
-    paddingTop: 10,
+    paddingHorizontal: 22,
+    paddingVertical: 15,
     flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
-    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
   },
-  cancelBtn: {
-    minHeight: 46,
+  footerMobile: { flexDirection: "column", alignItems: "stretch" },
+  footerInfo: { flex: 1, minWidth: 0 },
+  footerTitle: { fontSize: 13.5, fontWeight: "900" },
+  footerDescription: { marginTop: 3, fontSize: 11, fontWeight: "700" },
+  footerActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
+  cancelButton: {
+    minHeight: 50,
     borderWidth: 1,
     borderRadius: 15,
     paddingHorizontal: 22,
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  confirmBtn: {
-    minHeight: 46,
+  cancelButtonText: { fontSize: 13, fontWeight: "900" },
+  confirmButton: {
+    minHeight: 50,
     borderRadius: 15,
     paddingHorizontal: 22,
     flexDirection: "row",
@@ -1779,9 +1509,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  confirmText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900",
-  },
+  confirmButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
 });

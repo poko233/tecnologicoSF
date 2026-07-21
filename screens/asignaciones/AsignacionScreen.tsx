@@ -16,43 +16,39 @@ import { useTheme } from "../../theme/useTheme";
 
 import EstudiantesTable from "./components/EstudianteTable";
 import InscribirModal from "./components/InscribirModal";
-
 import { useAsignaciones } from "./hooks/useAsignaciones";
-import { Estudiante, TurnoInscripcion } from "./types/asignaciones.types";
+import {
+  Estudiante,
+  SeleccionMateriaInscripcion,
+} from "./types/asignaciones.types";
 
 export default function AsignacionesScreen() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
-
   const isMobile = width < 850;
 
   const {
     loading,
     loadingCarreras,
-
     carreras,
     estudiantes,
-
     estudianteSeleccionado,
     setEstudianteSeleccionado,
-
     detalle,
     materias,
     materiasPendientesAnteriores,
-    materiasBloqueadasPrerequisito,
-
     loadingDetalle,
     loadingMaterias,
-    inscribiendo,
-
+    guardandoInscripcion,
     carreraActual,
     nivelActual,
-
+    nivelMateriasActual,
+    notaAprobacionActual,
     cargarCarreras,
     cargarEstudiantes,
     cargarDetalle,
     cargarMaterias,
-    inscribir,
+    actualizarInscripcion,
     limpiarSeleccion,
   } = useAsignaciones();
 
@@ -64,15 +60,12 @@ export default function AsignacionesScreen() {
 
   const strongText = isDark ? "#F8FAFC" : theme.colors.text;
   const mutedText = isDark ? "#CBD5E1" : theme.colors.textSecondary;
-
   const heroBg = isDark
     ? "rgba(15,23,42,0.72)"
     : "rgba(248,250,252,0.9)";
-
   const heroBorder = isDark
     ? "rgba(255,255,255,0.10)"
     : "rgba(15,23,42,0.10)";
-
   const iconBg = isDark ? "rgba(59,130,246,0.18)" : "#DBEAFE";
 
   useEffect(() => {
@@ -92,6 +85,10 @@ export default function AsignacionesScreen() {
   const textoNivel = useMemo(() => {
     if (!carreraSeleccionada || !nivelActual) return "";
 
+    const tipoNivel = String(carreraSeleccionada.tipoNivel ?? "").trim();
+
+    if (tipoNivel) return `${tipoNivel} ${nivelActual}`;
+
     const regimen = String(carreraSeleccionada.regimen ?? "").toUpperCase();
 
     if (regimen.includes("ANUAL")) return `Año ${nivelActual}`;
@@ -104,7 +101,9 @@ export default function AsignacionesScreen() {
     if (!carreraActual) return "Selecciona una carrera";
     if (!nivelActual) return "Selecciona un nivel";
 
-    return `${estudiantes.length} estudiantes`;
+    return `${estudiantes.length} estudiante${
+      estudiantes.length === 1 ? "" : "s"
+    }`;
   }, [carreraActual, nivelActual, estudiantes.length]);
 
   const refrescarDatos = useCallback(async () => {
@@ -129,33 +128,21 @@ export default function AsignacionesScreen() {
 
   const abrirInscribir = useCallback(
     async (estudiante: Estudiante) => {
-      if (!carreraActual) {
+      if (!carreraActual || !nivelActual) {
         Toast.show({
           type: "error",
-          text1: "Carrera requerida",
-          text2: "Selecciona una carrera antes de inscribir.",
+          text1: "Filtros requeridos",
+          text2:
+            "Selecciona una carrera y un semestre, año o mes antes de continuar.",
         });
-
-        return;
-      }
-
-      if (!nivelActual) {
-        Toast.show({
-          type: "error",
-          text1: "Nivel requerido",
-          text2: "Selecciona semestre, año o mes antes de inscribir.",
-        });
-
         return;
       }
 
       limpiarSeleccion(false);
-
       setEstudianteSeleccionado(estudiante);
       setInscribirVisible(true);
 
       await cargarDetalle(estudiante.id);
-      await cargarMaterias(estudiante.id, carreraActual, nivelActual);
     },
     [
       carreraActual,
@@ -163,32 +150,24 @@ export default function AsignacionesScreen() {
       limpiarSeleccion,
       setEstudianteSeleccionado,
       cargarDetalle,
-      cargarMaterias,
     ],
   );
 
-  const seleccionarCarreraModal = useCallback(
-    async (idCarrera: number) => {
+  const cargarMateriasModal = useCallback(
+    async (idCarrera: number, nivel: number) => {
       if (!estudianteSeleccionado) return;
 
-      if (!nivelActual) {
-        Toast.show({
-          type: "error",
-          text1: "Nivel requerido",
-          text2: "Selecciona semestre, año o mes antes de cargar materias.",
-        });
-
-        return;
-      }
-
-      await cargarMaterias(estudianteSeleccionado.id, idCarrera, nivelActual);
+      await cargarMaterias(estudianteSeleccionado.id, idCarrera, nivel);
     },
-    [estudianteSeleccionado, nivelActual, cargarMaterias],
+    [estudianteSeleccionado, cargarMaterias],
   );
 
   const abrirPdfEstudiante = useCallback(async (estudiante: Estudiante) => {
     try {
-      const url = `${BASE_URL}/api/inscripcion/formulario-registro/${estudiante.id}/pdf`;
+      const url =
+        `${BASE_URL}/api/inscripcion/formulario-registro/` +
+        `${estudiante.id}/pdf?t=${Date.now()}`;
+
       await Linking.openURL(url);
     } catch (error) {
       console.error(error);
@@ -207,32 +186,26 @@ export default function AsignacionesScreen() {
     limpiarSeleccion(false);
   }, [limpiarSeleccion, setEstudianteSeleccionado]);
 
-  const confirmarInscripcion = useCallback(
-    async (idCarrera: number, turno: TurnoInscripcion) => {
+  const confirmarCambios = useCallback(
+    async (
+      idCarrera: number,
+      agregar: SeleccionMateriaInscripcion[],
+      quitar: SeleccionMateriaInscripcion[],
+    ) => {
       if (!estudianteSeleccionado) return;
 
-      if (!nivelActual) {
-        Toast.show({
-          type: "error",
-          text1: "Nivel requerido",
-          text2: "Selecciona semestre, año o mes antes de inscribir.",
-        });
-
-        return;
-      }
-
-      const response = await inscribir(
+      const response = await actualizarInscripcion(
         estudianteSeleccionado.id,
         idCarrera,
-        turno,
-        nivelActual,
+        agregar,
+        quitar,
       );
 
       if (response) {
         cerrarInscribir();
       }
     },
-    [estudianteSeleccionado, nivelActual, inscribir, cerrarInscribir],
+    [estudianteSeleccionado, actualizarInscripcion, cerrarInscribir],
   );
 
   return (
@@ -270,14 +243,14 @@ export default function AsignacionesScreen() {
                 />
               </View>
 
-              <View style={{ flex: 1 }}>
+              <View style={styles.titleContent}>
                 <ThemedText style={[styles.title, { color: strongText }]}>
                   Asignaciones
                 </ThemedText>
 
                 <ThemedText style={[styles.subtitle, { color: mutedText }]}>
-                  Selecciona una carrera y luego el semestre, año o mes para
-                  consultar estudiantes e inscribir materias.
+                  La inscripción puede editarse en cualquier momento. Puedes
+                  agregar o retirar materias de cualquier nivel disponible.
                 </ThemedText>
 
                 {carreraSeleccionada && nivelActual && (
@@ -285,7 +258,8 @@ export default function AsignacionesScreen() {
                     style={[styles.selectedInfo, { color: mutedText }]}
                     numberOfLines={1}
                   >
-                    {carreraSeleccionada.nombreCarrera} · {textoNivel}
+                    {carreraSeleccionada.nombreCarrera} · {textoNivel} · Nota
+                    mínima {Number(carreraSeleccionada.notaAprobacion ?? 51)}
                   </ThemedText>
                 )}
               </View>
@@ -311,12 +285,7 @@ export default function AsignacionesScreen() {
               />
 
               <ThemedText
-                style={[
-                  styles.counterText,
-                  {
-                    color: theme.colors.primary,
-                  },
-                ]}
+                style={[styles.counterText, { color: theme.colors.primary }]}
               >
                 {textoContador}
               </ThemedText>
@@ -328,6 +297,7 @@ export default function AsignacionesScreen() {
           estudiantes={estudiantes}
           carreras={carreras}
           carreraSeleccionadaId={carreraActual}
+          nivelSeleccionadoId={nivelActual}
           loading={loading}
           loadingCarreras={loadingCarreras}
           onSeleccionarCarrera={seleccionarCarreraTabla}
@@ -340,15 +310,18 @@ export default function AsignacionesScreen() {
         visible={inscribirVisible}
         estudiante={estudianteSeleccionado}
         carreras={detalle?.carreras ?? []}
+        inscripcionesActuales={detalle?.inscripciones ?? []}
         materias={materias}
         materiasPendientesAnteriores={materiasPendientesAnteriores}
-        materiasBloqueadasPrerequisito={materiasBloqueadasPrerequisito}
         loading={loadingDetalle}
         loadingMaterias={loadingMaterias}
-        inscribiendo={inscribiendo}
+        guardando={guardandoInscripcion}
+        carreraInicialId={carreraActual}
+        nivelInicial={nivelMateriasActual ?? nivelActual}
+        notaAprobacion={notaAprobacionActual}
         onClose={cerrarInscribir}
-        onSelectCarrera={seleccionarCarreraModal}
-        onConfirm={confirmarInscripcion}
+        onLoadMaterias={cargarMateriasModal}
+        onConfirm={confirmarCambios}
       />
     </View>
   );
@@ -398,6 +371,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+  },
+  titleContent: {
+    flex: 1,
+    minWidth: 0,
   },
   title: {
     fontSize: 32,
