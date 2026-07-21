@@ -1,3 +1,5 @@
+// screens/admin/academico/materias/MateriaScreen.tsx
+import { useTheme } from '@theme'
 import React from 'react'
 import { Text } from 'react-native'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
@@ -8,29 +10,39 @@ import { Materia } from './materia.types'
 import { MateriaForm } from './MateriaForm'
 import { materiaService } from './materiaService'
 
-const columns: ColumnDef[] = [
-  { key: 'codigo', header: 'Código', width: 90 },
-  { key: 'nombreMateria', header: 'Materia', flex: 2 },
-  { key: 'semestre', header: 'Semestre', width: 90 },
-  {
-    key: 'carreras',
-    header: 'Carrera',
-    width: 180,
-    render: (val: any) => {
-      if (!val || !Array.isArray(val) || val.length === 0) {
-        return <Text style={{ color: '#999', fontSize: 13, fontStyle: 'italic' }}>Sin carrera</Text>
-      }
-      return (
-        <Text style={{ fontSize: 13 }} numberOfLines={1} ellipsizeMode="tail">
-          {val.map((c: any) => c.nombreCarrera).join(', ')}
-        </Text>
-      )
-    },
-  },
-  { key: 'estado', header: 'Estado', width: 110, render: (val) => <StatusBadge status={val} /> },
-]
-
 export function MateriaScreen() {
+  const { theme } = useTheme()
+
+  const columns: ColumnDef[] = [
+    { key: 'codigo', header: 'Código', width: 90 },
+    { key: 'nombreMateria', header: 'Materia', flex: 2 },
+    { key: 'semestre', header: 'Semestre', width: 90 },
+    {
+      key: 'carreras',
+      header: 'Carrera',
+      width: 180,
+      render: (val: any) => {
+        if (!val || !Array.isArray(val) || val.length === 0) {
+          return (
+            <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontStyle: 'italic' }}>
+              Sin carrera
+            </Text>
+          )
+        }
+        return (
+          <Text
+            style={{ fontSize: 13, color: theme.colors.text }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {val.map((c: any) => c.nombreCarrera).join(', ')}
+          </Text>
+        )
+      },
+    },
+    { key: 'estado', header: 'Estado', width: 110, render: (val) => <StatusBadge status={val} /> },
+  ]
+
   const crud = useAdminCrud<Materia>({
     fetchAll: materiaService.getAll,
     create: materiaService.create,
@@ -62,9 +74,9 @@ export function MateriaScreen() {
           onCancel={crud.closeModal}
         />
       )}
-      itemToDelete={crud.itemToDelete}      
-      onConfirmDelete={crud.confirmDelete}   
-      onCancelDelete={crud.cancelDelete}  
+      itemToDelete={crud.itemToDelete}
+      onConfirmDelete={crud.confirmDelete}
+      onCancelDelete={crud.cancelDelete}
     />
   )
 }
