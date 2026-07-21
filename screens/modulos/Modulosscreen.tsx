@@ -2,17 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@theme";
 import React, { useState } from "react";
 import {
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import DraggableFlatList, {
-  RenderItemParams,
-  ScaleDecorator,
-} from "react-native-draggable-flatlist";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ModuloCard } from "./components/ModuloCard";
 import { ModuloModal } from "./components/Modulomodal";
 import { ModuloSkeleton } from "./components/ModuloSkeleton";
@@ -40,9 +36,11 @@ export function ModulosScreen() {
 
   // ── Búsqueda local ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
-  const filtered = modulos.filter((m) =>
-    m.modulo.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = Array.isArray(modulos)
+    ? modulos.filter((m) =>
+        m.modulo.toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
 
   // ── Estado local para drag & drop ──────────────────────────────────────────
   const [localModulos, setLocalModulos] = useState<Modulo[]>(modulos);
@@ -69,134 +67,111 @@ export function ModulosScreen() {
 
   // ── Sincronizar módulos del hook con estado local ──────────────────────────
   React.useEffect(() => {
+    const validModulos = Array.isArray(modulos) ? modulos : [];
     if (search === "") {
-      setLocalModulos(modulos);
+      setLocalModulos(validModulos);
     } else {
       setLocalModulos(filtered);
     }
-  }, [modulos, search]);
+  }, [modulos, search, filtered]);
 
-  // ── Manejar reorden drag & drop ────────────────────────────────────────────
-  const handleDragEnd = async (data: Modulo[]) => {
-    setLocalModulos(data);
-
-    // Preparar payload para el backend
-    const reorderPayload = data.map((modulo, index) => ({
-      id: modulo.id,
-      posicion: index + 1,
-    }));
-
-    // Llamar al servicio de reorden
-    await reorderModulos(reorderPayload);
-  };
-
-  // ── Renderizar item draggable ──────────────────────────────────────────────
-  const renderItem = ({ item, drag, isActive }: RenderItemParams<Modulo>) => {
-    return (
-      <ScaleDecorator>
-        <TouchableOpacity
-          activeOpacity={1}
-          onLongPress={drag}
-          disabled={isActive || search !== ""}
-          style={{
-            opacity: isActive ? 0.8 : 1,
-          }}
-        >
-          <ModuloCard
-            modulo={item}
-            onEdit={openEdit}
-            onDelete={deleteModulo}
-            isDragging={isActive}
-          />
-        </TouchableOpacity>
-      </ScaleDecorator>
-    );
-  };
+  // Temporalmente deshabilitado el drag & drop para solucionar el scroll
+  // const handleDragEnd = async (data: Modulo[]) => {
+  //   setLocalModulos(data);
+  //   const reorderPayload = data.map((modulo, index) => ({
+  //     id: modulo.id,
+  //     posicion: index + 1,
+  //   }));
+  //   await reorderModulos(reorderPayload);
+  // };
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={[styles.container, { backgroundColor: c.background }]}>
-        {/* ── Header ── */}
-        <View style={[styles.topBar, { borderBottomColor: c.border }]}>
-          <View>
-            <Text style={[styles.pageTitle, { color: c.text }]}>Módulos</Text>
-            <Text style={[styles.pageSub, { color: c.textSecondary }]}>
-              {modulos.length} módulo{modulos.length !== 1 ? "s" : ""} registrados
-              {search === "" && " • Mantén presionado para reordenar"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={openCreate}
-            style={[styles.btnNuevo, { backgroundColor: c.primary }]}
-          >
-            <Ionicons name="add" size={18} color={c.primaryForeground} />
-            <Text style={[styles.btnNuevoText, { color: c.primaryForeground }]}>
-              Nuevo
-            </Text>
-          </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
+      {/* ── Header ── */}
+      <View style={[styles.topBar, { borderBottomColor: c.border }]}>
+        <View>
+          <Text style={[styles.pageTitle, { color: c.text }]}>Módulos</Text>
+          <Text style={[styles.pageSub, { color: c.textSecondary }]}>
+            {Array.isArray(modulos) ? modulos.length : 0} módulo{(Array.isArray(modulos) ? modulos.length : 0) !== 1 ? "s" : ""} registrados
+            {search === "" && " • Mantén presionado para reordenar"}
+          </Text>
         </View>
+        <TouchableOpacity
+          onPress={openCreate}
+          style={[styles.btnNuevo, { backgroundColor: c.primary }]}
+        >
+          <Ionicons name="add" size={18} color={c.primaryForeground} />
+          <Text style={[styles.btnNuevoText, { color: c.primaryForeground }]}>
+            Nuevo
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* ── Buscador ── */}
+      {/* ── Buscador ── */}
+      <View
+        style={[
+          styles.searchWrap,
+          { backgroundColor: c.backgroundSecondary },
+        ]}
+      >
         <View
           style={[
-            styles.searchWrap,
-            { backgroundColor: c.backgroundSecondary },
+            styles.searchBar,
+            { backgroundColor: c.input, borderColor: c.border },
           ]}
         >
-          <View
-            style={[
-              styles.searchBar,
-              { backgroundColor: c.input, borderColor: c.border },
-            ]}
-          >
-            <Ionicons name="search-outline" size={16} color={c.muted} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Buscar módulo..."
-              placeholderTextColor={c.muted}
-              style={[styles.searchInput, { color: c.text }]}
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch("")}>
-                <Ionicons name="close-circle" size={16} color={c.muted} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* ── Lista ── */}
-        {loading && modulos.length === 0 ? (
-          <ModuloSkeleton />
-        ) : (
-          <DraggableFlatList
-            data={localModulos}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderItem}
-            onDragEnd={({ data }) => handleDragEnd(data)}
-            contentContainerStyle={styles.list}
-            ListEmptyComponent={
-              <View style={styles.center}>
-                <Ionicons name="cube-outline" size={48} color={c.muted} />
-                <Text style={[styles.emptyText, { color: c.muted }]}>
-                  {search ? "Sin resultados" : "No hay módulos aún"}
-                </Text>
-              </View>
-            }
+          <Ionicons name="search-outline" size={16} color={c.muted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar módulo..."
+            placeholderTextColor={c.muted}
+            style={[styles.searchInput, { color: c.text }]}
           />
-        )}
-
-        {/* ── Modal crear / editar ── */}
-        <ModuloModal
-          visible={modalVisible}
-          modulo={moduloEditing}
-          modulos={modulos}
-          onClose={() => setModalVisible(false)}
-          onSubmit={handleSubmit}
-        />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Ionicons name="close-circle" size={16} color={c.muted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-    </GestureHandlerRootView>
+
+      {/* ── Lista ── */}
+      {loading && (!Array.isArray(modulos) || modulos.length === 0) ? (
+        <ModuloSkeleton />
+      ) : (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list}>
+          {localModulos.length === 0 ? (
+            <View style={styles.center}>
+              <Ionicons name="cube-outline" size={48} color={c.muted} />
+              <Text style={[styles.emptyText, { color: c.muted }]}>
+                {search ? "Sin resultados" : "No hay módulos aún"}
+              </Text>
+            </View>
+          ) : (
+            localModulos.map((modulo) => (
+              <ModuloCard
+                key={modulo.id}
+                modulo={modulo}
+                onEdit={openEdit}
+                onDelete={deleteModulo}
+                isDragging={false}
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* ── Modal crear / editar ── */}
+      <ModuloModal
+        visible={modalVisible}
+        modulo={moduloEditing}
+        modulos={Array.isArray(modulos) ? modulos : []}
+        onClose={() => setModalVisible(false)}
+        onSubmit={handleSubmit}
+      />
+    </View>
   );
 }
 
@@ -232,7 +207,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 14, padding: 0 },
-  list:  { padding: 16 },
+  list:  { padding: 16, flexGrow: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   emptyText: { fontSize: 14, marginTop: 12 },
 });

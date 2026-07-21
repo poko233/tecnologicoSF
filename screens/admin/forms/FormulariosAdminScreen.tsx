@@ -11,11 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import DraggableFlatList, {
-  RenderItemParams,
-  ScaleDecorator,
-} from "react-native-draggable-flatlist";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Toast from "react-native-toast-message";
 import { useTheme } from "../../../theme/useTheme";
 import { AdminFormulario } from "../types/admin.types";
@@ -110,164 +105,136 @@ export function FormulariosAdminScreen() {
     setLocalFormularios(sorted);
   }, [formularios]);
 
-  // ── Manejar reorden drag & drop ────────────────────────────────────────────
-  const handleDragEnd = async (data: AdminFormulario[]) => {
-    setLocalFormularios(data);
-
-    // Preparar payload para el backend
-    const reorderPayload = data.map((form, index) => ({
-      id: form.id,
-      posicion: index + 1,
-    }));
-
-    // Llamar al servicio de reorden
-    await reorderFormularios(reorderPayload);
-  };
-
-  // ── Renderizar item draggable ──────────────────────────────────────────────
-  const renderItem = ({
-    item,
-    drag,
-    isActive,
-  }: RenderItemParams<AdminFormulario>) => {
-    return (
-      <ScaleDecorator>
-        <TouchableOpacity
-          activeOpacity={1}
-          onLongPress={drag}
-          disabled={isActive}
-          style={{
-            opacity: isActive ? 0.8 : 1,
-          }}
-        >
-          <View
-            style={[
-              styles.row,
-              {
-                backgroundColor: c.card,
-                borderColor: isActive ? c.primary : c.border,
-                borderWidth: isActive ? 2 : 1,
-                position: "relative",
-              },
-            ]}
-          >
-            {/* Badge de posición */}
-            <View
-              style={[styles.posicionBadge, { backgroundColor: c.primary }]}
-            >
-              <Text
-                style={[styles.posicionText, { color: c.primaryForeground }]}
-              >
-                {item.posicion}
-              </Text>
-            </View>
-
-            {/* Icono de drag */}
-            <View style={styles.dragHandle}>
-              <Ionicons name="reorder-two-outline" size={18} color={c.muted} />
-            </View>
-
-            <View style={styles.contentRow}>
-              <View style={styles.mainInfo}>
-                <Text
-                  style={[styles.formularioName, { color: c.text }]}
-                  numberOfLines={1}
-                >
-                  {item.formulario}
-                </Text>
-                {item.descripcion && (
-                  <Text
-                    style={[styles.descripcionText, { color: c.textSecondary }]}
-                    numberOfLines={2}
-                  >
-                    {item.descripcion}
-                  </Text>
-                )}
-                <Text style={[styles.rutaText, { color: c.muted }]}>
-                  📍 {item.ruta}
-                </Text>
-              </View>
-
-              {/* Acciones */}
-              <View style={{ flexDirection: "row", gap: 6 }}>
-                <TouchableOpacity
-                  onPress={() => openEdit(item)}
-                  style={[styles.actionBtn, { borderColor: c.border }]}
-                  hitSlop={8}
-                >
-                  <Ionicons name="pencil-outline" size={15} color={c.text} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setConfirmId(item.id)}
-                  style={[styles.actionBtn, { borderColor: "#F43F5E" }]}
-                  hitSlop={8}
-                >
-                  <Ionicons name="trash-outline" size={15} color="#F43F5E" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </ScaleDecorator>
-    );
-  };
+  // Temporalmente deshabilitado drag & drop para solucionar scroll
+  // const handleDragEnd = async (data: AdminFormulario[]) => {
+  //   setLocalFormularios(data);
+  //   const reorderPayload = data.map((form, index) => ({
+  //     id: form.id,
+  //     posicion: index + 1,
+  //   }));
+  //   await reorderFormularios(reorderPayload);
+  // };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={[styles.container, { backgroundColor: c.background }]}>
-        <View
-          style={[
-            styles.topBar,
-            { backgroundColor: c.card, borderBottomColor: c.border },
-          ]}
-        >
-          <View>
-            <Text style={[styles.title, { color: c.text }]}>Formularios</Text>
-            <Text style={[styles.subtitle, { color: c.textSecondary }]}>
-              {formularios.length} formulario
-              {formularios.length === 1 ? "" : "s"} registrados •
-              Mantén presionado para reordenar
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={openCreate}
-            style={[styles.addButton, { backgroundColor: c.primary }]}
-          >
-            <Ionicons name="add" size={18} color={c.primaryForeground} />
-            <Text
-              style={[styles.addButtonText, { color: c.primaryForeground }]}
-            >
-              Nuevo
-            </Text>
-          </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
+      <View
+        style={[
+          styles.topBar,
+          { backgroundColor: c.card, borderBottomColor: c.border },
+        ]}
+      >
+        <View>
+          <Text style={[styles.title, { color: c.text }]}>Formularios</Text>
+          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+            {formularios.length} formulario
+            {formularios.length === 1 ? "" : "s"} registrados •
+            Mantén presionado para reordenar
+          </Text>
         </View>
 
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={c.primary} />
-          </View>
-        ) : (
-          <DraggableFlatList
-            data={localFormularios}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={renderItem}
-            onDragEnd={({ data }) => handleDragEnd(data)}
-            contentContainerStyle={styles.list}
-            ListEmptyComponent={
-              <View style={styles.center}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={42}
-                  color={c.muted}
-                />
-                <Text style={{ color: c.textSecondary, marginTop: 10 }}>
-                  No hay formularios disponibles.
-                </Text>
+        <TouchableOpacity
+          onPress={openCreate}
+          style={[styles.addButton, { backgroundColor: c.primary }]}
+        >
+          <Ionicons name="add" size={18} color={c.primaryForeground} />
+          <Text
+            style={[styles.addButtonText, { color: c.primaryForeground }]}
+          >
+            Nuevo
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={c.primary} />
+        </View>
+      ) : (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list}>
+          {localFormularios.length === 0 ? (
+            <View style={styles.center}>
+              <Ionicons
+                name="document-text-outline"
+                size={42}
+                color={c.muted}
+              />
+              <Text style={{ color: c.textSecondary, marginTop: 10 }}>
+                No hay formularios disponibles.
+              </Text>
+            </View>
+          ) : (
+            localFormularios.map((item) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.row,
+                  {
+                    backgroundColor: c.card,
+                    borderColor: c.border,
+                    position: "relative",
+                  },
+                ]}
+              >
+                {/* Badge de posición */}
+                <View
+                  style={[styles.posicionBadge, { backgroundColor: c.primary }]}
+                >
+                  <Text
+                    style={[styles.posicionText, { color: c.primaryForeground }]}
+                  >
+                    {item.posicion}
+                  </Text>
+                </View>
+
+                {/* Icono de drag (deshabilitado) */}
+                <View style={styles.dragHandle}>
+                  <Ionicons name="reorder-two-outline" size={18} color={c.muted} />
+                </View>
+
+                <View style={styles.contentRow}>
+                  <View style={styles.mainInfo}>
+                    <Text
+                      style={[styles.formularioName, { color: c.text }]}
+                      numberOfLines={1}
+                    >
+                      {item.formulario}
+                    </Text>
+                    {item.descripcion && (
+                      <Text
+                        style={[styles.descripcionText, { color: c.textSecondary }]}
+                        numberOfLines={2}
+                      >
+                        {item.descripcion}
+                      </Text>
+                    )}
+                    <Text style={[styles.rutaText, { color: c.muted }]}>
+                      📍 {item.ruta}
+                    </Text>
+                  </View>
+
+                  {/* Acciones */}
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => openEdit(item)}
+                      style={[styles.actionBtn, { borderColor: c.border }]}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="pencil-outline" size={15} color={c.text} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setConfirmId(item.id)}
+                      style={[styles.actionBtn, { borderColor: "#F43F5E" }]}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="trash-outline" size={15} color="#F43F5E" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
-            }
-          />
-        )}
+            ))
+          )}
+        </ScrollView>
+      )}
 
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <Pressable style={styles.backdrop} onPress={() => setModalVisible(false)} />
@@ -405,8 +372,7 @@ export function FormulariosAdminScreen() {
             </View>
           </View>
         </Modal>
-      </View>
-    </GestureHandlerRootView>
+    </View>
     
   );
 }
@@ -435,6 +401,7 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
     paddingBottom: 28,
+    flexGrow: 1,
   },
   row: {
     flexDirection: "row",
