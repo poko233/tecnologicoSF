@@ -2,12 +2,15 @@ import { modulosEventBus } from "@/screens/admin/events/modulosEventBus";
 import { useCallback, useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 import { adminService } from "../services/admin.service";
-import { CreateModuloRolPayload, ModuloRolAssignment } from "../types/admin.types";
+import {
+  CreateModuloRolPayload,
+  ModuloRolAssignment,
+} from "../types/admin.types";
 
 export function useModuloRoles() {
   const [assignments, setAssignments] = useState<ModuloRolAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
+  const [saving, setSaving] = useState(false);
 
   /* ── GET ─────────────────────────────────────────── */
   const fetchAssignments = useCallback(async () => {
@@ -37,7 +40,7 @@ export function useModuloRoles() {
         text2: "Módulo asignado al rol correctamente",
       });
       await fetchAssignments();
-      modulosEventBus.emit(); // 🔔 avisa al Sidebar
+      modulosEventBus.emit(); //  avisa al Sidebar
       return true;
     } catch (error: any) {
       Toast.show({
@@ -62,7 +65,7 @@ export function useModuloRoles() {
         text2: "Asignación eliminada correctamente",
       });
       await fetchAssignments();
-      modulosEventBus.emit(); // 🔔 avisa al Sidebar
+      modulosEventBus.emit(); //  avisa al Sidebar
       return true;
     } catch (error: any) {
       Toast.show({

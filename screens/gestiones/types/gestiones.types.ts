@@ -17,7 +17,7 @@ export interface Gestion {
   updated_at: string;
 }
 
-// ✅ CORRECCIÓN: Agregamos los campos que devuelve Laravel para que TS no falle
+//  CORRECCIÓN: Agregamos los campos que devuelve Laravel para que TS no falle
 export interface GestionesResponse {
   data: Gestion[];
   meta: {

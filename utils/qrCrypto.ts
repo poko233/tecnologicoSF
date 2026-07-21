@@ -6,7 +6,7 @@ QR_KEY = QR_KEY.replace(/[^0-9a-fA-F]/g, "");
 
 if (!QR_KEY || QR_KEY.length !== 64) {
   console.error(
-    `🔐 QR_KEY inválida (longitud ${QR_KEY.length}, se esperaban 64 caracteres hex)`,
+    `QR_KEY inválida (longitud ${QR_KEY.length}, se esperaban 64 caracteres hex)`,
   );
 }
 
@@ -66,7 +66,6 @@ export function decryptQrData(qrData: string): number | null {
 
     const jsonString = decrypted.toString(CryptoJS.enc.Utf8);
     if (!jsonString) {
-      console.error("🔐 [CRYPTO_DEBUG] No se pudo convertir a UTF-8");
       return null;
     }
 
@@ -76,7 +75,6 @@ export function decryptQrData(qrData: string): number | null {
     }
     return null;
   } catch (error) {
-    console.error("❌ Error al desencriptar QR:", error);
     return null;
   }
 }

@@ -142,7 +142,6 @@ export default function InscripcionScreen() {
         response.fechaInscripcionTexto ?? response.fechaInscripcion ?? "",
       );
     } catch (error: any) {
-      console.error(error);
 
       setMatriculaPreview("");
       setFechaInscripcion("");
@@ -241,7 +240,6 @@ export default function InscripcionScreen() {
 
       setDocumentosLocales(documentosMap);
     } catch (error) {
-      console.error(error);
       setDocumentosLocales({});
     }
   };
@@ -532,7 +530,6 @@ export default function InscripcionScreen() {
           : "Ahora gestiona las cuotas.",
       });
     } catch (error: any) {
-      console.error(error);
 
       Toast.show({
         type: "error",
@@ -574,8 +571,6 @@ export default function InscripcionScreen() {
             ? "Este carnet ya está registrado"
             : undefined,
         }));
-      } catch (error) {
-        console.error(error);
       } finally {
         setCheckingCarnet(false);
       }
@@ -623,8 +618,6 @@ export default function InscripcionScreen() {
             ? "Este correo ya está registrado"
             : undefined,
         }));
-      } catch (error) {
-        console.error(error);
       } finally {
         setCheckingCorreo(false);
       }

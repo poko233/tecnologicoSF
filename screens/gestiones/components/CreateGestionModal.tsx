@@ -5,7 +5,7 @@ import DatePickerModal, {
 import { ThemedText } from "@/components/ThemedText";
 import { Tooltip } from "@/components/Tooltip";
 import { useTheme } from "@/theme/useTheme";
-import { Info, X } from "lucide-react-native";
+import { X } from "lucide-react-native";
 import { AnimatePresence, MotiView } from "moti";
 import React, { useMemo, useState } from "react";
 import {
@@ -359,29 +359,6 @@ export function CreateGestionModal({
                         </ThemedText>
                       </Pressable>
                     </View>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.infoBox,
-                      {
-                        backgroundColor: theme.colors.primarySubtle,
-                        borderColor: theme.colors.primary,
-                      },
-                    ]}
-                  >
-                    <Info size={16} color={theme.colors.primary} />
-                    <ThemedText
-                      style={{
-                        color: theme.colors.text,
-                        fontSize: 12,
-                        flex: 1,
-                      }}
-                    >
-                      Al abrir una nueva gestión, los grupos inactivos podrán
-                      ser reasignados automáticamente según la planificación
-                      vigente.
-                    </ThemedText>
                   </View>
                 </View>
               </KeyboardAwareScrollView>

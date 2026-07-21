@@ -1,10 +1,9 @@
-// screens/convalidacion/components/StepperConvalidacion.tsx
 import { useTheme } from '@theme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 interface StepperConvalidacionProps {
-  pasoActual: number; // 1-4
+  pasoActual: number; 
 }
 
 const PASOS = [
@@ -18,9 +17,9 @@ export function StepperConvalidacion({ pasoActual }: StepperConvalidacionProps) 
   const { theme } = useTheme();
 
   const getStepColor = (numeroPaso: number) => {
-    if (numeroPaso < pasoActual) return theme.colors.success; // Completado
-    if (numeroPaso === pasoActual) return theme.colors.primary; // Activo
-    return theme.colors.backgroundTertiary; // Pendiente
+    if (numeroPaso < pasoActual) return theme.colors.success; 
+    if (numeroPaso === pasoActual) return theme.colors.primary; 
+    return theme.colors.backgroundTertiary; 
   };
 
   const getTextColor = (numeroPaso: number) => {
@@ -30,7 +29,6 @@ export function StepperConvalidacion({ pasoActual }: StepperConvalidacionProps) 
   };
 
   const getLineColor = (index: number) => {
-    // La línea antes del paso index+1
     if (index + 1 < pasoActual) return theme.colors.success;
     return theme.colors.border;
   };

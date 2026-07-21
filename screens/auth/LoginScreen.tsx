@@ -86,14 +86,14 @@ export default function LoginScreen() {
         extraScrollHeight={Platform.OS === "ios" ? 40 : 60}
       >
         {/*
-         * ✅ FIX: px-4 (era px-8) — iguala HTML px-margin-mobile
+         *  FIX: px-4 (era px-8) — iguala HTML px-margin-mobile
          */}
         <View
           className="flex-1 justify-center items-center px-4"
           style={{ backgroundColor: theme.colors.background }}
           {...panResponder.panHandlers}
         >
-          {/* 🔥 ELEMENTOS DECORATIVOS DETRÁS DEL CRISTAL 🔥 */}
+          {/*  ELEMENTOS DECORATIVOS DETRÁS DEL CRISTAL  */}
           {/* Esto es solo un ejemplo. Coloca formas de colores absolutas para que el BlurView tenga algo que distorsionar */}
           <View
             style={{
@@ -131,26 +131,6 @@ export default function LoginScreen() {
           </View>
 
           <GlassCard>
-            {/*
-             * ✅ ESTRUCTURA ESPEJO DEL HTML:
-             *
-             * HTML:  <div class="flex flex-col gap-8">   ← secciones separadas por 32px
-             *          <div>título</div>
-             *          <form class="flex flex-col gap-6"> ← campos separados por 24px
-             *            inputs + button
-             *          </form>
-             *        </div>
-             *
-             * RN:    <View gap-8>                         ← mismo gap-8 entre secciones
-             *          <View>título</View>
-             *          <View gap-6>                       ← mismo gap-6 entre campos
-             *            inputs + button
-             *          </View>
-             *        </View>
-             *
-             * ✅ FIX: max-w-md (448px) ≈ HTML max-w-[440px] (era max-w-xl = 576px)
-             * ✅ FIX: gap-8 externo (era todo gap-6 mezclado)
-             */}
             <View className="w-full max-w-md flex flex-col gap-8">
               {/* ── Sección título (sin mb extra; gap-8 del padre lo separa) ── */}
               <View style={{ alignItems: "center" }}>

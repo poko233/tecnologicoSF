@@ -26,7 +26,6 @@ export function useReportData() {
       description: "Nómina completa de estudiantes por grupo y docente.",
       accentColor: "primary",
     },
-    // ✅ NUEVA TARJETA PARA PAGOS
     {
       id: "pagos",
       iconName: "Coins",

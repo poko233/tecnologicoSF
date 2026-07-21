@@ -106,17 +106,14 @@ export function ManageEVModal({ visible, ec, onClose }: Props) {
   };
 
   const filterNumberInput = (text: string, setter: (val: string) => void) => {
-    const cleaned = text.replace(/[^0-9.]/g, "");
-    const parts = cleaned.split(".");
-    if (parts.length > 2) return;
-    if (parts[1] && parts[1].length > 2) return;
+    const cleaned = text.replace(/[^0-9]/g, ""); // solo dígitos
     setter(cleaned);
   };
 
   // Validación extra: el puntaje es obligatorio y debe ser un número >= 0
   const isPuntajeValid = (value: string) => {
-    const num = parseFloat(value);
-    return !isNaN(num) && num >= 0;
+    const num = parseInt(value, 10);
+    return !isNaN(num) && num >= 0 && Number.isInteger(num);
   };
 
   if (!ec) return null;
@@ -289,13 +286,13 @@ export function ManageEVModal({ visible, ec, onClose }: Props) {
                         styles.input,
                         { borderColor: c.inputBorder, color: c.text },
                       ]}
-                      placeholder="Puntaje (referencial); ej: 20, 100, etc."
+                      placeholder="Puntaje (entero); ej: 20, 100, etc."
                       placeholderTextColor={c.textMuted}
                       value={newPuntaje}
                       onChangeText={(text) =>
                         filterNumberInput(text, setNewPuntaje)
                       }
-                      keyboardType="decimal-pad"
+                      keyboardType="number-pad"
                     />
                     <View style={styles.formActions}>
                       <TouchableOpacity
@@ -462,16 +459,12 @@ function EditEVModal({
   const [puntaje, setPuntaje] = useState(ev.puntaje_maximo?.toString() ?? "");
 
   const filterNumberInput = (text: string, setter: (val: string) => void) => {
-    const cleaned = text.replace(/[^0-9.]/g, "");
-    const parts = cleaned.split(".");
-    if (parts.length > 2) return;
-    if (parts[1] && parts[1].length > 2) return;
+    const cleaned = text.replace(/[^0-9]/g, ""); // solo dígitos
     setter(cleaned);
   };
-
   const isPuntajeValid = (value: string) => {
-    const num = parseFloat(value);
-    return !isNaN(num) && num >= 0;
+    const num = parseInt(value, 10);
+    return !isNaN(num) && num >= 0 && Number.isInteger(num);
   };
 
   return (
@@ -504,7 +497,7 @@ function EditEVModal({
             ]}
             value={puntaje}
             onChangeText={(text) => filterNumberInput(text, setPuntaje)}
-            keyboardType="decimal-pad"
+            keyboardType="number-pad"
             placeholder="Puntaje máximo"
           />
           <View style={styles.formActions}>

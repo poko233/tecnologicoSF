@@ -45,6 +45,7 @@ export function ModuloModal({
   const [titulo, setTitulo]           = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [iconoKey, setIconoKey]       = useState<string>("home");
+  const [posicion, setPosicion]       = useState("");
   const [loading, setLoading]         = useState(false);
   const [errors, setErrors]           = useState<Record<string, string>>({});
 
@@ -53,6 +54,7 @@ export function ModuloModal({
       setTitulo(modulo?.modulo ?? "");
       setDescripcion(modulo?.descripcion ?? "");
       setIconoKey(modulo?.icono ?? "home");
+      setPosicion(modulo?.posicion ? String(modulo.posicion) : "");
       setErrors({});
     }
   }, [visible, modulo]);
@@ -80,11 +82,15 @@ export function ModuloModal({
   const handleSubmit = async () => {
     if (!validate()) return;
     setLoading(true);
-    const ok = await onSubmit({
+    const payload: any = {
       modulo: titulo.trim(),
       descripcion: descripcion.trim() || undefined,
       icono: iconoKey,
-    });
+    };
+    if (posicion.trim()) {
+      payload.posicion = parseInt(posicion.trim());
+    }
+    const ok = await onSubmit(payload);
     setLoading(false);
     if (ok) onClose();
   };
@@ -291,6 +297,26 @@ export function ModuloModal({
               />
             </View>
 
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: c.textSecondary }]}>
+                POSICIÓN (ORDEN)
+              </Text>
+              <TextInput
+                value={posicion}
+                onChangeText={setPosicion}
+                placeholder="Ej: 1, 2, 3... (opcional)"
+                placeholderTextColor={c.muted}
+                keyboardType="numeric"
+                style={[
+                  styles.input,
+                  { backgroundColor: c.input, color: c.text, borderColor: c.border },
+                ]}
+              />
+              <Text style={[styles.helpText, { color: c.muted }]}>
+                Orden en que aparece en el menú (menor número = más arriba)
+              </Text>
+            </View>
+
           </ScrollView>
 
           {/* ── Footer con botones ── */}
@@ -460,5 +486,9 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     alignItems: "center",
     justifyContent: "center",
+  },
+  helpText: {
+    fontSize: 11,
+    marginTop: 4,
   },
 });

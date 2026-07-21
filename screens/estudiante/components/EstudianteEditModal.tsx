@@ -4,17 +4,17 @@ import * as FileSystemNS from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    KeyboardTypeOptions,
-    Linking,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    TextInput,
-    useWindowDimensions,
-    View,
+  ActivityIndicator,
+  Image,
+  KeyboardTypeOptions,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -22,16 +22,16 @@ import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
 import { createEstudianteEditModalStyles } from "../styles/estudianteEditModal.styles";
 import {
-    EstudianteForm,
-    EstudianteUsuario,
-    FotoEstudianteArchivo,
+  EstudianteForm,
+  EstudianteUsuario,
+  FotoEstudianteArchivo,
 } from "../types/estudiante.types";
 import {
-    nombreCompleto,
-    obtenerFechaInscripcion,
-    obtenerMatricula,
-    obtenerPromocionActual,
-    obtenerReferencia,
+  nombreCompleto,
+  obtenerFechaInscripcion,
+  obtenerMatricula,
+  obtenerPromocionActual,
+  obtenerReferencia,
 } from "../utils/estudiante.helpers";
 import EstudianteDatePickerModal from "./EstudianteDatePickerModal";
 import EstudianteDocumentosPanel from "./EstudianteDocumentosPanel";
@@ -713,7 +713,6 @@ export default function EstudianteEditModal({
         });
       }
     } catch (error) {
-      console.error(error);
 
       Toast.show({
         type: "error",

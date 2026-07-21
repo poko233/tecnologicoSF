@@ -1,4 +1,3 @@
-// screens/convalidacion/components/ConvalidacionHeader.tsx
 import { useTheme } from '@theme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';

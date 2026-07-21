@@ -24,4 +24,13 @@ export const moduloService = {
 
   delete: (id: number) =>
     httpClient.deleteAuth<{ message: string }>(`/api/modulos/${id}`, "Error al eliminar módulo"),
+
+  reorder: async (items: Array<{ id: number; posicion: number }>) => {
+    const res = await httpClient.postAuth<{ message: string }>(
+      "/api/modulos/reorder",
+      items,
+      "Error al reordenar módulos"
+    );
+    return res;
+  },
 };

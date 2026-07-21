@@ -81,7 +81,6 @@ export function Paso4Pago() {
         PAGO POR CONVALIDACIÓN
       </Text>
 
-      {/* Detalles del pago */}
       <View
         style={[
           styles.card,
@@ -165,7 +164,6 @@ export function Paso4Pago() {
 
         <View style={styles.divider} />
 
-        {/* Total */}
         <View
           style={[
             styles.totalBox,
@@ -177,7 +175,6 @@ export function Paso4Pago() {
         </View>
       </View>
 
-      {/* Forma de pago */}
       <Text style={[styles.label, { color: theme.colors.textMuted }]}>
         FORMA DE PAGO *
       </Text>
@@ -188,7 +185,6 @@ export function Paso4Pago() {
         placeholder="Seleccione forma de pago"
       />
 
-      {/* Nº de comprobante */}
       <Text style={[styles.label, { color: theme.colors.textMuted }]}>
         Nº DE COMPROBANTE
       </Text>
@@ -220,7 +216,6 @@ export function Paso4Pago() {
         }}
       />
 
-      {/* Estado */}
       <Text style={[styles.label, { color: theme.colors.textMuted }]}>
         ESTADO
       </Text>
@@ -235,7 +230,6 @@ export function Paso4Pago() {
         </Text>
       </View>
 
-      {/* Navegación */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           onPress={retrocederPaso}

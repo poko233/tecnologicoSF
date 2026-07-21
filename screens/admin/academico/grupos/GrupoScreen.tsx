@@ -26,6 +26,30 @@ const columns: ColumnDef[] = [
   },
   { key: "cupos", header: "Cupos", width: 70 },
   {
+    key: "fecha_inicio",
+    header: "Fecha inicio",
+    width: 110,
+    render: (val: string) => {
+      if (!val) return <Text style={{ fontSize: 12 }}>-</Text>;
+      const [year, month, day] = val.split("-");
+      return (
+        <Text style={{ fontSize: 12 }}>{`${day}/${month}/${year}`}</Text>
+      );
+    },
+  },
+  {
+    key: "fecha_fin",
+    header: "Fecha fin",
+    width: 110,
+    render: (val: string) => {
+      if (!val) return <Text style={{ fontSize: 12 }}>-</Text>;
+      const [year, month, day] = val.split("-");
+      return (
+        <Text style={{ fontSize: 12 }}>{`${day}/${month}/${year}`}</Text>
+      );
+    },
+  },
+  {
     key: "horarios",
     header: "Horarios",
     width: 80,

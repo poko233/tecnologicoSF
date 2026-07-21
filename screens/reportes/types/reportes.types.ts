@@ -66,7 +66,6 @@ export interface GrupoFiltro {
   gestion: string | null;
 }
 
-// ✅ CORRECCIÓN: El backend devuelve `current_page`, `last_page`, etc., directamente en `grupos`
 export interface PagosFiltrosResponse {
   grupos: {
     data: GrupoFiltro[];
@@ -74,8 +73,7 @@ export interface PagosFiltrosResponse {
     last_page: number;
     per_page: number;
     total: number;
-    next_page_url: string | null; // ✅ Añadido
-    // `links` existe en el backend, pero no lo usamos, lo definimos como opcional
+    next_page_url: string | null;
     links?: {
       url: string | null;
       label: string;

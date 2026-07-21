@@ -2,16 +2,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@theme";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ModuloCard } from "./components/ModuloCard";
 import { ModuloModal } from "./components/Modulomodal";
+import { ModuloSkeleton } from "./components/ModuloSkeleton";
 import { useModulos } from "./hooks/useModulos";
 import { Modulo } from "./types/modulo.types";
 
@@ -27,17 +31,21 @@ export function ModulosScreen() {
     createModulo,
     updateModulo,
     deleteModulo,
+    reorderModulos,
   } = useModulos();
 
   // ── Estado del modal ───────────────────────────────────────────────────────
-  const [modalVisible, setModalVisible]         = useState(false);
-  const [moduloEditing, setModuloEditing]       = useState<Modulo | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [moduloEditing, setModuloEditing] = useState<Modulo | null>(null);
 
   // ── Búsqueda local ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const filtered = modulos.filter((m) =>
     m.modulo.toLowerCase().includes(search.toLowerCase())
   );
+
+  // ── Estado local para drag & drop ──────────────────────────────────────────
+  const [localModulos, setLocalModulos] = useState<Modulo[]>(modulos);
 
   // ── Abrir modal crear ──────────────────────────────────────────────────────
   const openCreate = () => {
@@ -59,86 +67,136 @@ export function ModulosScreen() {
     return await createModulo(payload);
   };
 
+  // ── Sincronizar módulos del hook con estado local ──────────────────────────
+  React.useEffect(() => {
+    if (search === "") {
+      setLocalModulos(modulos);
+    } else {
+      setLocalModulos(filtered);
+    }
+  }, [modulos, search]);
+
+  // ── Manejar reorden drag & drop ────────────────────────────────────────────
+  const handleDragEnd = async (data: Modulo[]) => {
+    setLocalModulos(data);
+
+    // Preparar payload para el backend
+    const reorderPayload = data.map((modulo, index) => ({
+      id: modulo.id,
+      posicion: index + 1,
+    }));
+
+    // Llamar al servicio de reorden
+    await reorderModulos(reorderPayload);
+  };
+
+  // ── Renderizar item draggable ──────────────────────────────────────────────
+  const renderItem = ({ item, drag, isActive }: RenderItemParams<Modulo>) => {
+    return (
+      <ScaleDecorator>
+        <TouchableOpacity
+          activeOpacity={1}
+          onLongPress={drag}
+          disabled={isActive || search !== ""}
+          style={{
+            opacity: isActive ? 0.8 : 1,
+          }}
+        >
+          <ModuloCard
+            modulo={item}
+            onEdit={openEdit}
+            onDelete={deleteModulo}
+            isDragging={isActive}
+          />
+        </TouchableOpacity>
+      </ScaleDecorator>
+    );
+  };
+
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { backgroundColor: c.background }]}>
-
-      {/* ── Header ── */}
-      <View style={[styles.topBar, { borderBottomColor: c.border }]}>
-        <View>
-          <Text style={[styles.pageTitle, { color: c.text }]}>Módulos</Text>
-          <Text style={[styles.pageSub, { color: c.textSecondary }]}>
-            {modulos.length} módulo{modulos.length !== 1 ? "s" : ""} registrados
-          </Text>
-        </View>
-        <TouchableOpacity 
-          onPress={openCreate} 
-          style={[styles.btnNuevo, { backgroundColor: c.primary }]}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        {/* ── Header ── */}
+        <View style={[styles.topBar, { borderBottomColor: c.border }]}>
+          <View>
+            <Text style={[styles.pageTitle, { color: c.text }]}>Módulos</Text>
+            <Text style={[styles.pageSub, { color: c.textSecondary }]}>
+              {modulos.length} módulo{modulos.length !== 1 ? "s" : ""} registrados
+              {search === "" && " • Mantén presionado para reordenar"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={openCreate}
+            style={[styles.btnNuevo, { backgroundColor: c.primary }]}
           >
-          <Ionicons name="add" size={18} color={c.primaryForeground} />
-          <Text style={[styles.btnNuevoText, { color: c.primaryForeground }]}>
-            Nuevo</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Buscador ── */}
-      <View style={[styles.searchWrap, { backgroundColor: c.backgroundSecondary }]}>
-        <View style={[styles.searchBar, { backgroundColor: c.input, borderColor: c.border }]}>
-          <Ionicons name="search-outline" size={16} color={c.muted} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Buscar módulo..."
-            placeholderTextColor={c.muted}
-            style={[styles.searchInput, { color: c.text }]}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={16} color={c.muted} />
-            </TouchableOpacity>
-          )}
+            <Ionicons name="add" size={18} color={c.primaryForeground} />
+            <Text style={[styles.btnNuevoText, { color: c.primaryForeground }]}>
+              Nuevo
+            </Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* ── Lista ── */}
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <ModuloCard
-              modulo={item}
-              onEdit={openEdit}
-              onDelete={deleteModulo}
+        {/* ── Buscador ── */}
+        <View
+          style={[
+            styles.searchWrap,
+            { backgroundColor: c.backgroundSecondary },
+          ]}
+        >
+          <View
+            style={[
+              styles.searchBar,
+              { backgroundColor: c.input, borderColor: c.border },
+            ]}
+          >
+            <Ionicons name="search-outline" size={16} color={c.muted} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Buscar módulo..."
+              placeholderTextColor={c.muted}
+              style={[styles.searchInput, { color: c.text }]}
             />
-          )}
-          contentContainerStyle={styles.list}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="cube-outline" size={48} color={c.muted} />
-              <Text style={[styles.emptyText, { color: c.muted }]}>
-                {search ? "Sin resultados" : "No hay módulos aún"}
-              </Text>
-            </View>
-          }
-        />
-      )}
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch("")}>
+                <Ionicons name="close-circle" size={16} color={c.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-      {/* ── Modal crear / editar ── */}
-      <ModuloModal
-        visible={modalVisible}
-        modulo={moduloEditing}
-        modulos={modulos}
-        onClose={() => setModalVisible(false)}
-        onSubmit={handleSubmit}
-      />
-    </View>
+        {/* ── Lista ── */}
+        {loading && modulos.length === 0 ? (
+          <ModuloSkeleton />
+        ) : (
+          <DraggableFlatList
+            data={localModulos}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderItem}
+            onDragEnd={({ data }) => handleDragEnd(data)}
+            contentContainerStyle={styles.list}
+            ListEmptyComponent={
+              <View style={styles.center}>
+                <Ionicons name="cube-outline" size={48} color={c.muted} />
+                <Text style={[styles.emptyText, { color: c.muted }]}>
+                  {search ? "Sin resultados" : "No hay módulos aún"}
+                </Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* ── Modal crear / editar ── */}
+        <ModuloModal
+          visible={modalVisible}
+          modulo={moduloEditing}
+          modulos={modulos}
+          onClose={() => setModalVisible(false)}
+          onSubmit={handleSubmit}
+        />
+      </View>
+    </GestureHandlerRootView>
   );
 }
 

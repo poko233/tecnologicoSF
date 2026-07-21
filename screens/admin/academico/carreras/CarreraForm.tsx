@@ -130,6 +130,7 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
     descripcion_cuotas: '',
     cargaHoraria: '',
     costo_matricula: '',
+    nota_aprobacion: '',
     denominacionTitutloProfesional: '',
     idArea: '',
     estadoCarrera: true,
@@ -151,6 +152,7 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
         duracion_meses: String(initialData.duracion_meses ?? ''),
         cargaHoraria: initialData.cargaHoraria ?? '',
         costo_matricula: String(initialData.costo_matricula ?? ''),
+        nota_aprobacion: String(initialData.nota_aprobacion ?? ''),
         cuota_mensual: String(initialData.cuota_mensual ?? ''),
         cuotas_por_anio: String(initialData.cuotas_por_anio ?? ''),
         denominacionTitutloProfesional: initialData.denominacionTitutloProfesional ?? '',
@@ -240,6 +242,15 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
                                                      e.duracion_meses_otro = 'Debe estar entre 1 y 240 meses'
     }
 
+    // Validar nota de aprobación (requerido)
+    if (!form.nota_aprobacion) {
+      e.nota_aprobacion = 'La nota de aprobación es obligatoria'
+    } else if (!isNumeric(form.nota_aprobacion)) {
+      e.nota_aprobacion = 'Debe ser un número (ej: 51)'
+    } else if (Number(form.nota_aprobacion) < 0 || Number(form.nota_aprobacion) > 100) {
+      e.nota_aprobacion = 'Debe estar entre 0 y 100'
+    }
+
     // Validar opcionales numéricos si tienen valor
     if (form.costo_matricula) {
       if (!isNumeric(form.costo_matricula))        e.costo_matricula = 'Debe ser un número (ej: 500)'
@@ -293,6 +304,7 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
         duracion_meses,
         cargaHoraria: form.cargaHoraria,
         costo_matricula: form.costo_matricula ? Number(form.costo_matricula) : 0,
+        nota_aprobacion: Number(form.nota_aprobacion),
         cuota_mensual,
         cuotas_por_anio,
         denominacionTitutloProfesional: form.denominacionTitutloProfesional,
@@ -500,6 +512,17 @@ export function CarreraForm({ initialData, onSave, onCancel }: Props) {
             </>
           )}
         </View>
+
+        <Text style={lbl}>Nota de aprobación *</Text>
+        <TextInput
+          style={inp('nota_aprobacion')}
+          value={form.nota_aprobacion}
+          onChangeText={setNum('nota_aprobacion')}
+          keyboardType="numeric"
+          placeholder="51"
+          placeholderTextColor={theme.colors.textMuted}
+        />
+        {errors.nota_aprobacion && <Text style={styles.errorText}>{errors.nota_aprobacion}</Text>}
 
         {initialData?.costo != null && (
           <View style={[styles.costoBox, { backgroundColor: theme.colors.secondary, borderColor: theme.colors.border }]}>

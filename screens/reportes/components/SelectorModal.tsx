@@ -85,14 +85,12 @@ export function SelectorModal({
             style={StyleSheet.absoluteFill}
             experimentalBlurMethod="dimezisBlurView"
           >
-            {/* ⭐ CAMBIO CRUCIAL: TouchableOpacity captura los toques fuera de forma 100% confiable */}
             <TouchableOpacity
               activeOpacity={1}
               onPress={onClose}
               style={StyleSheet.absoluteFill}
             >
               <View style={styles.backdrop} pointerEvents="box-none">
-                {/* ⭐ ESCUDO INTERIOR: Atrapa cualquier toque dentro del modal */}
                 <TouchableWithoutFeedback onPress={() => {}}>
                   <MotiView
                     from={{ opacity: 0, scale: 0.9, translateY: 20 }}
@@ -231,7 +229,6 @@ export function SelectorModal({
                         </Text>
                       </TouchableOpacity>
 
-                      {/* ⭐ BOTÓN SELECCIONAR TODAS - CORREGIDO PARA GESTIÓN */}
                       {onSelectAll && multiple && (
                         <TouchableOpacity
                           onPress={onSelectAll}

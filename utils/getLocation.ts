@@ -28,7 +28,6 @@ export async function getLocationString(): Promise<string> {
       return location;
     }
   } catch (error) {
-    console.warn("⚠️ No se pudo obtener ubicación por IP:", error);
   }
 
   // Fallback silencioso

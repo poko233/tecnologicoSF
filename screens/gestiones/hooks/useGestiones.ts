@@ -1,5 +1,5 @@
 // screens/gestiones/hooks/useGestiones.ts
-import { useCallback, useEffect, useRef, useState } from "react"; // ✅ Importamos useRef
+import { useCallback, useEffect, useRef, useState } from "react";
 import Toast from "react-native-toast-message";
 import { gestionesService } from "../services/gestiones.service";
 import {
@@ -15,7 +15,7 @@ export function useGestiones() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<GestionFilters>({ page: 1 });
 
-  // ✅ Ref para almacenar el controlador de la petición actual
+  //  Ref para almacenar el controlador de la petición actual
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Modal states
@@ -30,18 +30,18 @@ export function useGestiones() {
 
   const fetchGestiones = useCallback(
     async (override?: GestionFilters) => {
-      // ✅ Cancelar la petición anterior si existe
+      //  Cancelar la petición anterior si existe
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
-      // ✅ Crear un nuevo controlador para la petición actual
+      //  Crear un nuevo controlador para la petición actual
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
       setLoading(true);
       try {
-        // ✅ Pasamos el signal al servicio
+        //  Pasamos el signal al servicio
         const res = await gestionesService.listar(
           override ?? filters,
           controller.signal,
@@ -54,7 +54,7 @@ export function useGestiones() {
           page: res.meta.current_page,
         });
       } catch (err: any) {
-        // ✅ IMPORTANTE: Si la petición fue cancelada, no mostramos el Toast de error
+        //  IMPORTANTE: Si la petición fue cancelada, no mostramos el Toast de error
         if (err.name === "AbortError" || err.message === "AbortError") {
           return;
         }

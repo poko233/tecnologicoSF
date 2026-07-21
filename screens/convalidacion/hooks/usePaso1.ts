@@ -1,4 +1,3 @@
-// screens/convalidacion/hooks/usePaso1.ts
 import { httpClient } from '@http';
 import { useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
@@ -53,11 +52,9 @@ export function usePaso1() {
         ),
       ]);
       setCarreras(carrerasRes.data || []);
-      // setGestiones(gestionesRes.data || []);
       setGestiones((gestionesRes.data || []).filter((g: any) => g.estado === 'activo'));
       setMatriculaGenerada(matriculaRes.matricula || 'N/A');
     } catch (error: any) {
-      console.error('Error cargando datos:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',

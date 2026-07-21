@@ -1,4 +1,3 @@
-// screens/convalidacion/context/ConvalidacionContext.tsx
 import React, { createContext, ReactNode, useContext, useState } from 'react';
 import type { Paso1FormData } from '../types';
 
@@ -66,7 +65,7 @@ export function ConvalidacionProvider({ children }: { children: ReactNode }) {
   };
 
   const setPaso1Data = (data: Paso1FormData) => {
-    setState((prev) => ({ ...prev, paso1Data: data })); // 👈 NUEVO
+    setState((prev) => ({ ...prev, paso1Data: data })); 
   };
 
   const avanzarPaso = () => {

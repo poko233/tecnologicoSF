@@ -170,7 +170,6 @@ export default function AsignacionesScreen() {
 
       await Linking.openURL(url);
     } catch (error) {
-      console.error(error);
 
       Toast.show({
         type: "error",

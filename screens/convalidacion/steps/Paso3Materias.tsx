@@ -1,4 +1,3 @@
-// screens/convalidacion/steps/Paso3Materias.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@theme';
 import React, { useState } from 'react';
@@ -108,7 +107,6 @@ export function Paso3Materias() {
           MATERIAS A CONVALIDAR
         </Text>
 
-        {/* Tabla */}
         <View
           style={[
             styles.table,
@@ -118,7 +116,6 @@ export function Paso3Materias() {
             },
           ]}
         >
-          {/* Header */}
           <View style={styles.tableHeader}>
             <Text
               style={[
@@ -172,7 +169,6 @@ export function Paso3Materias() {
             <View style={{ width: 40 }} />
           </View>
 
-          {/* Rows */}
           {detalles.map((detalle) => {
             const materiaDestino = materias.find(
               (m) => m.idMateria === detalle.idMateriaDestino
@@ -276,7 +272,6 @@ export function Paso3Materias() {
           )}
         </View>
 
-        {/* Botón Agregar */}
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
           style={[
@@ -290,7 +285,6 @@ export function Paso3Materias() {
           </Text>
         </TouchableOpacity>
 
-        {/* Navegación */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             onPress={retrocederPaso}
@@ -318,7 +312,6 @@ export function Paso3Materias() {
         </View>
       </ScrollView>
 
-      {/* Modal Agregar Materia */}
       <Modal
         visible={modalVisible}
         transparent
@@ -342,7 +335,6 @@ export function Paso3Materias() {
             </View>
 
             <ScrollView style={styles.modalBody}>
-              {/* Materia origen */}
               <Text style={[styles.label, { color: theme.colors.textMuted }]}>
                 NOMBRE DE LA MATERIA EN ORIGEN *
               </Text>
@@ -363,7 +355,6 @@ export function Paso3Materias() {
                 placeholderTextColor={theme.colors.textMuted}
               />
 
-              {/* Institución */}
               <Text style={[styles.label, { color: theme.colors.textMuted }]}>
                 INSTITUCIÓN *
               </Text>
@@ -387,7 +378,6 @@ export function Paso3Materias() {
                 placeholderTextColor={theme.colors.textMuted}
               />
 
-              {/* Nota */}
               <Text style={[styles.label, { color: theme.colors.textMuted }]}>
                 NOTA *
               </Text>
@@ -410,7 +400,6 @@ export function Paso3Materias() {
               />
 
 
-              {/* Materia Destino */}
               <Text style={[styles.label, { color: theme.colors.textMuted }]}>
                 MATERIA DESTINO *
               </Text>

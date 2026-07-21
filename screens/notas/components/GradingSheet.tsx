@@ -64,7 +64,7 @@ export function GradingSheet({
   const { theme } = useTheme();
   const c = theme.colors;
   const { planilla, loading, cargar, guardar } = usePlanilla();
-
+  const initializedRef = useRef(false);
   const [notaAprobacionState, setNotaAprobacionState] =
     useState(propNotaAprobacion);
 
@@ -89,12 +89,15 @@ export function GradingSheet({
 
   // ─── Cargar planilla ────────────────────────────────────────────────
   React.useEffect(() => {
+    initializedRef.current = false; // reset para nueva planilla
     cargar(idGrupo).then(() => setLoaded(true));
   }, [idGrupo]);
 
   // ─── Inicializar datos del backend ─────────────────────────────────
   React.useEffect(() => {
-    if (planilla) {
+    if (planilla && !initializedRef.current) {
+      initializedRef.current = true;
+
       // Cargar nota de aprobación del backend
       if (planilla.materia?.nota_aprobacion) {
         setNotaAprobacionState(planilla.materia.nota_aprobacion);
@@ -111,9 +114,7 @@ export function GradingSheet({
               const nota = ecData?.evs.find(
                 (n) => n.id_elemento_evaluativo === ev.id,
               );
-              const currentVal =
-                evScores?.[est.id_inscripcion]?.[ec.id]?.[ev.id];
-              if (currentVal === undefined && nota?.puntaje !== undefined) {
+              if (nota?.puntaje !== undefined) {
                 onUpdateEVScores(
                   est.id_inscripcion,
                   ec.id,
@@ -142,7 +143,6 @@ export function GradingSheet({
           const ecData = est.ecs.find(
             (e) => e.id_elemento_competencia === ec.id,
           );
-          // Siempre usar el valor exacto del backend
           initialEcScores[est.id_inscripcion][ec.id] =
             ecData?.puntaje != null ? Number(ecData.puntaje) : null;
         });
@@ -155,7 +155,7 @@ export function GradingSheet({
       setObservaciones(initialObs);
       setSegundaInstanciaNota(initialSegundaInstancia);
     }
-  }, [planilla, evScores, onUpdateEVScores]); // <-- sin asistencias
+  }, [planilla, onUpdateEVScores]); // <-- sin evScores
 
   // ─── Recalcular EC desde sus EV (usado al volver del detalle) ────
   const recalcEcFromEvs = useCallback(
@@ -167,7 +167,7 @@ export function GradingSheet({
       if (evValues.length === 0) return;
       const sumaEV = evValues.reduce((a, b) => a + b, 0);
       const nuevaNota = Math.min(
-        Math.round((sumaEV * 0.9 + (asistencias[estId] ?? 0)) * 100) / 100,
+        Math.round(sumaEV * 0.9 + (asistencias[estId] ?? 0)),
         100,
       );
       setEcScores((prev) => ({
@@ -216,7 +216,7 @@ export function GradingSheet({
       if (isNaN(val)) val = 0;
       if (val < 0) val = 0;
       if (val > 10) val = 10;
-      return { ...prev, [idInscripcion]: Math.round(val * 100) / 100 };
+      return { ...prev, [idInscripcion]: Math.round(val) };
     });
   }, []);
 
@@ -237,7 +237,7 @@ export function GradingSheet({
       if (isNaN(val)) return { ...prev, [idInscripcion]: null };
       if (val < 0) return { ...prev, [idInscripcion]: 0 };
       if (val > 100) return { ...prev, [idInscripcion]: 100 };
-      return { ...prev, [idInscripcion]: Math.round(val * 100) / 100 };
+      return { ...prev, [idInscripcion]: Math.round(val) };
     });
   }, []);
 
@@ -527,6 +527,10 @@ export function GradingSheet({
                     ) / 100,
                     100,
                   );
+                  const notaEcOk = notaEcCalculada >= notaAprobacionState;
+                  const asistencia =
+                    asistencias[item.id_inscripcion] ?? item.nota_asistencia;
+                  const asistenciaOk = asistencia >= 1;
                   const estadoEC =
                     notaEcCalculada >= notaAprobacionState
                       ? "Aprobado"
@@ -555,6 +559,16 @@ export function GradingSheet({
                       </View>
                       {evs.map((ev) => {
                         const currentVal = currentEvScores[ev.id] ?? 0;
+                        const puntajeMaximo = Number(ev.puntaje_maximo) || 0;
+                        let bgColor = "transparent";
+                        if (puntajeMaximo > 0) {
+                          if (currentVal > puntajeMaximo) {
+                            bgColor = c.destructive + "20";
+                          } else if (currentVal === puntajeMaximo) {
+                            bgColor = c.success + "20";
+                          }
+                        }
+
                         return (
                           <View
                             key={ev.id}
@@ -564,17 +578,14 @@ export function GradingSheet({
                                 width: COL_EV,
                                 borderRightWidth: 1,
                                 borderRightColor: c.border + "100",
-                                backgroundColor:
-                                  currentVal < notaAprobacionState
-                                    ? c.destructive + "20"
-                                    : "transparent",
+                                backgroundColor: bgColor,
                               },
                             ]}
                           >
                             <TextInput
                               style={[styles.input, { color: c.text }]}
                               keyboardType="decimal-pad"
-                              value={(currentEvScores[ev.id] ?? 0).toString()}
+                              value={Math.round(currentVal).toString()}
                               onChangeText={(text) => {
                                 const filtered = text.replace(/[^0-9.]/g, "");
                                 const val =
@@ -600,18 +611,22 @@ export function GradingSheet({
                             width: COL_ASIST,
                             borderRightWidth: 1,
                             borderRightColor: c.border + "100",
-                            backgroundColor: c.backgroundSecondary + "40",
+                            backgroundColor: asistenciaOk
+                              ? c.success + "20"
+                              : c.destructive + "20",
                           },
                         ]}
                       >
                         <TextInput
-                          style={[styles.input, { color: c.primary }]}
+                          style={[
+                            styles.input,
+                            {
+                              color: asistenciaOk ? c.success : c.destructive,
+                              fontWeight: "700",
+                            },
+                          ]}
                           keyboardType="decimal-pad"
-                          value={
-                            asistencias[item.id_inscripcion] !== undefined
-                              ? asistencias[item.id_inscripcion].toString()
-                              : (item.nota_asistencia?.toString() ?? "")
-                          }
+                          value={asistencia.toString()}
                           onChangeText={(text) =>
                             handleAsistenciaChange(item.id_inscripcion, text)
                           }
@@ -628,17 +643,22 @@ export function GradingSheet({
                             width: COL_EC,
                             borderRightWidth: 1,
                             borderRightColor: c.border + "100",
-                            backgroundColor: c.backgroundSecondary + "40",
+                            backgroundColor: notaEcOk
+                              ? c.success + "20"
+                              : c.destructive + "20",
                           },
                         ]}
                       >
                         <TextInput
                           style={[
                             styles.input,
-                            { color: c.primary, fontWeight: "700" },
+                            {
+                              color: notaEcOk ? c.success : c.destructive,
+                              fontWeight: "700",
+                            },
                           ]}
                           keyboardType="decimal-pad"
-                          value={notaEcCalculada.toFixed(2)}
+                          value={Math.round(notaEcCalculada).toString()}
                           onChangeText={(text) => {
                             const filtered = text.replace(/[^0-9.]/g, "");
                             const val =
@@ -667,20 +687,36 @@ export function GradingSheet({
                             minWidth: COL_STATUS,
                             borderRightWidth: 1,
                             borderRightColor: c.border + "100",
+                            justifyContent: "center",
+                            alignItems: "center",
                           },
                         ]}
                       >
-                        <Text
-                          style={{
-                            color:
-                              estadoEC === "Aprobado"
-                                ? c.success
-                                : c.destructive,
-                            fontWeight: "600",
-                          }}
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            {
+                              backgroundColor:
+                                estadoEC === "Aprobado"
+                                  ? c.success + "15"
+                                  : c.destructive + "15",
+                            },
+                          ]}
                         >
-                          {estadoEC}
-                        </Text>
+                          <Text
+                            style={[
+                              styles.statusText,
+                              {
+                                color:
+                                  estadoEC === "Aprobado"
+                                    ? c.success
+                                    : c.destructive,
+                              },
+                            ]}
+                          >
+                            {estadoEC}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   );
@@ -916,14 +952,16 @@ export function GradingSheet({
                               backgroundColor:
                                 (score ?? 0) < notaAprobacionState
                                   ? c.destructive + "20"
-                                  : "transparent",
+                                  : c.success + "20",
                             },
                           ]}
                         >
                           <TextInput
                             style={[styles.input, { color: c.text }]}
                             keyboardType="decimal-pad"
-                            value={score?.toString() ?? "0"}
+                            value={
+                              score != null ? Math.round(score).toString() : "0"
+                            }
                             onChangeText={(text) => {
                               const filtered = text.replace(/[^0-9.]/g, "");
                               const val =
@@ -952,13 +990,16 @@ export function GradingSheet({
                           width: COL_FINAL,
                           borderRightColor: c.border + "100",
                           borderRightWidth: 1,
-                          backgroundColor: c.backgroundSecondary + "60",
+                          backgroundColor:
+                            finalNota < notaAprobacionState
+                              ? c.destructive + "20"
+                              : c.success + "20",
                         },
                       ]}
                     >
                       <Text
                         style={[
-                          styles.input,
+                          styles.finalText,
                           {
                             color:
                               finalNota >= notaAprobacionState
@@ -978,7 +1019,12 @@ export function GradingSheet({
                           width: COL_SEGUNDA,
                           borderRightColor: c.border + "100",
                           borderRightWidth: 1,
-                          backgroundColor: c.backgroundSecondary + "60",
+                          backgroundColor:
+                            notaSegunda == null
+                              ? c.backgroundSecondary + "60" // cuando todavía no existe nota
+                              : notaSegunda < notaAprobacionState
+                                ? c.destructive + "20"
+                                : c.success + "20",
                         },
                       ]}
                     >
@@ -998,7 +1044,7 @@ export function GradingSheet({
                         keyboardType="decimal-pad"
                         value={
                           notaSegunda !== null && notaSegunda !== undefined
-                            ? notaSegunda.toString()
+                            ? Math.round(notaSegunda).toString()
                             : ""
                         }
                         onChangeText={(text) =>
@@ -1108,7 +1154,7 @@ export function GradingSheet({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  tableContainer: { flex: 1, marginTop: 16, zIndex: 1 },
+  tableContainer: { flex: 1, marginTop: 0, zIndex: 1 },
   horizontalScroll: { flex: 1 },
   flatList: { flex: 1 },
   headerRow: {
@@ -1149,22 +1195,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   studentName: { fontSize: 14, fontWeight: "600" },
+  cell: {
+    justifyContent: "center",
+    alignItems: "stretch",
+    padding: 0,
+  },
   scoreCell: {
     justifyContent: "center",
     alignItems: "center",
-  },
-  cell: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
+    padding: 0,
   },
   input: {
+    flex: 1,
     width: "100%",
+    height: "100%",
     textAlign: "center",
     fontSize: 14,
     fontWeight: "500",
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    padding: 0,
+    textAlignVertical: "center",
   },
   statusCell: {
     justifyContent: "center",
@@ -1172,10 +1221,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   statusBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 20,
+    minWidth: 110,
+    height: 30,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 14,
   },
-  statusText: { fontSize: 12, fontWeight: "600" },
+  statusText: { fontSize: 12, fontWeight: "700", textAlign: "center" },
   listContent: { paddingBottom: 60 },
+  finalText: {
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });

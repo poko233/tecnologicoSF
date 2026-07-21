@@ -67,7 +67,6 @@ export function useEstudiantes() {
 
       return lista;
     } catch (error: any) {
-      console.error(error);
 
       if (estudiantesCache) {
         setEstudiantes(estudiantesCache);
@@ -107,7 +106,6 @@ export function useEstudiantes() {
 
         return estudiante;
       } catch (error: any) {
-        console.error(error);
 
         Toast.show({
           type: "error",
@@ -147,7 +145,6 @@ export function useEstudiantes() {
 
         return data;
       } catch (error: any) {
-        console.error(error);
 
         Toast.show({
           type: "error",
@@ -186,7 +183,6 @@ export function useEstudiantes() {
 
         return estudiante;
       } catch (error: any) {
-        console.error(error);
 
         Toast.show({
           type: "error",
@@ -223,7 +219,6 @@ export function useEstudiantes() {
 
         return estudiante;
       } catch (error: any) {
-        console.error(error);
 
         Toast.show({
           type: "error",
