@@ -3,11 +3,11 @@ import Toast from "react-native-toast-message";
 
 import {
   actualizarEstudianteAsignacion,
+  actualizarMateriasInscripcion,
   getCarrerasAsignaciones,
   getDetalleEstudiante,
   getEstudiantesAsignaciones,
   getMateriasSemestreUno,
-  inscribirSemestreUno,
 } from "../services/asignaciones.services";
 
 import {
@@ -18,7 +18,7 @@ import {
   MateriaBloqueadaPrerequisito,
   MateriaPendienteAnterior,
   MateriaSemestreUno,
-  TurnoInscripcion,
+  SeleccionMateriaInscripcion,
 } from "../types/asignaciones.types";
 
 export function useAsignaciones() {
@@ -35,23 +35,28 @@ export function useAsignaciones() {
     useState<DetalleEstudianteResponse | null>(null);
 
   const [materias, setMaterias] = useState<MateriaSemestreUno[]>([]);
-
   const [materiasPendientesAnteriores, setMateriasPendientesAnteriores] =
     useState<MateriaPendienteAnterior[]>([]);
-
   const [materiasBloqueadasPrerequisito, setMateriasBloqueadasPrerequisito] =
     useState<MateriaBloqueadaPrerequisito[]>([]);
 
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [loadingMaterias, setLoadingMaterias] = useState(false);
-  const [inscribiendo, setInscribiendo] = useState(false);
+  const [guardandoInscripcion, setGuardandoInscripcion] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   const [carreraActual, setCarreraActual] = useState<number | null>(null);
   const [nivelActual, setNivelActual] = useState<number | null>(null);
+  const [nivelMateriasActual, setNivelMateriasActual] = useState<number | null>(
+    null,
+  );
+  const [notaAprobacionActual, setNotaAprobacionActual] = useState<
+    number | null
+  >(null);
 
   const carreraActualRef = useRef<number | null>(null);
   const nivelActualRef = useRef<number | null>(null);
+  const materiasRequestIdRef = useRef(0);
 
   const cargarCarreras = useCallback(async () => {
     try {
@@ -61,7 +66,6 @@ export function useAsignaciones() {
       const lista = Array.isArray(data) ? data : [];
 
       setCarreras(lista);
-
       return lista;
     } catch (error: any) {
       setCarreras([]);
@@ -81,10 +85,13 @@ export function useAsignaciones() {
   }, []);
 
   const limpiarSeleccion = useCallback((conLoading = false) => {
+    materiasRequestIdRef.current += 1;
     setDetalle(null);
     setMaterias([]);
     setMateriasPendientesAnteriores([]);
     setMateriasBloqueadasPrerequisito([]);
+    setNivelMateriasActual(null);
+    setNotaAprobacionActual(null);
     setLoadingDetalle(conLoading);
     setLoadingMaterias(conLoading);
   }, []);
@@ -126,7 +133,6 @@ export function useAsignaciones() {
         );
 
         const lista = Array.isArray(data) ? data : [];
-
         setEstudiantes(lista);
 
         return lista;
@@ -155,7 +161,6 @@ export function useAsignaciones() {
       setDetalle(null);
 
       const data = await getDetalleEstudiante(idUsuario);
-
       setDetalle(data);
 
       return data;
@@ -192,43 +197,39 @@ export function useAsignaciones() {
           ? Number(nivel)
           : nivelActualRef.current;
 
-      if (!idCarreraFinal || Number(idCarreraFinal) <= 0) {
+      if (!idCarreraFinal || idCarreraFinal <= 0) {
         Toast.show({
           type: "error",
           text1: "Carrera requerida",
           text2: "Debes seleccionar una carrera antes de cargar materias.",
         });
-
-        setMaterias([]);
-        setMateriasPendientesAnteriores([]);
-        setMateriasBloqueadasPrerequisito([]);
         return [];
       }
 
-      if (!nivelFinal || Number(nivelFinal) <= 0) {
+      if (!nivelFinal || nivelFinal <= 0) {
         Toast.show({
           type: "error",
           text1: "Nivel requerido",
           text2:
             "Debes seleccionar semestre, año o mes antes de cargar materias.",
         });
-
-        setMaterias([]);
-        setMateriasPendientesAnteriores([]);
-        setMateriasBloqueadasPrerequisito([]);
         return [];
       }
+
+      const requestId = materiasRequestIdRef.current + 1;
+      materiasRequestIdRef.current = requestId;
 
       try {
         setLoadingMaterias(true);
         setMaterias([]);
         setMateriasPendientesAnteriores([]);
         setMateriasBloqueadasPrerequisito([]);
+        setNivelMateriasActual(nivelFinal);
 
         const data = await getMateriasSemestreUno(
           idUsuario,
-          Number(idCarreraFinal),
-          Number(nivelFinal),
+          idCarreraFinal,
+          nivelFinal,
         );
 
         const lista = Array.isArray(data.materias) ? data.materias : [];
@@ -237,19 +238,32 @@ export function useAsignaciones() {
         )
           ? data.materiasPendientesAnteriores
           : [];
-
         const bloqueadasPrerequisito = Array.isArray(
           data.materiasBloqueadasPrerequisito,
         )
           ? data.materiasBloqueadasPrerequisito
           : [];
 
+        if (materiasRequestIdRef.current !== requestId) {
+          return lista;
+        }
+
         setMaterias(lista);
         setMateriasPendientesAnteriores(pendientesAnteriores);
         setMateriasBloqueadasPrerequisito(bloqueadasPrerequisito);
+        setNivelMateriasActual(data.nivelSeleccionado ?? nivelFinal);
+        setNotaAprobacionActual(
+          data.notaAprobacion !== undefined && data.notaAprobacion !== null
+            ? Number(data.notaAprobacion)
+            : null,
+        );
 
         return lista;
       } catch (error: any) {
+        if (materiasRequestIdRef.current !== requestId) {
+          return [];
+        }
+
         setMaterias([]);
         setMateriasPendientesAnteriores([]);
         setMateriasBloqueadasPrerequisito([]);
@@ -264,93 +278,117 @@ export function useAsignaciones() {
 
         return [];
       } finally {
-        setLoadingMaterias(false);
+        if (materiasRequestIdRef.current === requestId) {
+          setLoadingMaterias(false);
+        }
       }
     },
     [],
   );
 
-  const inscribir = useCallback(
+  const actualizarInscripcion = useCallback(
     async (
       idUsuario: number,
       idCarrera: number | null | undefined,
-      turno: TurnoInscripcion,
-      nivel?: number | null,
+      agregar: SeleccionMateriaInscripcion[],
+      quitar: SeleccionMateriaInscripcion[],
     ) => {
       const idCarreraFinal =
         idCarrera !== undefined && idCarrera !== null
           ? Number(idCarrera)
           : carreraActualRef.current;
 
-      const nivelFinal =
-        nivel !== undefined && nivel !== null
-          ? Number(nivel)
-          : nivelActualRef.current;
-
-      if (!idCarreraFinal || Number(idCarreraFinal) <= 0) {
+      if (!idCarreraFinal || idCarreraFinal <= 0) {
         Toast.show({
           type: "error",
           text1: "Carrera requerida",
-          text2: "Debes seleccionar una carrera antes de inscribir.",
+          text2: "Debes seleccionar una carrera antes de guardar cambios.",
         });
-
         return null;
       }
 
-      if (!nivelFinal || Number(nivelFinal) <= 0) {
+      if (agregar.length === 0 && quitar.length === 0) {
         Toast.show({
-          type: "error",
-          text1: "Nivel requerido",
-          text2: "Debes seleccionar semestre, año o mes antes de inscribir.",
+          type: "info",
+          text1: "Sin cambios",
+          text2: "No agregaste ni retiraste materias.",
         });
-
         return null;
       }
 
       try {
-        setInscribiendo(true);
+        setGuardandoInscripcion(true);
 
-        const data = await inscribirSemestreUno(
+        const data = await actualizarMateriasInscripcion(
           idUsuario,
-          Number(idCarreraFinal),
-          turno,
-          Number(nivelFinal),
+          idCarreraFinal,
+          agregar,
+          quitar,
         );
 
         Toast.show({
           type: "success",
-          text1: "Inscripción realizada",
-          text2:
-            data?.message ??
-            "El estudiante fue inscrito correctamente en las materias.",
+          text1: "Inscripción actualizada",
+          text2: data?.message ?? "Los cambios fueron guardados correctamente.",
         });
 
-        await Promise.all([
-          cargarEstudiantes(Number(idCarreraFinal), Number(nivelFinal)),
-          cargarDetalle(idUsuario),
-          cargarMaterias(
-            idUsuario,
-            Number(idCarreraFinal),
-            Number(nivelFinal),
-          ),
-        ]);
+        const nivelParaRecargar =
+          nivelMateriasActual ??
+          agregar[0]?.nivel ??
+          quitar[0]?.nivel ??
+          nivelActualRef.current;
 
+        const tareas: Promise<unknown>[] = [cargarDetalle(idUsuario)];
+
+        if (carreraActualRef.current) {
+          tareas.push(
+            cargarEstudiantes(
+              carreraActualRef.current,
+              nivelActualRef.current,
+            ),
+          );
+        }
+
+        if (nivelParaRecargar) {
+          tareas.push(
+            cargarMaterias(
+              idUsuario,
+              idCarreraFinal,
+              Number(nivelParaRecargar),
+            ),
+          );
+        }
+
+        await Promise.all(tareas);
         return data;
       } catch (error: any) {
+        const errores = error?.response?.data?.errors;
+        const primerError =
+          errores && typeof errores === "object"
+            ? Object.values(errores).flat().find(Boolean)
+            : null;
+
         Toast.show({
           type: "error",
-          text1: "No se pudo inscribir",
-          text2:
-            error?.response?.data?.message ??
-            "Verifique los cupos disponibles, el turno y el nivel seleccionado.",
+          text1: "No se pudo actualizar",
+          text2: String(
+            primerError ??
+              error?.response?.data?.message ??
+              "Verifica las materias, los grupos, los turnos y los cupos.",
+          ),
         });
 
         return null;
       } finally {
-        setInscribiendo(false);
+        setGuardandoInscripcion(false);
       }
     },
-    [cargarDetalle, cargarEstudiantes, cargarMaterias],
+    [
+      cargarDetalle,
+      cargarEstudiantes,
+      cargarMaterias,
+      nivelMateriasActual,
+    ],
   );
 
   const actualizarEstudiante = useCallback(
@@ -368,19 +406,16 @@ export function useAsignaciones() {
 
         const tareas: Promise<unknown>[] = [cargarDetalle(idUsuario)];
 
-        if (carreraActualRef.current && nivelActualRef.current) {
+        if (carreraActualRef.current) {
           tareas.push(
             cargarEstudiantes(
               carreraActualRef.current,
               nivelActualRef.current,
             ),
           );
-        } else if (carreraActualRef.current) {
-          tareas.push(cargarEstudiantes(carreraActualRef.current));
         }
 
         await Promise.all(tareas);
-
         return true;
       } catch (error: any) {
         Toast.show({
@@ -402,31 +437,27 @@ export function useAsignaciones() {
   return {
     loading,
     loadingCarreras,
-
     carreras,
     estudiantes,
-
     estudianteSeleccionado,
     setEstudianteSeleccionado,
-
     detalle,
     materias,
     materiasPendientesAnteriores,
     materiasBloqueadasPrerequisito,
-
     loadingDetalle,
     loadingMaterias,
-    inscribiendo,
+    guardandoInscripcion,
     guardando,
-
     carreraActual,
     nivelActual,
-
+    nivelMateriasActual,
+    notaAprobacionActual,
     cargarCarreras,
     cargarEstudiantes,
     cargarDetalle,
     cargarMaterias,
-    inscribir,
+    actualizarInscripcion,
     actualizarEstudiante,
     limpiarSeleccion,
     limpiarTabla,

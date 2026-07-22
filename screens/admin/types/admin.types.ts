@@ -21,12 +21,14 @@ export interface AdminFormulario {
   formulario: string;
   ruta: string | null;
   descripcion: string | null;
+  posicion: number;
 }
 
 export interface CreateFormularioPayload {
   formulario: string;
   ruta: string;
   descripcion?: string;
+  posicion?: number;
 }
 
 export interface FormularioModuloAssignment {

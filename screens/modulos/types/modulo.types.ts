@@ -4,6 +4,7 @@ export interface Modulo {
   modulo: string;
   descripcion: string | null;
   icono: string | null;
+  posicion: number;
   formularios?: Formulario[];
 }
 
@@ -12,6 +13,7 @@ export interface Formulario {
   formulario: string;
   descripcion: string | null;
   ruta: string | null;
+  posicion: number;
 }
 
 
@@ -19,6 +21,7 @@ export interface CreateModuloPayload {
   modulo: string;
   descripcion?: string;
   icono?: string;
+  posicion?: number;
 }
 
 export type UpdateModuloPayload = CreateModuloPayload;

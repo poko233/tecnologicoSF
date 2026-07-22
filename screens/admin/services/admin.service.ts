@@ -47,6 +47,14 @@ export const adminService = {
     return res.data;
   },
 
+  reorderFormularios: async (items: Array<{ id: number; posicion: number }>): Promise<void> => {
+    await httpClient.postAuth<{ message: string }>(
+      "/api/formularios/reorder",
+      items,
+      "No se pudo reordenar los formularios",
+    );
+  },
+
 
   getFormularioModulos: async (): Promise<FormularioModuloAssignment[]> => {
     const res = await httpClient.getAuth<ApiList<FormularioModuloAssignment>>(

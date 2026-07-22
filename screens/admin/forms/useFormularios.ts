@@ -67,6 +67,30 @@ export function useFormularios() {
     }
   };
 
+  const reorderFormularios = async (
+    items: Array<{ id: number; posicion: number }>
+  ): Promise<boolean> => {
+    try {
+      await adminService.reorderFormularios(items);
+      // Actualizar el estado local con las nuevas posiciones
+      setFormularios((prev) => {
+        const updated = prev.map((f) => {
+          const found = items.find((i) => i.id === f.id);
+          return found ? { ...f, posicion: found.posicion } : f;
+        });
+        return updated.sort((a, b) => a.posicion - b.posicion);
+      });
+      Toast.show({ type: "success", text1: "Orden actualizado" });
+      return true;
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: "Error al reordenar",
+        text2: error?.message,
+      });
+      return false;
+    }
+  };
 
   useEffect(() => {
     fetchFormularios();
@@ -79,6 +103,7 @@ export function useFormularios() {
     fetchFormularios,
     createFormulario,
     deleteFormulario,
-    updateFormulario
+    updateFormulario,
+    reorderFormularios,
   };
 }

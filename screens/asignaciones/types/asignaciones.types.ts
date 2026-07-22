@@ -17,6 +17,7 @@ export type CarreraAsignacion = {
   estadoCarrera?: string | null;
   tipoNivel?: string | null;
   nivelesAcademicos?: number[];
+  notaAprobacion?: number | null;
 };
 
 export type Estudiante = {
@@ -40,11 +41,15 @@ export type Estudiante = {
   updated_at?: string | null;
 
   yaInscrito?: boolean | number | string | null;
-  puedeInscribir?: boolean;
-  tieneMateriasDesbloqueadas?: boolean;
+  puedeInscribir?: boolean | number | string | null;
+  tieneMateriasDesbloqueadas?: boolean | number | string | null;
+  inscripcionCompletaNivel?: boolean | number | string | null;
+
+  totalMateriasInscritasNivel?: number;
+  totalMateriasDisponiblesNivel?: number;
 
   materiasPendientesAnterioresCount?: number;
-  tienePendientesAnteriores?: boolean;
+  tienePendientesAnteriores?: boolean | number | string | null;
 
   nivelesAcademicos?: Array<string | number>;
   nivelesPorCarrera?: {
@@ -54,6 +59,7 @@ export type Estudiante = {
 };
 
 export type GrupoDisponible = {
+  idGrupoMateriaDocente: number;
   idGrupo: number;
   idGestion?: number | null;
   nombreGrupo: string;
@@ -65,6 +71,7 @@ export type GrupoDisponible = {
   periodoGestion?: string | null;
   estadoGestion?: string | null;
   cupos: number;
+  estudianteYaEnGrupo?: boolean;
 };
 
 export type MateriaPendienteAnterior = {
@@ -72,10 +79,12 @@ export type MateriaPendienteAnterior = {
   nombreMateria: string;
   codigoMateria: string;
   semestre: number;
+  notaAprobacion?: number | null;
   estadoAcademico?: EstadoAcademicoMateria | null;
   estadoNotaHistorial?: "Aprobado" | "Reprobado" | "Abandono" | string | null;
   notaFinalHistorial?: number | null;
   segundaInstanciaNotaHistorial?: number | null;
+  notaEfectivaHistorial?: number | null;
   periodoGestionHistorial?: string | null;
   fechaCierreHistorial?: string | null;
 };
@@ -98,7 +107,12 @@ export type MateriaSemestreUno = {
   semestre: number;
   idCarrera: number;
   nombreCarrera: string;
+  notaAprobacion?: number | null;
+
   yaInscrito: boolean;
+  seleccionable?: boolean;
+  motivoNoSeleccionable?: string | null;
+
   grupoSeleccionado: GrupoDisponible | null;
   gruposDisponibles: GrupoDisponible[];
 
@@ -106,9 +120,39 @@ export type MateriaSemestreUno = {
   estadoNotaHistorial?: "Aprobado" | "Reprobado" | "Abandono" | string | null;
   notaFinalHistorial?: number | null;
   segundaInstanciaNotaHistorial?: number | null;
+  notaEfectivaHistorial?: number | null;
   periodoGestionHistorial?: string | null;
   fechaCierreHistorial?: string | null;
 };
+
+/**
+ * Representación completa de una materia usada por los modales.
+ * Sirve tanto para agregar como para retirar una materia.
+ */
+export type SeleccionMateriaInscripcion = {
+  idMateria: number;
+  idGrupoMateriaDocente: number;
+  idGrupo: number;
+  nombreMateria: string;
+  codigoMateria: string;
+  nivel: number;
+  nivelLabel: string;
+  turno: TurnoInscripcion;
+  nombreGrupo: string;
+  codigoGrupo: string;
+  paralelo: string;
+  cupos: number;
+};
+
+export type SeleccionMateriaPayload = Pick<
+  SeleccionMateriaInscripcion,
+  "idMateria" | "idGrupoMateriaDocente" | "nivel" | "turno"
+>;
+
+export type RetiroMateriaPayload = Pick<
+  SeleccionMateriaInscripcion,
+  "idMateria" | "idGrupoMateriaDocente"
+>;
 
 export type DocumentoEstudiante = {
   idDocumentoEstudiante: number;
@@ -124,10 +168,11 @@ export type InscripcionDetalle = {
   idInscripcion: number;
   idGrupo: number;
   idGestion?: number | null;
+  idGrupoMateriaDocente: number;
   nombreGrupo: string;
   codigoGrupo: string;
   paralelo: string;
-  turno: string;
+  turno: TurnoInscripcion | string;
   gestion: string | number;
   anioGestion?: string | number | null;
   periodoGestion?: string | null;
@@ -147,6 +192,9 @@ export type CarreraEstudiante = {
   regimen: string;
   tipo?: string | null;
   estadoCarrera: string;
+  tipoNivel?: string | null;
+  nivelesAcademicos?: number[];
+  notaAprobacion?: number | null;
 };
 
 export type DetalleEstudianteResponse = {
@@ -181,36 +229,36 @@ export type MateriasSemestreUnoResponse = {
 
   esNivelInicial?: boolean;
   nivelSeleccionado?: number;
+  nivelesAcademicos?: number[];
   labelNivel?: string;
+  notaAprobacion?: number | null;
   gestionActiva?: GestionActiva | null;
 };
 
-export type InscripcionRealizada = {
+export type MateriaActualizada = {
+  idMateria: number;
   materia: string;
+  codigoMateria?: string | null;
+  nivel: number;
   idGrupo: number;
+  idGrupoMateriaDocente: number;
+  grupo: string;
+  paralelo?: string | null;
   turno: TurnoInscripcion;
 };
 
-export type InscribirResponse = {
+export type ActualizarInscripcionResponse = {
   message: string;
-  turno?: TurnoInscripcion;
-  nivelSeleccionado?: number;
   gestionActiva?: GestionActiva | null;
-
-  inscritas: Array<string | InscripcionRealizada>;
-  omitidas: string[];
-  sinCupos?: string[];
-  sinGestion?: string[];
+  agregadas: MateriaActualizada[];
+  retiradas: MateriaActualizada[];
+  inscritas?: MateriaActualizada[];
   cuposDescontados?: number;
-
-  materiasPendientesAnteriores?: MateriaPendienteAnterior[];
-  tienePendientesAnteriores?: boolean;
-  totalPendientesAnteriores?: number;
-
-  materiasBloqueadasPrerequisito?: MateriaBloqueadaPrerequisito[];
-  totalMateriasBloqueadasPrerequisito?: number;
-  esNivelInicial?: boolean;
+  cuposDevueltos?: number;
 };
+
+/** Compatibilidad con código anterior. */
+export type InscribirResponse = ActualizarInscripcionResponse;
 
 export type EstudianteForm = {
   apellidoPaterno: string;

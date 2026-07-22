@@ -1,4 +1,5 @@
 // screens/admin/academico/grupos/GrupoScreen.tsx
+import { useTheme } from "@theme";
 import React from "react";
 import { Text } from "react-native";
 import { GenericAdminScreen } from "../components/GenericAdminScreen";
@@ -9,69 +10,77 @@ import { Grupo } from "./grupo.types";
 import { GrupoForm } from "./GrupoForm";
 import { grupoService } from "./grupoService";
 
-const columns: ColumnDef[] = [
-  { key: "nombre", header: "Nombre", flex: 1 },
-  { key: "codigo", header: "Código", width: 100 },
-  { key: "paralelo", header: "Paralelo", width: 80 },
-  { key: "turno", header: "Turno", width: 90 },
-  {
-    key: "gestionNombre", // ← ahora apunta al nuevo campo
-    header: "Gestión",
-    width: 100,
-    render: (val, item) => (
-      <Text style={{ fontSize: 13, fontWeight: "500" }}>
-        {val || `ID ${item.idGestion}`}
-      </Text>
-    ),
-  },
-  { key: "cupos", header: "Cupos", width: 70 },
-  {
-    key: "fecha_inicio",
-    header: "Fecha inicio",
-    width: 110,
-    render: (val: string) => {
-      if (!val) return <Text style={{ fontSize: 12 }}>-</Text>;
-      const [year, month, day] = val.split("-");
-      return (
-        <Text style={{ fontSize: 12 }}>{`${day}/${month}/${year}`}</Text>
-      );
-    },
-  },
-  {
-    key: "fecha_fin",
-    header: "Fecha fin",
-    width: 110,
-    render: (val: string) => {
-      if (!val) return <Text style={{ fontSize: 12 }}>-</Text>;
-      const [year, month, day] = val.split("-");
-      return (
-        <Text style={{ fontSize: 12 }}>{`${day}/${month}/${year}`}</Text>
-      );
-    },
-  },
-  {
-    key: "horarios",
-    header: "Horarios",
-    width: 80,
-    render: (val: any[]) => (
-      <Text style={{ fontSize: 12 }}>{val?.length ?? 0} día(s)</Text>
-    ),
-  },
-  {
-    key: "estado",
-    header: "Estado",
-    width: 110,
-    render: (val) => <StatusBadge status={val} />,
-  },
-];
-
 export function GrupoScreen() {
+  const { theme } = useTheme();
+
+  const columns: ColumnDef[] = [
+    { key: "nombre", header: "Nombre", flex: 1 },
+    { key: "codigo", header: "Código", width: 100 },
+    { key: "paralelo", header: "Paralelo", width: 80 },
+    { key: "turno", header: "Turno", width: 90 },
+    {
+      key: "gestionNombre",
+      header: "Gestión",
+      width: 100,
+      render: (val, item) => (
+        <Text style={{ fontSize: 13, fontWeight: "500", color: theme.colors.text }}>
+          {val || `ID ${item.idGestion}`}
+        </Text>
+      ),
+    },
+    { key: "cupos", header: "Cupos", width: 70 },
+    {
+      key: "fecha_inicio",
+      header: "Fecha inicio",
+      width: 110,
+      render: (val: string) => {
+        if (!val) return <Text style={{ fontSize: 12, color: theme.colors.text }}>-</Text>;
+        const [year, month, day] = val.split("-");
+        return (
+          <Text style={{ fontSize: 12, color: theme.colors.text }}>
+            {`${day}/${month}/${year}`}
+          </Text>
+        );
+      },
+    },
+    {
+      key: "fecha_fin",
+      header: "Fecha fin",
+      width: 110,
+      render: (val: string) => {
+        if (!val) return <Text style={{ fontSize: 12, color: theme.colors.text }}>-</Text>;
+        const [year, month, day] = val.split("-");
+        return (
+          <Text style={{ fontSize: 12, color: theme.colors.text }}>
+            {`${day}/${month}/${year}`}
+          </Text>
+        );
+      },
+    },
+    {
+      key: "horarios",
+      header: "Horarios",
+      width: 80,
+      render: (val: any[]) => (
+        <Text style={{ fontSize: 12, color: theme.colors.text }}>
+          {val?.length ?? 0} día(s)
+        </Text>
+      ),
+    },
+    {
+      key: "estado",
+      header: "Estado",
+      width: 110,
+      render: (val) => <StatusBadge status={val} />,
+    },
+  ];
+
   const crud = useAdminCrud<Grupo>({
     fetchAll: grupoService.getAll,
     create: grupoService.create,
     update: (id, data) => grupoService.update(Number(id), data),
     delete: grupoService.delete,
-    searchFields: ["nombre", "codigo", "gestionNombre"], // ← búsqueda por nombre de gestión
+    searchFields: ["nombre", "codigo", "gestionNombre"],
     idField: "idGrupo",
   });
 
