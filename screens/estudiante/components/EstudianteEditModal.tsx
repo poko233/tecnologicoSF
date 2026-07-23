@@ -19,6 +19,7 @@ import {
 import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../../components/ThemedText";
+import { BASE_URL, httpClient } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 import { createEstudianteEditModalStyles } from "../styles/estudianteEditModal.styles";
 import {
@@ -58,6 +59,13 @@ type Props = {
 
 type FormErrors = Partial<Record<keyof EstudianteForm, string>>;
 type ModalStyles = ReturnType<typeof createEstudianteEditModalStyles>;
+
+type RegenerarQrResponse = {
+  message?: string;
+  codigo_qr?: string | null;
+  qrUrl?: string | null;
+  estudiante?: Partial<EstudianteUsuario> | null;
+};
 
 type InputProps = {
   label: string;
@@ -150,6 +158,63 @@ function normalizarEstadoForm(value?: string | null): EstudianteForm["estado"] {
   const estado = String(value || "").toUpperCase();
 
   return estado === "INACTIVO" ? "INACTIVO" : "ACTIVO";
+}
+
+function resolverUrlPublica(ruta?: string | null) {
+  const value = String(ruta || "").trim();
+
+  if (!value || value === "0" || value.toLowerCase() === "null") {
+    return null;
+  }
+
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("blob:") ||
+    value.startsWith("data:")
+  ) {
+    return value;
+  }
+
+  return `${BASE_URL}/${value.replace(/^\/+/, "")}`;
+}
+
+function resolverFotoEstudiante(estudiante: EstudianteUsuario | null) {
+  return resolverUrlPublica(estudiante?.fotoUrl || estudiante?.foto);
+}
+
+function resolverQrEstudiante(estudiante: EstudianteUsuario | null) {
+  const qrDirecto = String(estudiante?.qrUrl || "").trim();
+
+  if (qrDirecto && qrDirecto !== "0") {
+    return resolverUrlPublica(qrDirecto);
+  }
+
+  const qrRaw = String(estudiante?.codigo_qr || "").trim();
+
+  if (!qrRaw || qrRaw === "0" || qrRaw.toLowerCase() === "null") {
+    return null;
+  }
+
+  if (
+    qrRaw.startsWith("http://") ||
+    qrRaw.startsWith("https://") ||
+    qrRaw.startsWith("blob:") ||
+    qrRaw.startsWith("data:image")
+  ) {
+    return qrRaw;
+  }
+
+  if (
+    qrRaw.startsWith("qr/") ||
+    qrRaw.startsWith("qrs/") ||
+    qrRaw.startsWith("codigos-qr/") ||
+    qrRaw.startsWith("codigo-qr/")
+  ) {
+    return resolverUrlPublica(qrRaw);
+  }
+
+  return `data:image/png;base64,${qrRaw}`;
 }
 
 function getAge(dateValue: string) {
@@ -337,6 +402,8 @@ export default function EstudianteEditModal({
     null,
   );
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [regenerandoQr, setRegenerandoQr] = useState(false);
+  const [qrRegeneradoUrl, setQrRegeneradoUrl] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [touched, setTouched] = useState<
     Partial<Record<keyof EstudianteForm, boolean>>
@@ -367,7 +434,11 @@ export default function EstudianteEditModal({
 
     setTouched({});
     setSubmitted(false);
-  }, [visible]);
+    setTab("datos");
+    setFotoLocal(null);
+    setQrRegeneradoUrl(null);
+    setRegenerandoQr(false);
+  }, [visible, estudiante?.id]);
 
   useEffect(() => {
     if (!estudiante) return;
@@ -375,9 +446,11 @@ export default function EstudianteEditModal({
     const referencia = obtenerReferencia(estudiante);
     const promocionActual = obtenerPromocionActual(estudiante);
 
-    setTab("datos");
-    setFotoLocal(null);
-
+    /*
+     * No reiniciamos la pestaña ni la foto local aquí. El detalle del mismo
+     * estudiante puede refrescarse después de abrir el modal y antes esto
+     * hacía que Documentos o Foto y QR desaparecieran visualmente.
+     */
     setForm({
       usuario: estudiante.usuario || estudiante.ci || "",
       ci: estudiante.ci || "",
@@ -416,6 +489,19 @@ export default function EstudianteEditModal({
   const promocionActual = obtenerPromocionActual(estudiante);
   const matriculaActual = obtenerMatricula(estudiante);
   const fechaInscripcionActual = obtenerFechaInscripcion(estudiante);
+
+  const fotoServidorUrl = useMemo(
+    () => resolverFotoEstudiante(estudiante),
+    [estudiante?.id, estudiante?.foto, estudiante?.fotoUrl],
+  );
+
+  const qrServidorUrl = useMemo(
+    () => resolverQrEstudiante(estudiante),
+    [estudiante?.id, estudiante?.codigo_qr, estudiante?.qrUrl],
+  );
+
+  const qrMostradoUrl = qrRegeneradoUrl || qrServidorUrl;
+  const fotoCabeceraUrl = fotoLocal?.uri || fotoServidorUrl;
 
   const touchField = (field: keyof EstudianteForm) => {
     setTouched((previous) => ({
@@ -667,23 +753,101 @@ export default function EstudianteEditModal({
     }
   };
 
+  const regenerarQr = async () => {
+    const estudianteActual = estudiante;
+
+    if (!estudianteActual || regenerandoQr) return;
+
+    try {
+      setRegenerandoQr(true);
+
+      const response = await httpClient.postAuth<RegenerarQrResponse>(
+        `/api/estudiantes-usuarios/${estudianteActual.id}/qr/regenerar`,
+        {},
+      );
+
+      const qrRespuesta = String(
+        response?.qrUrl ||
+          response?.codigo_qr ||
+          response?.estudiante?.qrUrl ||
+          response?.estudiante?.codigo_qr ||
+          "",
+      ).trim();
+
+      const qrNuevo = qrRespuesta
+        ? resolverQrEstudiante({
+            ...estudianteActual,
+            codigo_qr: qrRespuesta,
+            qrUrl: qrRespuesta,
+          })
+        : null;
+
+      if (!qrNuevo) {
+        throw new Error(
+          "El servidor regeneró el QR, pero no devolvió una imagen válida.",
+        );
+      }
+
+      /*
+       * Se actualiza inmediatamente para que el usuario vea el nuevo QR sin
+       * esperar la recarga completa del detalle. Después se sincroniza el
+       * estudiante con el listado y la caché mediante el callback existente.
+       */
+      setQrRegeneradoUrl(qrNuevo);
+
+      Toast.show({
+        type: "success",
+        text1: "QR regenerado",
+        text2:
+          response?.message ||
+          "El código QR del estudiante se generó correctamente.",
+      });
+
+      await onDocumentoSubido(estudianteActual.id);
+    } catch (error: any) {
+      console.error("Error al regenerar QR:", error);
+
+      Toast.show({
+        type: "error",
+        text1: "No se pudo regenerar el QR",
+        text2:
+          error?.message ||
+          "Ocurrió un error al generar el código QR del estudiante.",
+      });
+    } finally {
+      setRegenerandoQr(false);
+    }
+  };
+
   const descargarQr = async () => {
-    if (!estudiante?.qrUrl) {
+    const estudianteActual = estudiante;
+    const qrActual = qrMostradoUrl;
+
+    if (!estudianteActual || !qrActual) {
       Toast.show({
         type: "error",
         text1: "Sin QR",
-        text2: "Este estudiante no tiene QR.",
+        text2: "Este estudiante no tiene un código QR registrado.",
       });
 
       return;
     }
 
+    const identificadorArchivo = String(
+      estudianteActual.ci || estudianteActual.id,
+    )
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    const nombreArchivo = `qr-${identificadorArchivo}.png`;
+
     try {
       if (Platform.OS === "web") {
         const link = document.createElement("a");
 
-        link.href = estudiante.qrUrl;
-        link.download = `qr-${estudiante.ci || estudiante.id}.png`;
+        link.href = qrActual;
+        link.download = nombreArchivo;
+        link.rel = "noopener noreferrer";
 
         document.body.appendChild(link);
         link.click();
@@ -693,31 +857,55 @@ export default function EstudianteEditModal({
       }
 
       const FileSystem = FileSystemNS as any;
+      const fileUri = `${FileSystem.cacheDirectory}${nombreArchivo}`;
 
-      const base64Data = estudiante.qrUrl.includes(",")
-        ? estudiante.qrUrl.split(",")[1]
-        : estudiante.qrUrl;
+      const esUrlRemota =
+        qrActual.startsWith("http://") || qrActual.startsWith("https://");
 
-      const fileUri =
-        FileSystem.cacheDirectory + `qr-${estudiante.ci || estudiante.id}.png`;
+      if (esUrlRemota) {
+        const resultado = await FileSystem.downloadAsync(qrActual, fileUri);
 
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+        if (resultado?.status && Number(resultado.status) >= 400) {
+          throw new Error(
+            `No se pudo descargar el QR. Estado ${resultado.status}`,
+          );
+        }
+      } else {
+        const base64Data = qrActual.includes(",")
+          ? qrActual.substring(qrActual.indexOf(",") + 1)
+          : qrActual;
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, {
-          mimeType: "image/png",
-          dialogTitle: "Descargar QR",
-          UTI: "public.png",
+        if (!base64Data.trim()) {
+          throw new Error("El contenido del QR está vacío.");
+        }
+
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
         });
       }
-    } catch (error) {
+
+      if (!(await Sharing.isAvailableAsync())) {
+        Toast.show({
+          type: "error",
+          text1: "Archivo generado",
+          text2: "El dispositivo no permite compartir o guardar el archivo.",
+        });
+
+        return;
+      }
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: "image/png",
+        dialogTitle: "Guardar código QR",
+        UTI: "public.png",
+      });
+    } catch (error: any) {
+      console.error("Error al descargar QR:", error);
 
       Toast.show({
         type: "error",
         text1: "Error",
-        text2: "No se pudo descargar el QR.",
+        text2: error?.message || "No se pudo descargar el código QR.",
       });
     }
   };
@@ -1315,8 +1503,8 @@ export default function EstudianteEditModal({
 
         {fotoLocal?.uri ? (
           <Image source={{ uri: fotoLocal.uri }} style={styles.userPhoto} />
-        ) : estudiante?.fotoUrl ? (
-          <Image source={{ uri: estudiante.fotoUrl }} style={styles.userPhoto} />
+        ) : fotoServidorUrl ? (
+          <Image source={{ uri: fotoServidorUrl }} style={styles.userPhoto} />
         ) : (
           <View style={styles.userPhotoEmpty}>
             <Ionicons
@@ -1336,10 +1524,10 @@ export default function EstudianteEditModal({
             <ThemedText style={styles.selectPhotoText}>Elegir foto</ThemedText>
           </Pressable>
 
-          {estudiante?.fotoUrl && (
+          {fotoServidorUrl && (
             <Pressable
               style={styles.primaryBtn}
-              onPress={() => abrirUrl(estudiante.fotoUrl)}
+              onPress={() => abrirUrl(fotoServidorUrl)}
             >
               <Ionicons
                 name="open-outline"
@@ -1378,27 +1566,68 @@ export default function EstudianteEditModal({
       <View style={styles.mediaCard}>
         <ThemedText style={styles.sectionTitle}>Código QR</ThemedText>
 
-        {estudiante?.qrUrl ? (
-          <>
-            <View style={styles.qrBox}>
-              <Image source={{ uri: estudiante.qrUrl }} style={styles.qrImage} />
-            </View>
+        {qrMostradoUrl ? (
+          <View style={styles.qrBox}>
+            <Image source={{ uri: qrMostradoUrl }} style={styles.qrImage} />
+          </View>
+        ) : (
+          <View style={styles.emptyBox}>
+            <Ionicons
+              name="qr-code-outline"
+              size={46}
+              color={colors.textMuted || colors.muted}
+            />
 
-            <Pressable style={styles.primaryBtn} onPress={descargarQr}>
+            <ThemedText style={styles.emptyText}>Sin QR registrado.</ThemedText>
+          </View>
+        )}
+
+        <View style={styles.qrActions}>
+          {qrMostradoUrl && (
+            <Pressable
+              style={[styles.primaryBtn, regenerandoQr && styles.disabled]}
+              disabled={regenerandoQr}
+              onPress={descargarQr}
+            >
               <Ionicons
                 name="download-outline"
                 size={18}
                 color={colors.primaryForeground}
               />
 
-              <ThemedText style={styles.primaryBtnText}>Descargar QR</ThemedText>
+              <ThemedText style={styles.primaryBtnText}>
+                Descargar QR
+              </ThemedText>
             </Pressable>
-          </>
-        ) : (
-          <View style={styles.emptyBox}>
-            <ThemedText style={styles.emptyText}>Sin QR registrado.</ThemedText>
-          </View>
-        )}
+          )}
+
+          <Pressable
+            style={[styles.regenerateQrBtn, regenerandoQr && styles.disabled]}
+            disabled={regenerandoQr}
+            onPress={regenerarQr}
+          >
+            {regenerandoQr ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons
+                  name="refresh-outline"
+                  size={18}
+                  color={colors.primary}
+                />
+
+                <ThemedText style={styles.regenerateQrText}>
+                  {qrMostradoUrl ? "Regenerar QR" : "Generar QR"}
+                </ThemedText>
+              </>
+            )}
+          </Pressable>
+        </View>
+
+        <ThemedText style={styles.qrHelper}>
+          Al regenerar se reemplazará el QR guardado actualmente para este
+          estudiante.
+        </ThemedText>
       </View>
     </View>
   );
@@ -1415,22 +1644,30 @@ export default function EstudianteEditModal({
           <View style={styles.modal}>
             <View style={styles.header}>
               <View style={styles.headerInfo}>
-                {fotoLocal?.uri ? (
+                {fotoCabeceraUrl ? (
                   <Image
-                    source={{ uri: fotoLocal.uri }}
+                    key={fotoCabeceraUrl}
+                    source={{ uri: fotoCabeceraUrl }}
                     style={styles.headerPhoto}
-                  />
-                ) : estudiante?.fotoUrl ? (
-                  <Image
-                    source={{ uri: estudiante.fotoUrl }}
-                    style={styles.headerPhoto}
+                    resizeMode="cover"
+                    onError={(event) => {
+                      console.warn(
+                        "No se pudo cargar la foto del estudiante:",
+                        fotoCabeceraUrl,
+                        event.nativeEvent,
+                      );
+                    }}
                   />
                 ) : (
                   <View style={styles.headerPhotoEmpty}>
                     <Ionicons
                       name="person-outline"
-                      size={28}
-                      color={colors.textMuted || colors.muted}
+                      size={34}
+                      color={
+                        colors.textMuted ||
+                        colors.muted ||
+                        colors.textSecondary
+                      }
                     />
                   </View>
                 )}

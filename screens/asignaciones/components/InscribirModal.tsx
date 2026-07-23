@@ -112,6 +112,17 @@ function esTurno(value: unknown): value is TurnoInscripcion {
   return TURNOS.includes(value as TurnoInscripcion);
 }
 
+function formatearFechaGrupo(value?: string | null): string {
+  if (!value) return "Sin fecha";
+
+  const limpia = String(value).split("T")[0].split(" ")[0];
+  const partes = limpia.split("-");
+
+  if (partes.length !== 3) return limpia;
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
 function elegirGrupo(
   materia: MateriaSemestreUno,
   turno: TurnoInscripcion | null,
@@ -173,6 +184,8 @@ function inscripcionASeleccion(
     codigoGrupo: inscripcion.codigoGrupo,
     paralelo: inscripcion.paralelo,
     cupos: 0,
+    fechaInicio: inscripcion.fechaInicio ?? null,
+    fechaFin: inscripcion.fechaFin ?? null,
   };
 }
 
@@ -196,6 +209,8 @@ function crearSeleccion(
     codigoGrupo: grupo.codigoGrupo,
     paralelo: grupo.paralelo,
     cupos: Number(grupo.cupos),
+    fechaInicio: grupo.fechaInicio ?? null,
+    fechaFin: grupo.fechaFin ?? null,
   };
 }
 
@@ -286,10 +301,14 @@ export default function InscribirModal({
       ? preferido
       : (niveles[0] ?? null);
 
+    const turnoPreferido = esTurno(carreraInicial.turnoPreferido)
+      ? carreraInicial.turnoPreferido
+      : null;
+
     initializedRef.current = true;
     setCarreraSeleccionadaId(Number(carreraInicial.idCarrera));
     setNivelSeleccionado(primerNivel);
-    setTurnoSeleccionado(null);
+    setTurnoSeleccionado(turnoPreferido);
     setAgregar([]);
     setQuitar([]);
 
@@ -447,9 +466,13 @@ export default function InscribirModal({
     const nivelesCarrera = obtenerNiveles(carrera);
     const nuevoNivel = nivelesCarrera[0] ?? null;
 
+    const turnoPreferido = esTurno(carrera.turnoPreferido)
+      ? carrera.turnoPreferido
+      : null;
+
     setCarreraSeleccionadaId(Number(idCarrera));
     setNivelSeleccionado(nuevoNivel);
-    setTurnoSeleccionado(null);
+    setTurnoSeleccionado(turnoPreferido);
     setAgregar([]);
     setQuitar([]);
 
@@ -1065,6 +1088,20 @@ export default function InscribirModal({
                               <MetaItem
                                 icon="people-outline"
                                 text={`${seleccionMostrada.nombreGrupo} · Paralelo ${seleccionMostrada.paralelo}`}
+                                color={mutedText}
+                              />
+                              <MetaItem
+                                icon="calendar-outline"
+                                text={`Inicio: ${formatearFechaGrupo(
+                                  seleccionMostrada.fechaInicio,
+                                )}`}
+                                color={mutedText}
+                              />
+                              <MetaItem
+                                icon="calendar-number-outline"
+                                text={`Fin: ${formatearFechaGrupo(
+                                  seleccionMostrada.fechaFin,
+                                )}`}
                                 color={mutedText}
                               />
                             </View>

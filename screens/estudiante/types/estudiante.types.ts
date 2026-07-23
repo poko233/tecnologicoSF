@@ -20,6 +20,7 @@ export type DocumentoEstudiante = {
   ubicacionArchivo?: string | null;
   archivoUrl?: string | null;
   estadoDocumento?: string | null;
+  tipo?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -77,6 +78,22 @@ export type EstudianteUsuario = {
   roles?: RolEstudiante[];
   documentos?: DocumentoEstudiante[];
   carreras?: CarreraEstudiante[];
+
+  nivelesAcademicos?: string[];
+  nivelesPorCarrera?: Array<{
+    idCarrera: number | string;
+    nombreCarrera?: string | null;
+    regimen?: string | null;
+    tipo?: string | null;
+    tipoNivel?: string | null;
+    niveles?: string[];
+  }>;
+
+  idCarrera?: number | string | null;
+  nombreCarrera?: string | null;
+  carreraNombre?: string | null;
+  regimenCarrera?: string | null;
+  tipoCarrera?: string | null;
 
   numeroReferencias?: ReferenciaEstudiante | ReferenciaEstudiante[] | null;
   numero_referencias?: ReferenciaEstudiante | ReferenciaEstudiante[] | null;

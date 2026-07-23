@@ -34,6 +34,8 @@ type Props = {
   onVerPdf: (estudiante: Estudiante) => void;
 };
 
+type FiltroCuotas = "todos" | "sinCuotas" | "conCuotas" | "condonadas";
+
 type EstadoVisual = {
   key: "completo" | "agregar" | "pendientes" | "listo" | "revision";
   label: string;
@@ -49,6 +51,15 @@ const ITEMS_PER_PAGE = 10;
 
 function toBoolean(value: unknown): boolean {
   return value === true || value === 1 || value === "1" || value === "true";
+}
+
+function tienePlanCuotasGestion(estudiante: Estudiante): boolean {
+  if (toBoolean(estudiante.requiereCuotasGestion)) return false;
+  return toBoolean(estudiante.tieneCuotasGestion);
+}
+
+function totalCondonadasGestion(estudiante: Estudiante): number {
+  return Math.max(Number(estudiante.totalCuotasCondonadasGestion ?? 0), 0);
 }
 
 function nombreCompleto(estudiante: Estudiante): string {
@@ -222,6 +233,7 @@ export default function EstudiantesTable({
     : "rgba(15,23,42,0.10)";
 
   const [search, setSearch] = useState("");
+  const [filtroCuotas, setFiltroCuotas] = useState<FiltroCuotas>("todos");
   const [page, setPage] = useState(1);
   const [modalCarreraVisible, setModalCarreraVisible] = useState(false);
   const [modalNivelVisible, setModalNivelVisible] = useState(false);
@@ -245,6 +257,7 @@ export default function EstudiantesTable({
 
   useEffect(() => {
     setSearch("");
+    setFiltroCuotas("todos");
     setPage(1);
   }, [carreraSeleccionadaId, nivelSeleccionadoId]);
 
@@ -256,7 +269,16 @@ export default function EstudiantesTable({
           isDark,
           theme.colors.primary,
         );
+        const tieneCuotas = tienePlanCuotasGestion(estudiante);
+        const condonadas = totalCondonadasGestion(estudiante);
+
         acc[visual.key] += 1;
+        acc[tieneCuotas ? "conCuotas" : "sinCuotas"] += 1;
+
+        if (condonadas > 0) {
+          acc.condonadas += 1;
+        }
+
         return acc;
       },
       {
@@ -265,13 +287,15 @@ export default function EstudiantesTable({
         pendientes: 0,
         listo: 0,
         revision: 0,
+        conCuotas: 0,
+        sinCuotas: 0,
+        condonadas: 0,
       },
     );
   }, [estudiantes, isDark, theme.colors.primary]);
 
   const filtrados = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return estudiantes;
 
     return estudiantes.filter((estudiante) => {
       const visual = estadoVisual(
@@ -279,6 +303,23 @@ export default function EstudiantesTable({
         isDark,
         theme.colors.primary,
       );
+      const tieneCuotas = tienePlanCuotasGestion(estudiante);
+      const condonadas = totalCondonadasGestion(estudiante);
+
+      const coincideFiltro =
+        filtroCuotas === "todos" ||
+        (filtroCuotas === "sinCuotas" && !tieneCuotas) ||
+        (filtroCuotas === "conCuotas" && tieneCuotas) ||
+        (filtroCuotas === "condonadas" && condonadas > 0);
+
+      if (!coincideFiltro) return false;
+      if (!q) return true;
+
+      const estadoCuotas = !tieneCuotas
+        ? "sin cuotas de gestión"
+        : condonadas > 0
+          ? `cuotas registradas ${condonadas} condonadas`
+          : "cuotas registradas";
 
       return [
         nombreCompleto(estudiante),
@@ -288,9 +329,16 @@ export default function EstudiantesTable({
         estudiante.celular,
         visual.label,
         visual.description,
+        estadoCuotas,
       ].some((value) => String(value ?? "").toLowerCase().includes(q));
     });
-  }, [estudiantes, search, isDark, theme.colors.primary]);
+  }, [
+    estudiantes,
+    search,
+    filtroCuotas,
+    isDark,
+    theme.colors.primary,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtrados.length / ITEMS_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
@@ -457,6 +505,83 @@ export default function EstudiantesTable({
             color={theme.colors.primary}
             backgroundColor={isDark ? "rgba(59,130,246,0.15)" : "#DBEAFE"}
           />
+          <SummaryChip
+            icon="wallet-outline"
+            label="Sin cuotas"
+            value={resumen.sinCuotas}
+            color={isDark ? "#FCA5A5" : "#B91C1C"}
+            backgroundColor={isDark ? "rgba(239,68,68,0.16)" : "#FEE2E2"}
+          />
+        </View>
+      )}
+
+      {carreraSeleccionada && nivelSeleccionadoId && (
+        <View style={styles.quotaFilterSection}>
+          <View style={styles.quotaFilterHeading}>
+            <Ionicons name="wallet-outline" size={18} color={mutedText} />
+            <ThemedText style={[styles.quotaFilterTitle, { color: strongText }]}> 
+              Estado de cuotas de la gestión
+            </ThemedText>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quotaFilterScroll}
+          >
+            <QuotaFilterButton
+              active={filtroCuotas === "todos"}
+              label="Todos"
+              value={estudiantes.length}
+              icon="people-outline"
+              color={theme.colors.primary}
+              backgroundColor={softCard}
+              borderColor={border}
+              onPress={() => {
+                setFiltroCuotas("todos");
+                setPage(1);
+              }}
+            />
+            <QuotaFilterButton
+              active={filtroCuotas === "sinCuotas"}
+              label="Sin cuotas"
+              value={resumen.sinCuotas}
+              icon="alert-circle-outline"
+              color="#DC2626"
+              backgroundColor={softCard}
+              borderColor={border}
+              onPress={() => {
+                setFiltroCuotas("sinCuotas");
+                setPage(1);
+              }}
+            />
+            <QuotaFilterButton
+              active={filtroCuotas === "conCuotas"}
+              label="Con cuotas"
+              value={resumen.conCuotas}
+              icon="checkmark-circle-outline"
+              color="#16A34A"
+              backgroundColor={softCard}
+              borderColor={border}
+              onPress={() => {
+                setFiltroCuotas("conCuotas");
+                setPage(1);
+              }}
+            />
+            <QuotaFilterButton
+              active={filtroCuotas === "condonadas"}
+              label="Con condonación"
+              value={resumen.condonadas}
+              icon="gift-outline"
+              color="#D97706"
+              backgroundColor={softCard}
+              borderColor={border}
+              onPress={() => {
+                setFiltroCuotas("condonadas");
+                setPage(1);
+              }}
+            />
+          </ScrollView>
         </View>
       )}
 
@@ -474,7 +599,7 @@ export default function EstudiantesTable({
               setSearch(value);
               setPage(1);
             }}
-            placeholder="Buscar por nombre, CI, matrícula o estado..."
+            placeholder="Buscar por nombre, CI, matrícula, estado o cuotas..."
             placeholderTextColor={mutedText}
             style={[styles.searchInput, { color: strongText }]}
           />
@@ -717,9 +842,21 @@ export default function EstudiantesTable({
 
                         <View style={styles.actionsCompactCell}>
                           <ActionButton
-                            label="Editar"
-                            icon="create-outline"
-                            color={theme.colors.primary}
+                            label={
+                              tienePlanCuotasGestion(estudiante)
+                                ? "Editar"
+                                : "Crear cuotas"
+                            }
+                            icon={
+                              tienePlanCuotasGestion(estudiante)
+                                ? "create-outline"
+                                : "wallet-outline"
+                            }
+                            color={
+                              tienePlanCuotasGestion(estudiante)
+                                ? theme.colors.primary
+                                : "#DC2626"
+                            }
                             disabled={false}
                             onPress={() => onInscribir(estudiante)}
                             isDark={isDark}
@@ -789,9 +926,21 @@ export default function EstudiantesTable({
 
                         <View style={styles.actionsCell}>
                           <ActionButton
-                            label="Editar"
-                            icon="create-outline"
-                            color={theme.colors.primary}
+                            label={
+                              tienePlanCuotasGestion(estudiante)
+                                ? "Editar"
+                                : "Crear cuotas"
+                            }
+                            icon={
+                              tienePlanCuotasGestion(estudiante)
+                                ? "create-outline"
+                                : "wallet-outline"
+                            }
+                            color={
+                              tienePlanCuotasGestion(estudiante)
+                                ? theme.colors.primary
+                                : "#DC2626"
+                            }
                             disabled={false}
                             onPress={() => onInscribir(estudiante)}
                             isDark={isDark}
@@ -956,6 +1105,7 @@ function StudentIdentity({
         >
           {estudiante.email || estudiante.celular || "Sin contacto"}
         </ThemedText>
+        <QuotaStatusBadge estudiante={estudiante} />
       </View>
     </View>
   );
@@ -977,6 +1127,110 @@ function StatusBadge({ visual }: { visual: EstadoVisual }) {
         {visual.label}
       </ThemedText>
     </View>
+  );
+}
+
+function QuotaStatusBadge({ estudiante }: { estudiante: Estudiante }) {
+  const tieneCuotas = tienePlanCuotasGestion(estudiante);
+  const condonadas = totalCondonadasGestion(estudiante);
+
+  const color = !tieneCuotas
+    ? "#DC2626"
+    : condonadas > 0
+      ? "#D97706"
+      : "#16A34A";
+
+  const label = !tieneCuotas
+    ? "Sin cuotas de gestión"
+    : condonadas > 0
+      ? `${condonadas} cuota${condonadas === 1 ? "" : "s"} condonada${
+          condonadas === 1 ? "" : "s"
+        }`
+      : "Cuotas registradas";
+
+  const icon: keyof typeof Ionicons.glyphMap = !tieneCuotas
+    ? "alert-circle-outline"
+    : condonadas > 0
+      ? "gift-outline"
+      : "checkmark-circle-outline";
+
+  return (
+    <View
+      style={[
+        styles.quotaStatusBadge,
+        {
+          backgroundColor: `${color}16`,
+          borderColor: `${color}55`,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={12} color={color} />
+      <ThemedText
+        numberOfLines={1}
+        style={[styles.quotaStatusBadgeText, { color }]}
+      >
+        {label}
+      </ThemedText>
+    </View>
+  );
+}
+
+function QuotaFilterButton({
+  active,
+  label,
+  value,
+  icon,
+  color,
+  backgroundColor,
+  borderColor,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  value: number;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  backgroundColor: string;
+  borderColor: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.quotaFilterButton,
+        {
+          backgroundColor: active ? `${color}18` : backgroundColor,
+          borderColor: active ? color : borderColor,
+          opacity: pressed ? 0.76 : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={16} color={active ? color : color} />
+      <ThemedText
+        style={[
+          styles.quotaFilterButtonText,
+          { color: active ? color : color },
+        ]}
+      >
+        {label}
+      </ThemedText>
+      <View
+        style={[
+          styles.quotaFilterCount,
+          { backgroundColor: active ? color : `${color}18` },
+        ]}
+      >
+        <ThemedText
+          style={[
+            styles.quotaFilterCountText,
+            { color: active ? "#FFFFFF" : color },
+          ]}
+        >
+          {value}
+        </ThemedText>
+      </View>
+    </Pressable>
   );
 }
 
@@ -1060,9 +1314,19 @@ function MobileCard({
 
       <View style={styles.mobileActions}>
         <ActionButton
-          label="Editar materias"
-          icon="create-outline"
-          color={visual.color}
+          label={
+            tienePlanCuotasGestion(estudiante)
+              ? "Editar materias"
+              : "Crear cuotas"
+          }
+          icon={
+            tienePlanCuotasGestion(estudiante)
+              ? "create-outline"
+              : "wallet-outline"
+          }
+          color={
+            tienePlanCuotasGestion(estudiante) ? visual.color : "#DC2626"
+          }
           disabled={false}
           onPress={onInscribir}
           isDark={isDark}
@@ -1438,6 +1702,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
   },
+  quotaFilterSection: {
+    gap: 8,
+  },
+  quotaFilterHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  quotaFilterTitle: {
+    fontSize: 12.5,
+    fontWeight: "900",
+  },
+  quotaFilterScroll: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  quotaFilterButton: {
+    minHeight: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  quotaFilterButtonText: {
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  quotaFilterCount: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quotaFilterCountText: {
+    fontSize: 10.5,
+    fontWeight: "900",
+  },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1633,6 +1938,23 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     flexShrink: 1,
     fontSize: 10,
+    fontWeight: "900",
+  },
+  quotaStatusBadge: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    minHeight: 24,
+    marginTop: 5,
+    paddingHorizontal: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  quotaStatusBadgeText: {
+    flexShrink: 1,
+    fontSize: 9.5,
     fontWeight: "900",
   },
   actionButton: {

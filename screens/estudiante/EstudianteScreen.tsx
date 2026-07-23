@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, View } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -13,17 +13,18 @@ import HistorialEstudianteModal from "./components/HistorialEstudianteModal";
 import { useEstudiantes } from "./hooks/useEstudiantes";
 import { createEstudianteScreenStyles } from "./styles/estudianteScreen.styles";
 import {
+  FiltrosEstudiantes,
+  OrdenEstudiantes,
+  filtrarYOrdenarEstudiantes,
+} from "./utils/estudianteListado";
+export type { FiltrosEstudiantes } from "./utils/estudianteListado";
+
+import {
   EstudianteForm,
   EstudianteUsuario,
   FotoEstudianteArchivo,
   HistorialEstudianteResponse,
 } from "./types/estudiante.types";
-
-export type FiltrosEstudiantes = {
-  tipo: string;
-  idCarrera: string;
-  nivel: string;
-};
 
 export default function EstudianteScreen() {
   const { theme } = useTheme();
@@ -38,7 +39,6 @@ export default function EstudianteScreen() {
     estudiantes,
     loading,
     cargandoDetalle,
-    cargandoHistorialEstudiante,
     guardando,
     subiendoFoto,
     cargarEstudiantes,
@@ -64,50 +64,137 @@ export default function EstudianteScreen() {
     tipo: "",
     idCarrera: "",
     nivel: "",
+    documentos: "",
   });
 
+  const [busqueda, setBusqueda] = useState("");
+  const [orden, setOrden] = useState<OrdenEstudiantes>("inscripcion_desc");
+
+  const estudiantesDelListado = useMemo(
+    () =>
+      filtrarYOrdenarEstudiantes(
+        estudiantes,
+        filtros,
+        busqueda,
+        orden,
+      ),
+    [estudiantes, filtros, busqueda, orden],
+  );
+
+  const detalleRequestRef = useRef(0);
+  const detalleAbiertoIdRef = useRef<number | null>(null);
+
+  /*
+   * Control propio del historial. Cada apertura genera un identificador.
+   * Al cerrar, el identificador cambia y cualquier respuesta anterior se
+   * descarta, por lo que el modal no vuelve a abrirse ni actualiza datos.
+   */
+  const historialRequestRef = useRef(0);
+  const historialAbiertoIdRef = useRef<number | null>(null);
+  const [cargandoHistorialModal, setCargandoHistorialModal] = useState(false);
+
   const abrirDetalle = async (estudiante: EstudianteUsuario) => {
+    const requestId = detalleRequestRef.current + 1;
+    detalleRequestRef.current = requestId;
+    detalleAbiertoIdRef.current = estudiante.id;
+
+    /*
+     * Se abre inmediatamente con la información del listado para evitar una
+     * pantalla vacía, pero después se reemplaza solamente con el detalle
+     * fresco del mismo estudiante.
+     */
     setEstudianteSeleccionado(estudiante);
 
-    const detalle = await cargarDetalleEstudiante(estudiante.id);
+    const detalle = await cargarDetalleEstudiante(estudiante.id, true);
 
-    if (detalle) {
+    const sigueSiendoLaMismaSolicitud =
+      detalleRequestRef.current === requestId &&
+      detalleAbiertoIdRef.current === estudiante.id;
+
+    if (detalle && sigueSiendoLaMismaSolicitud) {
       setEstudianteSeleccionado(detalle);
     }
+  };
+
+  const cerrarDetalleForzado = () => {
+    /*
+     * Invalida cualquier petición pendiente. Así una respuesta atrasada no
+     * puede volver a mostrar el modal después de cerrar o guardar.
+     */
+    detalleRequestRef.current += 1;
+    detalleAbiertoIdRef.current = null;
+    setEstudianteSeleccionado(null);
   };
 
   const cerrarDetalle = () => {
     if (guardando || subiendoFoto) return;
 
-    setEstudianteSeleccionado(null);
+    cerrarDetalleForzado();
   };
 
   const abrirHistorialEstudiante = async (estudiante: EstudianteUsuario) => {
+    const requestId = historialRequestRef.current + 1;
+
+    historialRequestRef.current = requestId;
+    historialAbiertoIdRef.current = Number(estudiante.id);
+
     setEstudianteHistorial(estudiante);
     setHistorialEstudiante(null);
     setHistorialEstudianteVisible(true);
+    setCargandoHistorialModal(true);
 
-    const data = await cargarHistorialEstudiante(estudiante.id, true);
+    try {
+      const data = await cargarHistorialEstudiante(estudiante.id, true);
 
-    if (data) {
-      setHistorialEstudiante(data);
-      setEstudianteHistorial(data.estudiante);
+      const solicitudSigueActiva =
+        historialRequestRef.current === requestId &&
+        historialAbiertoIdRef.current === Number(estudiante.id);
+
+      if (!solicitudSigueActiva) {
+        return;
+      }
+
+      if (data) {
+        setHistorialEstudiante(data);
+        setEstudianteHistorial(data.estudiante ?? estudiante);
+      }
+    } finally {
+      const solicitudSigueActiva =
+        historialRequestRef.current === requestId &&
+        historialAbiertoIdRef.current === Number(estudiante.id);
+
+      if (solicitudSigueActiva) {
+        setCargandoHistorialModal(false);
+      }
     }
   };
 
   const cerrarHistorialEstudiante = () => {
-    if (cargandoHistorialEstudiante) return;
+    /*
+     * Puede cerrarse incluso durante la carga. Incrementar el identificador
+     * cancela lógicamente la solicitud: su respuesta será ignorada.
+     */
+    historialRequestRef.current += 1;
+    historialAbiertoIdRef.current = null;
 
+    setCargandoHistorialModal(false);
     setHistorialEstudianteVisible(false);
     setHistorialEstudiante(null);
     setEstudianteHistorial(null);
   };
 
-  const guardarDatos = async (id: number, form: EstudianteForm) => {
+  const guardarDatos = async (
+    id: number,
+    form: EstudianteForm,
+  ): Promise<EstudianteUsuario | null> => {
     const actualizado = await guardarDatosEstudiante(id, form);
 
+    /*
+     * El hook devuelve null cuando hubo un error. Por eso el modal solo se
+     * cierra cuando el backend confirmó correctamente la actualización.
+     */
     if (actualizado) {
-      setEstudianteSeleccionado(actualizado);
+      cerrarDetalleForzado();
     }
 
     return actualizado;
@@ -116,7 +203,10 @@ export default function EstudianteScreen() {
   const guardarFoto = async (id: number, archivo: FotoEstudianteArchivo) => {
     const actualizado = await guardarFotoEstudiante(id, archivo);
 
-    if (actualizado) {
+    if (
+      actualizado &&
+      detalleAbiertoIdRef.current === Number(actualizado.id)
+    ) {
       setEstudianteSeleccionado(actualizado);
     }
 
@@ -124,9 +214,16 @@ export default function EstudianteScreen() {
   };
 
   const recargarDetalle = async (idUsuario: number) => {
+    const requestId = detalleRequestRef.current + 1;
+    detalleRequestRef.current = requestId;
+
     const actualizado = await cargarDetalleEstudiante(idUsuario, true);
 
-    if (actualizado) {
+    const sigueAbierto =
+      detalleRequestRef.current === requestId &&
+      detalleAbiertoIdRef.current === Number(idUsuario);
+
+    if (actualizado && sigueAbierto) {
       setEstudianteSeleccionado(actualizado);
     }
   };
@@ -141,6 +238,18 @@ export default function EstudianteScreen() {
       if (filtros.tipo) params.append("tipo", filtros.tipo);
       if (filtros.idCarrera) params.append("idCarrera", filtros.idCarrera);
       if (filtros.nivel) params.append("nivel", filtros.nivel);
+      if (filtros.documentos) {
+        params.append("documentos", filtros.documentos);
+      }
+      if (busqueda.trim()) params.append("buscar", busqueda.trim());
+
+      params.append("orden", orden);
+      params.append(
+        "ids",
+        estudiantesDelListado.length > 0
+          ? estudiantesDelListado.map((item) => item.id).join(",")
+          : "0",
+      );
 
       const query = params.toString();
 
@@ -168,7 +277,6 @@ export default function EstudianteScreen() {
       if (nuevaVentana) {
         nuevaVentana.close();
       }
-
 
       Toast.show({
         type: "error",
@@ -226,7 +334,11 @@ export default function EstudianteScreen() {
           estudiantes={estudiantes}
           loading={loading}
           filtros={filtros}
+          busqueda={busqueda}
+          orden={orden}
           onFiltrosChange={setFiltros}
+          onBusquedaChange={setBusqueda}
+          onOrdenChange={setOrden}
           onVerDetalle={abrirDetalle}
           onVerHistorialEstudiante={abrirHistorialEstudiante}
           onRefresh={() => cargarEstudiantes(true)}
@@ -249,7 +361,7 @@ export default function EstudianteScreen() {
         visible={historialEstudianteVisible}
         estudiante={estudianteHistorial}
         historial={historialEstudiante}
-        loading={cargandoHistorialEstudiante}
+        loading={cargandoHistorialModal}
         onClose={cerrarHistorialEstudiante}
       />
     </View>

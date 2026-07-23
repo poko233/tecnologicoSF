@@ -11,6 +11,7 @@ import {
 } from "../services/asignaciones.services";
 
 import {
+  ActualizarInscripcionResponse,
   CarreraAsignacion,
   DetalleEstudianteResponse,
   Estudiante,
@@ -362,7 +363,26 @@ export function useAsignaciones() {
         await Promise.all(tareas);
         return data;
       } catch (error: any) {
-        const errores = error?.response?.data?.errors;
+        const backend = error?.response?.data;
+
+        if (
+          backend?.code === "CUOTAS_GESTION_REQUERIDAS" ||
+          backend?.requiereCuotas === true
+        ) {
+          return {
+            message:
+              backend?.message ??
+              "El estudiante debe registrar cuotas para la gestión activa.",
+            code: "CUOTAS_GESTION_REQUERIDAS",
+            requiereCuotas: true,
+            cuotasGestion: backend?.cuotasGestion ?? null,
+            gestionActiva: backend?.gestionActiva ?? null,
+            agregadas: [],
+            retiradas: [],
+          } satisfies ActualizarInscripcionResponse;
+        }
+
+        const errores = backend?.errors;
         const primerError =
           errores && typeof errores === "object"
             ? Object.values(errores).flat().find(Boolean)
@@ -373,7 +393,7 @@ export function useAsignaciones() {
           text1: "No se pudo actualizar",
           text2: String(
             primerError ??
-              error?.response?.data?.message ??
+              backend?.message ??
               "Verifica las materias, los grupos, los turnos y los cupos.",
           ),
         });

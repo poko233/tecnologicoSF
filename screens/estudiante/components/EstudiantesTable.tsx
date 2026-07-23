@@ -28,29 +28,34 @@ import {
   obtenerNivelesTexto,
   obtenerPromocionActual,
   obtenerReferencia,
-  obtenerRoles,
   obtenerTipoCarreraLabel,
-  obtenerTiposCarreraEstudiante,
   obtenerTiposCarreraTexto,
 } from "../utils/estudiante.helpers";
-
-type FiltrosEstudiantes = {
-  tipo: string;
-  idCarrera: string;
-  nivel: string;
-};
+import {
+  DOCUMENTACION_ESTUDIANTES_OPTIONS,
+  FiltrosEstudiantes,
+  ORDEN_ESTUDIANTES_OPTIONS,
+  OrdenEstudiantes,
+  filtrarYOrdenarEstudiantes,
+  obtenerDocumentacionEstudiantesLabel,
+  obtenerOrdenEstudiantesLabel,
+} from "../utils/estudianteListado";
 
 type Props = {
   estudiantes: EstudianteUsuario[];
   loading: boolean;
   filtros: FiltrosEstudiantes;
+  busqueda: string;
+  orden: OrdenEstudiantes;
   onFiltrosChange: (filtros: FiltrosEstudiantes) => void;
+  onBusquedaChange: (value: string) => void;
+  onOrdenChange: (orden: OrdenEstudiantes) => void;
   onVerDetalle: (estudiante: EstudianteUsuario) => void;
   onVerHistorialEstudiante: (estudiante: EstudianteUsuario) => void;
   onRefresh: () => void;
 };
 
-type FilterKey = "tipo" | "carrera" | "nivel";
+type FilterKey = "tipo" | "carrera" | "nivel" | "documentos" | "orden";
 type TableStyles = ReturnType<typeof createEstudiantesTableStyles>;
 
 type CarreraFiltro = {
@@ -92,7 +97,11 @@ export default function EstudiantesTable({
   estudiantes,
   loading,
   filtros,
+  busqueda,
+  orden,
   onFiltrosChange,
+  onBusquedaChange,
+  onOrdenChange,
   onVerDetalle,
   onVerHistorialEstudiante,
   onRefresh,
@@ -110,19 +119,20 @@ export default function EstudiantesTable({
     [colors, isMobile, isCompact],
   );
 
-  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState<FilterKey | null>(null);
 
   const filtroTipo = filtros.tipo;
   const filtroCarrera = filtros.idCarrera;
   const filtroNivel = filtros.nivel;
+  const filtroDocumentos = filtros.documentos;
 
   const setFiltroTipo = (tipo: string) => {
     onFiltrosChange({
       tipo,
       idCarrera: "",
       nivel: "",
+      documentos: filtros.documentos,
     });
   };
 
@@ -141,30 +151,38 @@ export default function EstudiantesTable({
     });
   };
 
-  const tipoOptions = useMemo(() => {
-    return ["CARRERA", "CURSO"];
-  }, []);
+  const setFiltroDocumentos = (
+    documentos: FiltrosEstudiantes["documentos"],
+  ) => {
+    onFiltrosChange({
+      ...filtros,
+      documentos,
+    });
+  };
+
+  const tipoOptions = useMemo(() => ["CARRERA", "CURSO"], []);
 
   const carreraOptions = useMemo(() => {
     const carreras = estudiantes.flatMap((estudiante) =>
       obtenerCarrerasEstudiante(estudiante),
-    );
+    ) as CarreraFiltro[];
 
     const carrerasFiltradas = filtroTipo
       ? carreras.filter(
-          (carrera: CarreraFiltro) =>
-            normalizarTipoCarrera(carrera.tipo) === filtroTipo,
+          (carrera) => normalizarTipoCarrera(carrera.tipo) === filtroTipo,
         )
       : carreras;
 
     return uniqueCarreras(carrerasFiltradas);
   }, [estudiantes, filtroTipo]);
 
-  const carreraSeleccionada = useMemo(() => {
-    return carreraOptions.find(
-      (carrera) => carrera.idCarrera === filtroCarrera,
-    );
-  }, [carreraOptions, filtroCarrera]);
+  const carreraSeleccionada = useMemo(
+    () =>
+      carreraOptions.find(
+        (carrera) => String(carrera.idCarrera) === String(filtroCarrera),
+      ),
+    [carreraOptions, filtroCarrera],
+  );
 
   const labelNivel = obtenerLabelNivelPorRegimen(
     carreraSeleccionada?.regimen,
@@ -177,7 +195,8 @@ export default function EstudiantesTable({
       estudiantes
         .filter((estudiante) =>
           obtenerCarrerasEstudiante(estudiante).some(
-            (carrera: CarreraFiltro) => carrera.idCarrera === filtroCarrera,
+            (carrera: any) =>
+              String(carrera.idCarrera) === String(filtroCarrera),
           ),
         )
         .flatMap((estudiante) =>
@@ -186,67 +205,22 @@ export default function EstudiantesTable({
     );
   }, [estudiantes, filtroCarrera]);
 
-  const hayFiltrosActivos = !!filtroTipo || !!filtroCarrera || !!filtroNivel;
+  const hayFiltrosActivos =
+    !!filtroTipo ||
+    !!filtroCarrera ||
+    !!filtroNivel ||
+    !!filtroDocumentos;
 
-  const data = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return estudiantes.filter((estudiante) => {
-      const referencia = obtenerReferencia(estudiante);
-      const promocion = obtenerPromocionActual(estudiante);
-      const matricula = obtenerMatricula(estudiante);
-      const fechaInscripcion = obtenerFechaInscripcion(estudiante);
-      const carreras = obtenerCarrerasEstudiante(estudiante);
-      const tipos = obtenerTiposCarreraEstudiante(estudiante);
-
-      const niveles = obtenerNivelesDeCarreraEstudiante(
-        estudiante,
-        filtroCarrera,
-      );
-
-      const cumpleTipo = !filtroTipo || tipos.includes(filtroTipo);
-
-      const cumpleCarrera =
-        !filtroCarrera ||
-        carreras.some(
-          (carrera: CarreraFiltro) => carrera.idCarrera === filtroCarrera,
-        );
-
-      const cumpleNivel = !filtroNivel || niveles.includes(filtroNivel);
-
-      if (!cumpleTipo || !cumpleCarrera || !cumpleNivel) {
-        return false;
-      }
-
-      if (!query) return true;
-
-      return [
-        estudiante.usuario,
-        estudiante.ci,
-        estudiante.nombres,
-        estudiante.apellidoPaterno,
-        estudiante.apellidoMaterno || "",
-        estudiante.email || "",
-        estudiante.celular || "",
-        estudiante.estado,
-        estudiante.expedido || "",
-        promocion,
-        matricula,
-        fechaInscripcion,
-        obtenerRoles(estudiante),
-        obtenerTiposCarreraTexto(estudiante),
-        obtenerCarrerasTexto(estudiante),
-        obtenerNivelesTexto(estudiante),
-        referencia?.nombreContactoReferencia || "",
-        referencia?.parentesco || "",
-        referencia?.numeroReferencia || "",
-        String(estudiante.documentos?.length ?? 0),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [estudiantes, search, filtroTipo, filtroCarrera, filtroNivel]);
+  const data = useMemo(
+    () =>
+      filtrarYOrdenarEstudiantes(
+        estudiantes,
+        filtros,
+        busqueda,
+        orden,
+      ),
+    [estudiantes, filtros, busqueda, orden],
+  );
 
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -259,7 +233,14 @@ export default function EstudiantesTable({
 
   useEffect(() => {
     setPage(1);
-  }, [search, filtroTipo, filtroCarrera, filtroNivel]);
+  }, [
+    busqueda,
+    filtroTipo,
+    filtroCarrera,
+    filtroNivel,
+    filtroDocumentos,
+    orden,
+  ]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -271,7 +252,7 @@ export default function EstudiantesTable({
     if (!filtroTipo || !filtroCarrera) return;
 
     const carreraExisteEnTipo = carreraOptions.some(
-      (carrera) => carrera.idCarrera === filtroCarrera,
+      (carrera) => String(carrera.idCarrera) === String(filtroCarrera),
     );
 
     if (!carreraExisteEnTipo) {
@@ -279,12 +260,18 @@ export default function EstudiantesTable({
         tipo: filtroTipo,
         idCarrera: "",
         nivel: "",
+        documentos: filtroDocumentos,
       });
     }
-  }, [filtroTipo, filtroCarrera, carreraOptions, onFiltrosChange]);
+  }, [
+    filtroTipo,
+    filtroCarrera,
+    carreraOptions,
+    onFiltrosChange,
+  ]);
 
   const limpiarBusqueda = () => {
-    setSearch("");
+    onBusquedaChange("");
     setPage(1);
   };
 
@@ -293,6 +280,7 @@ export default function EstudiantesTable({
       tipo: "",
       idCarrera: "",
       nivel: "",
+      documentos: "",
     });
 
     setActiveFilter(null);
@@ -308,10 +296,7 @@ export default function EstudiantesTable({
           title="Filtrar por tipo"
           empty="No hay tipos registrados."
           options={[
-            {
-              label: "Todos",
-              value: "",
-            },
+            { label: "Todos", value: "" },
             ...tipoOptions.map((tipo) => ({
               label: obtenerTipoCarreraLabel(tipo),
               value: tipo,
@@ -335,10 +320,7 @@ export default function EstudiantesTable({
           title="Filtrar por carrera"
           empty="No hay carreras registradas."
           options={[
-            {
-              label: "Todas",
-              value: "",
-            },
+            { label: "Todas", value: "" },
             ...carreraOptions.map((carrera) => ({
               label: `${carrera.nombreCarrera}${
                 carrera.regimen ? ` · ${carrera.regimen}` : ""
@@ -347,7 +329,7 @@ export default function EstudiantesTable({
                   ? ` · ${obtenerTipoCarreraLabel(carrera.tipo)}`
                   : ""
               }`,
-              value: carrera.idCarrera,
+              value: String(carrera.idCarrera),
             })),
           ]}
           selectedValue={filtroCarrera}
@@ -362,26 +344,61 @@ export default function EstudiantesTable({
       );
     }
 
+    if (activeFilter === "nivel") {
+      return (
+        <DropdownPanel
+          title={`Filtrar por ${labelNivel.toLowerCase()}`}
+          empty={`No hay ${labelNivel.toLowerCase()}s registrados para esta carrera.`}
+          options={[
+            {
+              label: `Todos los ${labelNivel.toLowerCase()}s`,
+              value: "",
+            },
+            ...nivelOptions.map((nivel) => ({ label: nivel, value: nivel })),
+          ]}
+          selectedValue={filtroNivel}
+          colors={colors}
+          styles={styles}
+          onClose={() => setActiveFilter(null)}
+          onSelect={(value) => {
+            setFiltroNivel(value);
+            setActiveFilter(null);
+          }}
+        />
+      );
+    }
+
+    if (activeFilter === "documentos") {
+      return (
+        <DropdownPanel
+          title="Filtrar por documentación"
+          empty="No hay opciones de documentación."
+          options={DOCUMENTACION_ESTUDIANTES_OPTIONS}
+          selectedValue={filtroDocumentos}
+          colors={colors}
+          styles={styles}
+          onClose={() => setActiveFilter(null)}
+          onSelect={(value) => {
+            setFiltroDocumentos(
+              value as FiltrosEstudiantes["documentos"],
+            );
+            setActiveFilter(null);
+          }}
+        />
+      );
+    }
+
     return (
       <DropdownPanel
-        title={`Filtrar por ${labelNivel.toLowerCase()}`}
-        empty={`No hay ${labelNivel.toLowerCase()}s registrados para esta carrera.`}
-        options={[
-          {
-            label: `Todos los ${labelNivel.toLowerCase()}s`,
-            value: "",
-          },
-          ...nivelOptions.map((nivel) => ({
-            label: nivel,
-            value: nivel,
-          })),
-        ]}
-        selectedValue={filtroNivel}
+        title="Ordenar estudiantes"
+        empty="No hay opciones de orden."
+        options={ORDEN_ESTUDIANTES_OPTIONS}
+        selectedValue={orden}
         colors={colors}
         styles={styles}
         onClose={() => setActiveFilter(null)}
         onSelect={(value) => {
-          setFiltroNivel(value);
+          onOrdenChange(value as OrdenEstudiantes);
           setActiveFilter(null);
         }}
       />
@@ -390,7 +407,7 @@ export default function EstudiantesTable({
 
   return (
     <View style={styles.card}>
-      <View style={[styles.top, isMobile && styles.topMobile]}>
+      <View style={styles.top}>
         <View style={styles.topTextBox}>
           <View style={styles.titleRow}>
             <View style={styles.titleIcon}>
@@ -413,88 +430,148 @@ export default function EstudiantesTable({
           </View>
         </View>
 
-        <View style={styles.filterBar}>
-          <FilterButton
-            label="Tipo"
-            value={filtroTipo ? obtenerTipoCarreraLabel(filtroTipo) : "Todos"}
-            active={activeFilter === "tipo" || !!filtroTipo}
-            colors={colors}
-            styles={styles}
-            onPress={() =>
-              setActiveFilter((current) =>
-                current === "tipo" ? null : "tipo",
-              )
-            }
-          />
-
-          <FilterButton
-            label="Carrera"
-            value={carreraSeleccionada?.nombreCarrera || "Todas"}
-            active={activeFilter === "carrera" || !!filtroCarrera}
-            colors={colors}
-            styles={styles}
-            onPress={() =>
-              setActiveFilter((current) =>
-                current === "carrera" ? null : "carrera",
-              )
-            }
-          />
-
-          <FilterButton
-            label={labelNivel}
-            value={!filtroCarrera ? "Elige carrera" : filtroNivel || "Todos"}
-            active={activeFilter === "nivel" || !!filtroNivel}
-            disabled={!filtroCarrera}
-            colors={colors}
-            styles={styles}
-            onPress={() => {
-              if (!filtroCarrera) return;
-
-              setActiveFilter((current) =>
-                current === "nivel" ? null : "nivel",
-              );
-            }}
-          />
-
-          {hayFiltrosActivos && (
-            <Pressable
-              onPress={limpiarFiltros}
-              style={({ pressed }) => [
-                styles.filterClearBtn,
-                { opacity: pressed ? 0.75 : 1 },
-              ]}
-            >
-              <Ionicons
-                name="funnel-outline"
-                size={16}
-                color={colors.text}
+        <View style={styles.filtersContainer}>
+          <View style={styles.filtersPrimaryRow}>
+            <View style={styles.primaryFilterItem}>
+              <FilterButton
+                label="Tipo"
+                value={
+                  filtroTipo
+                    ? obtenerTipoCarreraLabel(filtroTipo)
+                    : "Todos"
+                }
+                selected={!!filtroTipo}
+                open={activeFilter === "tipo"}
+                fluid
+                colors={colors}
+                styles={styles}
+                onPress={() =>
+                  setActiveFilter((current) =>
+                    current === "tipo" ? null : "tipo",
+                  )
+                }
               />
+            </View>
 
-              {!isMobile && (
-                <ThemedText style={styles.filterClearText}>
-                  Limpiar
-                </ThemedText>
+            <View style={styles.primaryFilterItem}>
+              <FilterButton
+                label="Carrera"
+                value={carreraSeleccionada?.nombreCarrera || "Todas"}
+                selected={!!filtroCarrera}
+                open={activeFilter === "carrera"}
+                fluid
+                colors={colors}
+                styles={styles}
+                onPress={() =>
+                  setActiveFilter((current) =>
+                    current === "carrera" ? null : "carrera",
+                  )
+                }
+              />
+            </View>
+
+            <View style={styles.primaryFilterItem}>
+              <FilterButton
+                label={labelNivel}
+                value={
+                  !filtroCarrera
+                    ? "Elige carrera"
+                    : filtroNivel || "Todos"
+                }
+                selected={!!filtroNivel}
+                open={activeFilter === "nivel"}
+                disabled={!filtroCarrera}
+                fluid
+                colors={colors}
+                styles={styles}
+                onPress={() => {
+                  if (!filtroCarrera) return;
+
+                  setActiveFilter((current) =>
+                    current === "nivel" ? null : "nivel",
+                  );
+                }}
+              />
+            </View>
+          </View>
+
+          <View style={styles.filtersSecondaryRow}>
+            <View style={styles.secondaryFilterItem}>
+              <FilterButton
+                label="Documentos"
+                value={obtenerDocumentacionEstudiantesLabel(
+                  filtroDocumentos,
+                )}
+                selected={!!filtroDocumentos}
+                open={activeFilter === "documentos"}
+                fluid
+                colors={colors}
+                styles={styles}
+                onPress={() =>
+                  setActiveFilter((current) =>
+                    current === "documentos" ? null : "documentos",
+                  )
+                }
+              />
+            </View>
+
+            <View style={styles.secondaryFilterItem}>
+              <FilterButton
+                label="Orden"
+                value={obtenerOrdenEstudiantesLabel(orden)}
+                selected={orden !== "inscripcion_desc"}
+                open={activeFilter === "orden"}
+                fluid
+                colors={colors}
+                styles={styles}
+                onPress={() =>
+                  setActiveFilter((current) =>
+                    current === "orden" ? null : "orden",
+                  )
+                }
+              />
+            </View>
+
+            <View style={styles.filterActions}>
+              {hayFiltrosActivos && (
+                <Pressable
+                  onPress={limpiarFiltros}
+                  style={({ pressed }) => [
+                    styles.filterClearBtn,
+                    { opacity: pressed ? 0.75 : 1 },
+                  ]}
+                >
+                  <Ionicons
+                    name="funnel-outline"
+                    size={16}
+                    color={colors.text}
+                  />
+
+                  <ThemedText style={styles.filterClearText}>
+                    Limpiar
+                  </ThemedText>
+                </Pressable>
               )}
-            </Pressable>
-          )}
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.refreshBtn,
-              { opacity: pressed ? 0.8 : 1 },
-            ]}
-            onPress={onRefresh}
-          >
-            <Ionicons
-              name="refresh-outline"
-              size={18}
-              color={primaryForeground}
-            />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.refreshBtn,
+                  { opacity: pressed ? 0.8 : 1 },
+                ]}
+                onPress={onRefresh}
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={18}
+                  color={primaryForeground}
+                />
 
-            {!isMobile && (
-              <ThemedText style={styles.refreshText}>Actualizar</ThemedText>
-            )}
-          </Pressable>
+                <ThemedText style={styles.refreshText}>
+                  Actualizar
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -508,21 +585,15 @@ export default function EstudiantesTable({
         />
 
         <TextInput
-          value={search}
-          onChangeText={setSearch}
+          value={busqueda}
+          onChangeText={onBusquedaChange}
           placeholder="Buscar por nombre, CI, matrícula, tipo, carrera, nivel, correo, celular, referencia, estado o promoción..."
           placeholderTextColor={colors.textMuted || colors.textSecondary}
           style={styles.searchInput}
         />
 
-        {!!search && (
-          <Pressable
-            onPress={limpiarBusqueda}
-            hitSlop={8}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
+        {!!busqueda && (
+          <Pressable onPress={limpiarBusqueda} hitSlop={8}>
             <Ionicons
               name="close-circle-outline"
               size={20}
@@ -535,7 +606,6 @@ export default function EstudiantesTable({
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color={colors.primary} size="large" />
-
           <ThemedText style={styles.loadingText}>
             Cargando estudiantes...
           </ThemedText>
@@ -555,8 +625,7 @@ export default function EstudiantesTable({
           </ThemedText>
 
           <ThemedText style={styles.emptyText}>
-            Prueba con otro tipo, carrera, {labelNivel.toLowerCase()}, nombre,
-            CI, matrícula, correo, celular, referencia, promoción o estado.
+            Prueba con otro filtro de carrera, nivel, documentación, búsqueda u orden.
           </ThemedText>
         </View>
       ) : (
@@ -571,19 +640,16 @@ export default function EstudiantesTable({
                     >
                       Estudiante
                     </ThemedText>
-
                     <ThemedText
                       style={[styles.headerText, styles.headerDatosCompact]}
                     >
                       Datos y académico
                     </ThemedText>
-
                     <ThemedText
                       style={[styles.headerText, styles.headerEstadoCompact]}
                     >
                       Estado
                     </ThemedText>
-
                     <ThemedText
                       style={[styles.headerText, styles.headerAccionCompact]}
                     >
@@ -592,39 +658,22 @@ export default function EstudiantesTable({
                   </>
                 ) : (
                   <>
-                    <ThemedText
-                      style={[styles.headerText, styles.headerUsuario]}
-                    >
+                    <ThemedText style={[styles.headerText, styles.headerUsuario]}>
                       Estudiante
                     </ThemedText>
-
-                    <ThemedText
-                      style={[styles.headerText, styles.headerContacto]}
-                    >
+                    <ThemedText style={[styles.headerText, styles.headerContacto]}>
                       Contacto
                     </ThemedText>
-
-                    <ThemedText
-                      style={[styles.headerText, styles.headerAcademico]}
-                    >
+                    <ThemedText style={[styles.headerText, styles.headerAcademico]}>
                       Académico
                     </ThemedText>
-
-                    <ThemedText
-                      style={[styles.headerText, styles.headerReferencia]}
-                    >
+                    <ThemedText style={[styles.headerText, styles.headerReferencia]}>
                       Referencia y promoción
                     </ThemedText>
-
-                    <ThemedText
-                      style={[styles.headerText, styles.headerEstado]}
-                    >
+                    <ThemedText style={[styles.headerText, styles.headerEstado]}>
                       Estado
                     </ThemedText>
-
-                    <ThemedText
-                      style={[styles.headerText, styles.headerAccion]}
-                    >
+                    <ThemedText style={[styles.headerText, styles.headerAccion]}>
                       Acción
                     </ThemedText>
                   </>
@@ -663,7 +712,9 @@ export default function EstudiantesTable({
                       colors={colors}
                       styles={styles}
                       onVer={() => onVerDetalle(estudiante)}
-                      onHistorial={() => onVerHistorialEstudiante(estudiante)}
+                      onHistorial={() =>
+                        onVerHistorialEstudiante(estudiante)
+                      }
                     />
                   );
                 }
@@ -686,40 +737,20 @@ export default function EstudiantesTable({
                         </View>
 
                         <View style={styles.datosCompactCell}>
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.compactPrimary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.compactPrimary}>
                             Matrícula: {matricula}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.compactSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.compactSecondary}>
                             Tipo: {tipoTexto}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.compactSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.compactSecondary}>
                             Carrera: {carreraTexto}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.compactSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.compactSecondary}>
                             Nivel: {nivelTexto}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.observacionCompact}
-                          >
-                            Promo: {promocion || "Sin promoción"} · Docs:{" "}
-                            {cantidadDocs}
+                          <ThemedText numberOfLines={1} style={styles.observacionCompact}>
+                            Promo: {promocion || "Sin promoción"} · Docs: {cantidadDocs}
                           </ThemedText>
                         </View>
 
@@ -754,67 +785,37 @@ export default function EstudiantesTable({
                         </View>
 
                         <View style={styles.contactoCell}>
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.contactPrimary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.contactPrimary}>
                             {estudiante.email || "Sin correo"}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.contactSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.contactSecondary}>
                             {estudiante.celular || "Sin celular"}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.contactSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.contactSecondary}>
                             CI: {estudiante.ci || "—"}{" "}
-                            {estudiante.expedido
-                              ? `· ${estudiante.expedido}`
-                              : ""}
+                            {estudiante.expedido ? `· ${estudiante.expedido}` : ""}
                           </ThemedText>
                         </View>
 
                         <View style={styles.academicoCell}>
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.infoPrimary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.infoPrimary}>
                             {matricula}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.infoSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.infoSecondary}>
                             Tipo: {tipoTexto}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.infoSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.infoSecondary}>
                             Carrera: {carreraTexto}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.infoSecondary}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.infoSecondary}>
                             Nivel: {nivelTexto}
                           </ThemedText>
-
                           <View style={styles.docsLine}>
                             <Ionicons
                               name="document-text-outline"
                               size={14}
                               color={colors.primary}
                             />
-
                             <ThemedText style={styles.docsText}>
                               {cantidadDocs} documento(s)
                             </ThemedText>
@@ -822,10 +823,7 @@ export default function EstudiantesTable({
                         </View>
 
                         <View style={styles.referenciaCell}>
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.referenciaText}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.referenciaText}>
                             {referencia?.nombreContactoReferencia
                               ? `${referencia.nombreContactoReferencia}${
                                   referencia.parentesco
@@ -834,20 +832,12 @@ export default function EstudiantesTable({
                                 }`
                               : "Sin referencia"}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.observacionText}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.observacionText}>
                             {referencia?.numeroReferencia
                               ? `Cel: ${referencia.numeroReferencia}`
                               : "Sin número de referencia"}
                           </ThemedText>
-
-                          <ThemedText
-                            numberOfLines={1}
-                            style={styles.observacionText}
-                          >
+                          <ThemedText numberOfLines={1} style={styles.observacionText}>
                             Promo: {promocion || "Sin promoción"}
                           </ThemedText>
                         </View>
@@ -882,7 +872,6 @@ export default function EstudiantesTable({
               <ThemedText style={styles.pageInfoText}>
                 Página {currentPage} de {totalPages}
               </ThemedText>
-
               <ThemedText style={styles.pageInfoSub}>
                 Mostrando {paginatedData.length} de {data.length}
               </ThemedText>
@@ -903,7 +892,6 @@ export default function EstudiantesTable({
                   size={18}
                   color={primaryForeground}
                 />
-
                 {!isMobile && (
                   <ThemedText style={styles.pageBtnText}>Anterior</ThemedText>
                 )}
@@ -923,7 +911,6 @@ export default function EstudiantesTable({
                 {!isMobile && (
                   <ThemedText style={styles.pageBtnText}>Siguiente</ThemedText>
                 )}
-
                 <Ionicons
                   name="chevron-forward-outline"
                   size={18}
@@ -941,52 +928,85 @@ export default function EstudiantesTable({
 function FilterButton({
   label,
   value,
-  active,
+  selected = false,
+  open = false,
   disabled = false,
+  wide = false,
+  fluid = false,
   colors,
   styles,
   onPress,
 }: {
   label: string;
   value: string;
-  active: boolean;
+  selected?: boolean;
+  open?: boolean;
   disabled?: boolean;
+  wide?: boolean;
+  fluid?: boolean;
   colors: any;
   styles: TableStyles;
   onPress: () => void;
 }) {
+  const highlighted = selected || open;
+
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.filterBtn,
-        active && styles.filterBtnActive,
+        wide && styles.filterBtnWide,
+        fluid && styles.filterBtnFluid,
+        selected && styles.filterBtnSelected,
+        open && styles.filterBtnOpen,
         disabled && styles.disabled,
-        { opacity: pressed ? 0.78 : 1 },
+        { opacity: pressed ? 0.82 : 1 },
       ]}
     >
       <View style={styles.filterBtnTextBox}>
         <ThemedText
           numberOfLines={1}
-          style={[styles.filterLabel, active && styles.filterLabelActive]}
+          style={[
+            styles.filterLabel,
+            selected && styles.filterLabelSelected,
+            open && styles.filterLabelOpen,
+          ]}
         >
           {label}
         </ThemedText>
 
         <ThemedText
           numberOfLines={1}
-          style={[styles.filterValue, active && styles.filterValueActive]}
+          style={[
+            styles.filterValue,
+            selected && styles.filterValueSelected,
+            open && styles.filterValueOpen,
+          ]}
         >
           {value}
         </ThemedText>
       </View>
 
-      <Ionicons
-        name="chevron-down-outline"
-        size={17}
-        color={active ? colors.primaryForeground || "#FFFFFF" : colors.text}
-      />
+      <View
+        style={[
+          styles.filterChevron,
+          highlighted && styles.filterChevronHighlighted,
+          open && styles.filterChevronOpen,
+        ]}
+      >
+        <Ionicons
+          name={open ? "chevron-up-outline" : "chevron-down-outline"}
+          size={16}
+          color={
+            open
+              ? colors.primaryForeground || "#FFFFFF"
+              : highlighted
+                ? colors.primary
+                : colors.textSecondary
+          }
+        />
+      </View>
     </Pressable>
   );
 }
@@ -1016,7 +1036,6 @@ function DropdownPanel({
     <View style={styles.dropdownPanel}>
       <View style={styles.dropdownTitleRow}>
         <ThemedText style={styles.dropdownTitle}>{title}</ThemedText>
-
         <Pressable onPress={onClose} hitSlop={8}>
           <Ionicons
             name="close-outline"
@@ -1029,9 +1048,7 @@ function DropdownPanel({
       <View style={styles.dropdownOptions}>
         {options.length === 0 ? (
           <View style={styles.dropdownOption}>
-            <ThemedText style={styles.dropdownOptionText}>
-              {empty}
-            </ThemedText>
+            <ThemedText style={styles.dropdownOptionText}>{empty}</ThemedText>
           </View>
         ) : (
           options.map((option) => {
@@ -1053,7 +1070,6 @@ function DropdownPanel({
                     color={primaryForeground}
                   />
                 )}
-
                 <ThemedText
                   style={[
                     styles.dropdownOptionText,
@@ -1114,11 +1130,9 @@ function EstudianteResumen({
         <ThemedText numberOfLines={1} style={styles.nombreText}>
           {nombre || "Sin nombre"}
         </ThemedText>
-
         <ThemedText numberOfLines={1} style={styles.usuarioText}>
           @{estudiante.usuario || "sin_usuario"}
         </ThemedText>
-
         {compacto && (
           <ThemedText numberOfLines={1} style={styles.compactCiText}>
             CI: {estudiante.ci || "—"}{" "}
@@ -1167,40 +1181,29 @@ function ActionButtons({
   const width = compact ? 104 : 124;
   const height = compact ? 34 : 38;
 
-  const primary = colors.primary || "#EF4444";
-  const primaryForeground = colors.primaryForeground || "#FFFFFF";
-  const borderColor = colors.border || "rgba(148, 163, 184, 0.35)";
-  const secondaryBg =
-    colors.cardSecondary || colors.surface || "rgba(148, 163, 184, 0.12)";
-  const textColor = colors.text || "#FFFFFF";
-
   return (
-    <View
-      style={{
-        width,
-        alignItems: "stretch",
-        justifyContent: "center",
-        gap: 8,
-      }}
-    >
+    <View style={{ width, alignItems: "stretch", gap: 8 }}>
       <ActionColumnButton
         icon="eye-outline"
         label="Ver"
         width={width}
         height={height}
-        backgroundColor={primary}
-        textColor={primaryForeground}
+        backgroundColor={colors.primary || "#EF4444"}
+        textColor={colors.primaryForeground || "#FFFFFF"}
         onPress={onVer}
       />
-
       <ActionColumnButton
         icon="school-outline"
-        label={compact ? "Historial" : "Historial"}
+        label="Historial"
         width={width}
         height={height}
-        backgroundColor={secondaryBg}
-        textColor={textColor}
-        borderColor={borderColor}
+        backgroundColor={
+          colors.cardSecondary ||
+          colors.surface ||
+          "rgba(148, 163, 184, 0.12)"
+        }
+        textColor={colors.text || "#FFFFFF"}
+        borderColor={colors.border || "rgba(148, 163, 184, 0.35)"}
         onPress={onHistorial}
       />
     </View>
@@ -1245,14 +1248,9 @@ function ActionColumnButton({
       })}
     >
       <Ionicons name={icon} size={15} color={textColor} />
-
       <ThemedText
         numberOfLines={1}
-        style={{
-          color: textColor,
-          fontSize: 11,
-          fontWeight: "900",
-        }}
+        style={{ color: textColor, fontSize: 11, fontWeight: "900" }}
       >
         {label}
       </ThemedText>
@@ -1293,13 +1291,6 @@ function MobileEstudianteCard({
   onVer: () => void;
   onHistorial: () => void;
 }) {
-  const primary = colors.primary || "#EF4444";
-  const primaryForeground = colors.primaryForeground || "#FFFFFF";
-  const borderColor = colors.border || "rgba(148, 163, 184, 0.35)";
-  const textColor = colors.text || "#FFFFFF";
-  const secondaryBg =
-    colors.cardSecondary || colors.surface || "rgba(148, 163, 184, 0.12)";
-
   return (
     <View style={styles.mobileCard}>
       <View style={styles.mobileCardTop}>
@@ -1309,7 +1300,6 @@ function MobileEstudianteCard({
           colors={colors}
           styles={styles}
         />
-
         <EstadoBadge
           estado={estudiante.estado}
           activo={estadoActivo}
@@ -1321,31 +1311,24 @@ function MobileEstudianteCard({
 
       <View style={styles.mobileInfoGrid}>
         <MobileInfo label="Matrícula" value={matricula} styles={styles} />
-
         <MobileInfo
           label="Inscripción"
           value={fechaInscripcion}
           styles={styles}
         />
-
         <MobileInfo label="Tipo" value={tipoTexto} styles={styles} />
-
         <MobileInfo label="Carrera" value={carreraTexto} styles={styles} />
-
         <MobileInfo label="Nivel" value={nivelTexto} styles={styles} />
-
         <MobileInfo
           label="Correo"
           value={estudiante.email || "Sin correo"}
           styles={styles}
         />
-
         <MobileInfo
           label="Celular"
           value={estudiante.celular || "Sin celular"}
           styles={styles}
         />
-
         <MobileInfo
           label="Referencia"
           value={
@@ -1359,13 +1342,11 @@ function MobileEstudianteCard({
           }
           styles={styles}
         />
-
         <MobileInfo
           label="Documentos"
           value={`${cantidadDocs} documento(s)`}
           styles={styles}
         />
-
         <MobileInfo
           label="Promoción"
           value={promocion || "Sin promoción"}
@@ -1373,26 +1354,24 @@ function MobileEstudianteCard({
         />
       </View>
 
-      <View
-        style={{
-          gap: 8,
-          marginTop: 10,
-        }}
-      >
+      <View style={{ gap: 8, marginTop: 10 }}>
         <MobileActionButton
           icon="eye-outline"
           label="Ver estudiante"
-          backgroundColor={primary}
-          textColor={primaryForeground}
+          backgroundColor={colors.primary || "#EF4444"}
+          textColor={colors.primaryForeground || "#FFFFFF"}
           onPress={onVer}
         />
-
         <MobileActionButton
           icon="school-outline"
           label="Historial estudiante"
-          backgroundColor={secondaryBg}
-          textColor={textColor}
-          borderColor={borderColor}
+          backgroundColor={
+            colors.cardSecondary ||
+            colors.surface ||
+            "rgba(148, 163, 184, 0.12)"
+          }
+          textColor={colors.text || "#FFFFFF"}
+          borderColor={colors.border || "rgba(148, 163, 184, 0.35)"}
           onPress={onHistorial}
         />
       </View>
@@ -1434,14 +1413,9 @@ function MobileActionButton({
       })}
     >
       <Ionicons name={icon} size={17} color={textColor} />
-
       <ThemedText
         numberOfLines={1}
-        style={{
-          color: textColor,
-          fontSize: 12,
-          fontWeight: "900",
-        }}
+        style={{ color: textColor, fontSize: 12, fontWeight: "900" }}
       >
         {label}
       </ThemedText>
@@ -1461,7 +1435,6 @@ function MobileInfo({
   return (
     <View style={styles.mobileInfoItem}>
       <ThemedText style={styles.mobileInfoLabel}>{label}</ThemedText>
-
       <ThemedText numberOfLines={2} style={styles.mobileInfoValue}>
         {value}
       </ThemedText>

@@ -3,9 +3,12 @@ import { httpClient } from "../../../http/httpClient";
 import {
   ActualizarInscripcionResponse,
   CarreraAsignacion,
+  CuotasGestionResponse,
   DetalleEstudianteResponse,
   Estudiante,
   EstudianteForm,
+  GuardarCuotasGestionPayload,
+  GuardarCuotasGestionResponse,
   MateriasSemestreUnoResponse,
   RetiroMateriaPayload,
   SeleccionMateriaInscripcion,
@@ -46,6 +49,30 @@ export async function getDetalleEstudiante(
 ): Promise<DetalleEstudianteResponse> {
   return httpClient.getAuth<DetalleEstudianteResponse>(
     `/api/asignaciones/estudiantes/${idUsuario}`,
+  );
+}
+
+
+export async function getCuotasGestionAsignaciones(
+  idUsuario: number,
+  idCarrera: number,
+): Promise<CuotasGestionResponse> {
+  const params = new URLSearchParams({
+    idCarrera: String(Number(idCarrera)),
+  });
+
+  return httpClient.getAuth<CuotasGestionResponse>(
+    `/api/asignaciones/estudiantes/${idUsuario}/cuotas-gestion?${params.toString()}`,
+  );
+}
+
+export async function guardarCuotasGestionAsignaciones(
+  idUsuario: number,
+  payload: GuardarCuotasGestionPayload,
+): Promise<GuardarCuotasGestionResponse> {
+  return httpClient.postAuth<GuardarCuotasGestionResponse>(
+    `/api/asignaciones/estudiantes/${idUsuario}/cuotas-gestion`,
+    payload,
   );
 }
 

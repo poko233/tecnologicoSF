@@ -14,44 +14,45 @@ export function createEstudiantesTableStyles(
       borderRadius: 24,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: isMobile ? 14 : 18,
-      gap: 14,
+      padding: isMobile ? 14 : 20,
+      gap: 16,
       shadowColor: "#000",
-      shadowOpacity: 0.18,
-      shadowRadius: 18,
-      elevation: 4,
+      shadowOpacity: 0.12,
+      shadowRadius: 16,
+      elevation: 3,
     },
 
     top: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: 14,
+      width: "100%",
+      gap: 18,
     },
 
     topMobile: {
-      flexDirection: "column",
-      alignItems: "stretch",
+      width: "100%",
     },
 
     topTextBox: {
-      flex: 1,
+      width: "100%",
       minWidth: 0,
     },
 
     titleRow: {
+      width: "100%",
       flexDirection: "row",
       alignItems: "center",
-      gap: 11,
+      gap: 12,
     },
 
     titleIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      backgroundColor: colors.backgroundSecondary,
+      width: 50,
+      height: 50,
+      borderRadius: 16,
+      backgroundColor: `${colors.primary}12`,
+      borderWidth: 1,
+      borderColor: `${colors.primary}35`,
       alignItems: "center",
       justifyContent: "center",
+      flexShrink: 0,
     },
 
     titleTextBox: {
@@ -60,7 +61,8 @@ export function createEstudiantesTableStyles(
     },
 
     title: {
-      fontSize: isMobile ? 20 : 23,
+      fontSize: isMobile ? 20 : 24,
+      lineHeight: isMobile ? 26 : 31,
       fontWeight: "900",
       color: colors.text,
     },
@@ -69,34 +71,95 @@ export function createEstudiantesTableStyles(
       marginTop: 3,
       color: colors.textSecondary,
       fontSize: 12.5,
-      fontWeight: "600",
+      lineHeight: 18,
+      fontWeight: "700",
+    },
+
+    filtersContainer: {
+      width: "100%",
+      gap: 12,
+      paddingTop: 2,
+    },
+
+    filtersPrimaryRow: {
+      width: "100%",
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: "stretch",
+      gap: 12,
+    },
+
+    filtersSecondaryRow: {
+      width: "100%",
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+      gap: 12,
+    },
+
+    primaryFilterItem: {
+      flex: isMobile ? 0 : 1,
+      width: isMobile ? "100%" : undefined,
+      minWidth: isMobile ? "100%" : 220,
+      maxWidth: isMobile ? "100%" : undefined,
+    },
+
+    secondaryFilterItem: {
+      flex: isMobile ? 0 : 1,
+      width: isMobile ? "100%" : undefined,
+      minWidth: isMobile ? "100%" : 250,
+      maxWidth: isMobile ? "100%" : undefined,
+    },
+
+    filterActions: {
+      width: isMobile ? "100%" : undefined,
+      minWidth: isMobile ? "100%" : 270,
+      flexDirection: "row",
+      alignItems: "stretch",
+      justifyContent: "flex-end",
+      gap: 10,
+      flexShrink: 0,
     },
 
     filterBar: {
+      width: "100%",
       flexDirection: "row",
       flexWrap: "wrap",
       alignItems: "center",
-      justifyContent: isMobile ? "flex-start" : "flex-end",
       gap: 8,
-      maxWidth: isMobile ? "100%" : 880,
     },
 
     filterBtn: {
-      minHeight: 42,
+      minHeight: 58,
       minWidth: isMobile ? "100%" : 150,
-      maxWidth: isMobile ? "100%" : 210,
-      borderRadius: 14,
+      maxWidth: isMobile ? "100%" : 250,
+      borderRadius: 17,
       borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.backgroundSecondary,
-      paddingHorizontal: 12,
+      borderColor: colors.inputBorder || colors.border,
+      backgroundColor: colors.input || colors.backgroundSecondary,
+      paddingHorizontal: 15,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 8,
+      gap: 10,
     },
 
-    filterBtnActive: {
+    filterBtnWide: {
+      minWidth: isMobile ? "100%" : 260,
+      maxWidth: isMobile ? "100%" : 430,
+    },
+
+    filterBtnFluid: {
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
+    },
+
+    filterBtnSelected: {
+      borderColor: colors.primary,
+      backgroundColor: `${colors.primary}12`,
+    },
+
+    filterBtnOpen: {
       borderColor: colors.primary,
       backgroundColor: colors.primary,
     },
@@ -107,30 +170,63 @@ export function createEstudiantesTableStyles(
     },
 
     filterLabel: {
-      fontSize: 9.5,
+      fontSize: 10,
       fontWeight: "900",
       textTransform: "uppercase",
       color: colors.textSecondary,
     },
 
-    filterLabelActive: {
+    filterLabelSelected: {
+      color: colors.primary,
+    },
+
+    filterLabelOpen: {
       color: primaryForeground,
     },
 
     filterValue: {
-      marginTop: 1,
-      fontSize: 11.5,
+      marginTop: 2,
+      fontSize: 12.5,
+      lineHeight: 17,
       fontWeight: "900",
       color: colors.text,
     },
 
-    filterValueActive: {
+    filterValueSelected: {
+      color: colors.text,
+    },
+
+    filterValueOpen: {
       color: primaryForeground,
     },
 
+    filterChevron: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexShrink: 0,
+    },
+
+    filterChevronHighlighted: {
+      backgroundColor: `${colors.primary}12`,
+      borderColor: `${colors.primary}40`,
+    },
+
+    filterChevronOpen: {
+      backgroundColor: `${primaryForeground}16`,
+      borderColor: `${primaryForeground}45`,
+    },
+
     filterClearBtn: {
-      minHeight: 42,
-      borderRadius: 14,
+      flex: isMobile ? 1 : 0,
+      minHeight: 58,
+      minWidth: isMobile ? 0 : 118,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.backgroundSecondary,
@@ -148,10 +244,12 @@ export function createEstudiantesTableStyles(
     },
 
     refreshBtn: {
-      minHeight: 42,
+      flex: isMobile ? 1 : 0,
+      minHeight: 58,
+      minWidth: isMobile ? 0 : 150,
       backgroundColor: colors.primary,
       paddingHorizontal: isMobile ? 13 : 15,
-      borderRadius: 14,
+      borderRadius: 16,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -220,8 +318,8 @@ export function createEstudiantesTableStyles(
     },
 
     searchBox: {
-      minHeight: 46,
-      borderRadius: 15,
+      minHeight: 50,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.inputBorder,
       backgroundColor: colors.input,

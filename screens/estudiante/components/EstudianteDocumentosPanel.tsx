@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -13,7 +13,7 @@ import {
 import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../../components/ThemedText";
-import { httpClient } from "../../../http/httpClient";
+import { BASE_URL, httpClient } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 import {
   DocumentoEstudiante,
@@ -38,6 +38,13 @@ type Props = {
   estudiante: EstudianteUsuario | null;
   onDocumentoSubido: (idUsuario: number) => Promise<void> | void;
 };
+
+type DocumentosApiResponse =
+  | DocumentoEstudiante[]
+  | {
+      documentos?: DocumentoEstudiante[];
+      data?: DocumentoEstudiante[];
+    };
 
 const DOCUMENTOS_REQUERIDOS: DocumentoRequerido[] = [
   {
@@ -79,6 +86,7 @@ const DOCUMENTOS_REQUERIDOS: DocumentoRequerido[] = [
       "título bachiller",
       "bachiller",
       "diploma de bachiller",
+      "fotocopia legalizada",
     ],
   },
 ];
@@ -101,10 +109,45 @@ function normalizarTipo(tipo?: string | null) {
     .replace(/[\s\-]+/g, "_");
 }
 
+function resolverUrlPublica(ruta?: string | null) {
+  const value = String(ruta || "").trim();
+
+  if (!value) return null;
+
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("blob:") ||
+    value.startsWith("data:")
+  ) {
+    return value;
+  }
+
+  return `${BASE_URL}/${value.replace(/^\/+/, "")}`;
+}
+
+function normalizarDocumento(
+  documento: DocumentoEstudiante,
+): DocumentoEstudiante {
+  return {
+    ...documento,
+    archivoUrl: resolverUrlPublica(
+      documento.archivoUrl || documento.ubicacionArchivo,
+    ),
+  };
+}
+
 function documentoEstaEntregado(documento?: DocumentoEstudiante | null) {
   if (!documento) return false;
 
   const estado = normalizarTexto(documento.estadoDocumento);
+  const tieneArchivo = Boolean(
+    documento.archivoUrl || documento.ubicacionArchivo,
+  );
+
+  if (["debe", "faltante", "pendiente", "rechazado", "0"].includes(estado)) {
+    return false;
+  }
 
   if (
     estado === "entregado" ||
@@ -116,7 +159,8 @@ function documentoEstaEntregado(documento?: DocumentoEstudiante | null) {
     return true;
   }
 
-  return false;
+  /* Un archivo físicamente registrado también se considera cargado. */
+  return tieneArchivo;
 }
 
 function documentoCoincide(
@@ -125,7 +169,7 @@ function documentoCoincide(
 ) {
   if (!documentoEstaEntregado(documento)) return false;
 
-  const tipoDocumento = normalizarTipo((documento as any).tipo);
+  const tipoDocumento = normalizarTipo(documento.tipo);
   const nombreDocumento = normalizarTexto(documento.nombreDocumento);
 
   const tiposPermitidos = requerido.tipos.map(normalizarTipo);
@@ -135,21 +179,22 @@ function documentoCoincide(
     ...requerido.aliases,
   ].map(normalizarTexto);
 
-  if (tipoDocumento && tiposPermitidos.includes(tipoDocumento)) {
-    return true;
+  /*
+   * Si el documento tiene un tipo explícito, ese tipo es la fuente de verdad.
+   * No se debe intentar hacerlo coincidir por nombre con otra categoría.
+   */
+  if (tipoDocumento) {
+    return tiposPermitidos.includes(tipoDocumento);
   }
 
   if (!nombreDocumento) return false;
 
-  return aliasesPermitidos.some((alias) => {
-    if (!alias) return false;
-
-    return (
-      nombreDocumento === alias ||
-      nombreDocumento.includes(alias) ||
-      alias.includes(nombreDocumento)
-    );
-  });
+  /*
+   * Los documentos antiguos no tienen tipo. Para ellos usamos coincidencia
+   * exacta con los nombres históricos conocidos. No usamos includes porque
+   * el alias corto "ci" también aparece dentro de "nacimiento".
+   */
+  return aliasesPermitidos.includes(nombreDocumento);
 }
 
 function obtenerDocumentoExistente(
@@ -157,17 +202,48 @@ function obtenerDocumentoExistente(
   requerido: DocumentoRequerido,
 ) {
   return (
-    documentos.find((documento) => documentoCoincide(documento, requerido)) ??
-    null
+    [...documentos]
+      .sort(
+        (a, b) =>
+          Number(b.idDocumentoEstudiante || 0) -
+          Number(a.idDocumentoEstudiante || 0),
+      )
+      .find((documento) => documentoCoincide(documento, requerido)) ?? null
   );
 }
 
 function obtenerUrlDocumento(documento?: DocumentoEstudiante | null) {
-  return documento?.archivoUrl || documento?.ubicacionArchivo || null;
+  return resolverUrlPublica(
+    documento?.archivoUrl || documento?.ubicacionArchivo,
+  );
+}
+
+function combinarDocumentos(
+  anteriores: DocumentoEstudiante[],
+  nuevos: DocumentoEstudiante[],
+) {
+  const map = new Map<string, DocumentoEstudiante>();
+
+  [...anteriores, ...nuevos].forEach((documento) => {
+    const normalizado = normalizarDocumento(documento);
+    const key = normalizado.idDocumentoEstudiante
+      ? `id-${normalizado.idDocumentoEstudiante}`
+      : `${normalizarTipo(normalizado.tipo)}-${normalizarTexto(
+          normalizado.nombreDocumento,
+        )}-${normalizado.ubicacionArchivo || ""}`;
+
+    map.set(key, normalizado);
+  });
+
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      Number(b.idDocumentoEstudiante || 0) -
+      Number(a.idDocumentoEstudiante || 0),
+  );
 }
 
 function detectarMimeDesdeUrl(url?: string | null) {
-  const lower = (url || "").toLowerCase();
+  const lower = (url || "").split("?")[0].toLowerCase();
 
   if (lower.endsWith(".pdf")) return "application/pdf";
 
@@ -219,23 +295,94 @@ export default function EstudianteDocumentosPanel({
   const colors = theme.colors;
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const documentos = estudiante?.documentos ?? [];
+  const documentosIniciales = useMemo(
+    () =>
+      (Array.isArray(estudiante?.documentos)
+        ? estudiante?.documentos
+        : []
+      ).map(normalizarDocumento),
+    [estudiante?.id, estudiante?.documentos],
+  );
+
+  const [documentos, setDocumentos] = useState<DocumentoEstudiante[]>(
+    documentosIniciales,
+  );
+  const [cargandoDocumentos, setCargandoDocumentos] = useState(false);
+
+  const cargarDocumentosServidor = useCallback(async () => {
+    if (!estudiante?.id) return [];
+
+    try {
+      setCargandoDocumentos(true);
+
+      const response = await httpClient.getAuth<DocumentosApiResponse>(
+        `/api/documentos-estudiante/${estudiante.id}`,
+        "No se pudieron cargar los documentos del estudiante",
+      );
+
+      const lista = Array.isArray(response)
+        ? response
+        : response.documentos ?? response.data ?? [];
+
+      const normalizados = Array.isArray(lista)
+        ? lista.map(normalizarDocumento)
+        : [];
+
+      setDocumentos((actuales) =>
+        combinarDocumentos(documentosIniciales, [
+          ...actuales,
+          ...normalizados,
+        ]),
+      );
+
+      return normalizados;
+    } catch {
+      /* Se mantiene lo recibido por el detalle para evitar el parpadeo. */
+      setDocumentos((actuales) =>
+        combinarDocumentos(documentosIniciales, actuales),
+      );
+
+      return [];
+    } finally {
+      setCargandoDocumentos(false);
+    }
+  }, [estudiante?.id, documentosIniciales]);
+
+  useEffect(() => {
+    setDocumentos(documentosIniciales);
+
+    if (estudiante?.id) {
+      void cargarDocumentosServidor();
+    }
+  }, [estudiante?.id, cargarDocumentosServidor, documentosIniciales]);
 
   if (!estudiante) return null;
 
   return (
     <View style={styles.container}>
+      {cargandoDocumentos && documentos.length === 0 && (
+        <View style={styles.loadingDocuments}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <ThemedText style={styles.loadingDocumentsText}>
+            Verificando documentos registrados...
+          </ThemedText>
+        </View>
+      )}
+
       <View style={styles.grid}>
         {DOCUMENTOS_REQUERIDOS.map((doc) => {
           const documentoExistente = obtenerDocumentoExistente(documentos, doc);
 
           return (
             <DocumentoEstadoCard
-              key={doc.key}
+              key={`${estudiante.id}-${doc.key}`}
               idUsuario={estudiante.id}
               documentoRequerido={doc}
               documentoExistente={documentoExistente}
-              onDocumentoSubido={() => onDocumentoSubido(estudiante.id)}
+              onDocumentoSubido={async () => {
+                await onDocumentoSubido(estudiante.id);
+                await cargarDocumentosServidor();
+              }}
             />
           );
         })}
@@ -565,6 +712,26 @@ function createStyles(colors: any) {
     container: {
       flex: 1,
       minHeight: 0,
+      gap: 8,
+    },
+
+    loadingDocuments: {
+      minHeight: 34,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundSecondary,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+
+    loadingDocumentsText: {
+      color: colors.textSecondary,
+      fontSize: 11.5,
+      fontWeight: "800",
     },
 
     grid: {

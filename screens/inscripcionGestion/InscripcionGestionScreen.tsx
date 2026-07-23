@@ -1,55 +1,65 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../components/ThemedText";
 import { useTheme } from "../../theme/useTheme";
 
+import GruposCarreraModal from "./components/GruposCarreraModal";
 import { useInscripcionGestion } from "./hooks/useInscripcionGestion";
 import { styles } from "./styles/inscripcionGestion.styles";
 import {
-    carreraDisponibleParaInscribirIG,
-    estadoColorKeyIG,
-    motivoBloqueoCarreraIG,
-    textoGestionIG,
+  estadoCarreraGestionIG,
+  estadoColorKeyIG,
+  textoEstadoCarreraGestionIG,
+  textoGestionIG,
 } from "./utils/inscripcionGestion.utils";
 
 export default function InscripcionGestionScreen() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
 
-  const isMobile = width < 850;
+  const isMobile = width < 900;
 
   const {
     loadingDatos,
     cargandoGestion,
-    inscribiendo,
+    guardando,
+    loadingGruposCarrera,
 
     gestiones,
     carreras,
+    carrerasAsignadas,
+    carrerasDisponibles,
     carrerasNoDisponibles,
+    resumen,
 
     carrerasSeleccionadas,
     gestionSeleccionada,
     carrerasElegidas,
+    carrerasParaAsignar,
     resultado,
+    totalGruposParaAsignar,
 
-    totalEstudiantesSeleccionados,
-    totalMateriasSeleccionadas,
+    gruposModalVisible,
+    carreraDetalle,
+    detalleGruposCarrera,
 
     cargarDatos,
     seleccionarGestion,
     toggleCarrera,
+    abrirGruposCarrera,
+    cerrarGruposCarrera,
     seleccionarTodasCarreras,
     limpiarCarreras,
-    inscribirCarreras,
+    asignarCarreras,
   } = useInscripcionGestion();
 
   useEffect(() => {
@@ -82,7 +92,10 @@ export default function InscripcionGestionScreen() {
   const yellow = isDark ? "#FDE68A" : "#A16207";
   const yellowSoft = isDark ? "rgba(234,179,8,0.14)" : "#FEF9C3";
 
-  const getEstadoColors = (estado?: string | null) => {
+  const gray = isDark ? "#CBD5E1" : "#475569";
+  const graySoft = isDark ? "rgba(148,163,184,0.12)" : "#F1F5F9";
+
+  const getEstadoGestionColors = (estado?: string | null) => {
     const key = estadoColorKeyIG(estado);
 
     if (key === "green") {
@@ -95,6 +108,12 @@ export default function InscripcionGestionScreen() {
 
     return { color: yellow, bg: yellowSoft, border: yellow };
   };
+
+  const puedeGuardar =
+    !guardando &&
+    !cargandoGestion &&
+    Boolean(gestionSeleccionada) &&
+    carrerasParaAsignar.length > 0;
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
@@ -127,7 +146,7 @@ export default function InscripcionGestionScreen() {
             <View style={styles.titleBox}>
               <View style={[styles.iconBox, { backgroundColor: primarySoft }]}>
                 <Ionicons
-                  name="layers-outline"
+                  name="git-branch-outline"
                   size={28}
                   color={theme.colors.primary}
                 />
@@ -135,46 +154,71 @@ export default function InscripcionGestionScreen() {
 
               <View style={{ flex: 1 }}>
                 <ThemedText style={[styles.title, { color: strongText }]}>
-                  Inscripción por gestión
+                  Carreras por gestión
                 </ThemedText>
 
                 <ThemedText style={[styles.subtitle, { color: mutedText }]}>
-                  Elige una gestión activa y luego selecciona las carreras
-                  disponibles para inscribirlas.
+                  Selecciona una gestión activa y define qué carreras deben
+                  trabajar con sus grupos durante esa gestión.
                 </ThemedText>
               </View>
             </View>
 
-            <View
-              style={[
-                styles.counterPill,
-                {
-                  backgroundColor: primarySoft,
-                  borderColor: theme.colors.primary,
-                },
-              ]}
-            >
-              <Ionicons
-                name="school-outline"
-                size={18}
-                color={theme.colors.primary}
-              />
-
-              <ThemedText
-                style={[styles.counterText, { color: theme.colors.primary }]}
+            <View style={styles.heroCounters}>
+              <View
+                style={[
+                  styles.counterPill,
+                  {
+                    backgroundColor: greenSoft,
+                    borderColor: green,
+                  },
+                ]}
               >
-                {carrerasSeleccionadas.length} seleccionadas
-              </ThemedText>
+                <Ionicons name="checkmark-circle" size={18} color={green} />
+                <ThemedText style={[styles.counterText, { color: green }]}>
+                  {carrerasAsignadas.length} asignadas
+                </ThemedText>
+              </View>
+
+              <View
+                style={[
+                  styles.counterPill,
+                  {
+                    backgroundColor: primarySoft,
+                    borderColor: theme.colors.primary,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="swap-horizontal-outline"
+                  size={18}
+                  color={theme.colors.primary}
+                />
+                <ThemedText
+                  style={[styles.counterText, { color: theme.colors.primary }]}
+                >
+                  {totalGruposParaAsignar} grupos por mover
+                </ThemedText>
+              </View>
             </View>
           </View>
         </View>
 
-        <View style={[styles.selectionGrid, isMobile && styles.selectionGridMobile]}>
-          <View style={styles.selectionColumn}>
+        <View
+          style={[
+            styles.selectionGrid,
+            isMobile && styles.selectionGridMobile,
+          ]}
+        >
+          <View
+            style={[
+              styles.selectionColumnGestion,
+              isMobile && styles.selectionColumnGestionMobile,
+            ]}
+          >
             <View
               style={[
                 styles.card,
-                styles.sameHeightCard,
                 {
                   backgroundColor: theme.colors.card,
                   borderColor: border,
@@ -182,7 +226,7 @@ export default function InscripcionGestionScreen() {
               ]}
             >
               <View style={styles.cardHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <ThemedText
                     style={[styles.sectionTitle, { color: strongText }]}
                   >
@@ -192,7 +236,7 @@ export default function InscripcionGestionScreen() {
                   <ThemedText
                     style={[styles.sectionSubtitle, { color: mutedText }]}
                   >
-                    Solo se muestran gestiones activas.
+                    Las gestiones cerradas no pueden recibir carreras.
                   </ThemedText>
                 </View>
 
@@ -202,7 +246,7 @@ export default function InscripcionGestionScreen() {
               </View>
 
               {gestionesActivas.length === 0 ? (
-                <View style={styles.emptyPanelCompact}>
+                <View style={styles.emptyPanel}>
                   <Ionicons
                     name="alert-circle-outline"
                     size={38}
@@ -214,19 +258,19 @@ export default function InscripcionGestionScreen() {
                   </ThemedText>
 
                   <ThemedText style={[styles.emptyText, { color: mutedText }]}>
-                    Debes abrir una gestión activa antes de inscribir carreras.
+                    Crea o activa una gestión antes de asignar carreras.
                   </ThemedText>
                 </View>
               ) : (
                 <ScrollView
                   nestedScrollEnabled
                   style={styles.gestionScroll}
-                  contentContainerStyle={styles.carrerasScrollContent}
+                  contentContainerStyle={styles.scrollContent}
                   showsVerticalScrollIndicator
                 >
                   {gestionesActivas.map((gestion) => {
                     const selected = gestionSeleccionada?.id === gestion.id;
-                    const colors = getEstadoColors(gestion.estado);
+                    const colors = getEstadoGestionColors(gestion.estado);
 
                     return (
                       <Pressable
@@ -237,7 +281,7 @@ export default function InscripcionGestionScreen() {
                           {
                             backgroundColor: selected ? colors.bg : soft,
                             borderColor: selected ? colors.border : border,
-                            opacity: pressed ? 0.75 : 1,
+                            opacity: pressed ? 0.76 : 1,
                           },
                         ]}
                       >
@@ -276,16 +320,14 @@ export default function InscripcionGestionScreen() {
                             numberOfLines={1}
                             style={[styles.listMeta, { color: mutedText }]}
                           >
-                            Estado: {gestion.estado} · ID: {gestion.id}
+                            Carreras actuales: {gestion.totalCarrerasAsignadas ?? 0}
                           </ThemedText>
                         </View>
 
                         <View
                           style={[
                             styles.statusBadge,
-                            {
-                              backgroundColor: colors.bg,
-                            },
+                            { backgroundColor: colors.bg },
                           ]}
                         >
                           <ThemedText
@@ -294,7 +336,7 @@ export default function InscripcionGestionScreen() {
                               { color: colors.color },
                             ]}
                           >
-                            {gestion.estado}
+                            Activa
                           </ThemedText>
                         </View>
                       </Pressable>
@@ -305,11 +347,10 @@ export default function InscripcionGestionScreen() {
             </View>
           </View>
 
-          <View style={styles.selectionColumn}>
+          <View style={styles.selectionColumnCarreras}>
             <View
               style={[
                 styles.card,
-                styles.sameHeightCard,
                 {
                   backgroundColor: theme.colors.card,
                   borderColor: border,
@@ -317,19 +358,19 @@ export default function InscripcionGestionScreen() {
               ]}
             >
               <View style={styles.toolbar}>
-                <View>
+                <View style={{ flex: 1, minWidth: 230 }}>
                   <ThemedText
                     style={[styles.sectionTitle, { color: strongText }]}
                   >
-                    2. Carreras disponibles
+                    2. Carreras compatibles
                   </ThemedText>
 
                   <ThemedText
                     style={[styles.sectionSubtitle, { color: mutedText }]}
                   >
-                    Disponibles: {carreras.length} · No disponibles:{" "}
-                    {carrerasNoDisponibles.length} · Seleccionadas:{" "}
-                    {carrerasSeleccionadas.length}
+                    Asignadas: {carrerasAsignadas.length} · Disponibles:{" "}
+                    {carrerasDisponibles.length} · Bloqueadas:{" "}
+                    {carrerasNoDisponibles.length}
                   </ThemedText>
                 </View>
 
@@ -350,11 +391,10 @@ export default function InscripcionGestionScreen() {
                       size={17}
                       color={mutedText}
                     />
-
                     <ThemedText
                       style={[styles.buttonText, { color: mutedText }]}
                     >
-                      Todas libres
+                      Seleccionar libres
                     </ThemedText>
                   </Pressable>
 
@@ -374,98 +414,190 @@ export default function InscripcionGestionScreen() {
                       size={18}
                       color={mutedText}
                     />
-
                     <ThemedText
                       style={[styles.buttonText, { color: mutedText }]}
                     >
-                      Limpiar
+                      Limpiar nuevas
                     </ThemedText>
                   </Pressable>
                 </View>
               </View>
 
-              {cargandoGestion || loadingDatos ? (
-                <View style={styles.loadingPanelCompact}>
-                  <ActivityIndicator color={theme.colors.primary} size="large" />
+              <View style={styles.summaryStrip}>
+                <View
+                  style={[
+                    styles.summaryBox,
+                    { backgroundColor: greenSoft, borderColor: green },
+                  ]}
+                >
+                  <ThemedText style={[styles.summaryNumber, { color: green }]}>
+                    {resumen.totalGruposEnGestion}
+                  </ThemedText>
+                  <ThemedText style={[styles.summaryLabel, { color: green }]}>
+                    Grupos en esta gestión
+                  </ThemedText>
+                </View>
 
+                <View
+                  style={[
+                    styles.summaryBox,
+                    {
+                      backgroundColor: primarySoft,
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.summaryNumber,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
+                    {totalGruposParaAsignar}
+                  </ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.summaryLabel,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
+                    Grupos que se moverán
+                  </ThemedText>
+                </View>
+
+                <View
+                  style={[
+                    styles.summaryBox,
+                    { backgroundColor: redSoft, borderColor: red },
+                  ]}
+                >
+                  <ThemedText style={[styles.summaryNumber, { color: red }]}>
+                    {carrerasNoDisponibles.length}
+                  </ThemedText>
+                  <ThemedText style={[styles.summaryLabel, { color: red }]}>
+                    Carreras bloqueadas
+                  </ThemedText>
+                </View>
+              </View>
+
+              {cargandoGestion || loadingDatos ? (
+                <View style={styles.loadingPanel}>
+                  <ActivityIndicator color={theme.colors.primary} size="large" />
                   <ThemedText
                     style={[styles.loadingTitle, { color: strongText }]}
                   >
-                    Actualizando carreras
+                    Revisando carreras
                   </ThemedText>
-
                   <ThemedText
                     style={[styles.loadingText, { color: mutedText }]}
                   >
-                    Buscando carreras libres para la gestión seleccionada.
+                    Verificando régimen, grupos y la gestión actual de cada
+                    carrera.
                   </ThemedText>
                 </View>
               ) : carreras.length === 0 ? (
-                <View style={styles.emptyPanelCompact}>
+                <View style={styles.emptyPanel}>
                   <Ionicons
                     name="alert-circle-outline"
                     size={38}
                     color={yellow}
                   />
-
                   <ThemedText style={[styles.emptyTitle, { color: strongText }]}>
-                    No hay carreras disponibles
+                    No hay carreras compatibles
                   </ThemedText>
-
                   <ThemedText style={[styles.emptyText, { color: mutedText }]}>
-                    Las carreras compatibles pueden estar ya asignadas, sin
-                    estudiantes, sin materias activas o sin grupos con cupos.
+                    No existen carreras activas cuyo régimen corresponda al
+                    período de la gestión seleccionada.
                   </ThemedText>
                 </View>
               ) : (
                 <ScrollView
                   nestedScrollEnabled
                   style={styles.carrerasScroll}
-                  contentContainerStyle={styles.carrerasScrollContent}
+                  contentContainerStyle={styles.scrollContent}
                   showsVerticalScrollIndicator
                 >
                   {carreras.map((carrera) => {
                     const selected = carrerasSeleccionadas.includes(
                       Number(carrera.idCarrera),
                     );
+                    const estado = estadoCarreraGestionIG(carrera, selected);
 
-                    const disponible =
-                      carreraDisponibleParaInscribirIG(carrera);
+                    const estadoColors = (() => {
+                      if (estado === "asignada") {
+                        return { color: green, bg: greenSoft, border: green };
+                      }
+                      if (estado === "parcial") {
+                        return {
+                          color: yellow,
+                          bg: yellowSoft,
+                          border: yellow,
+                        };
+                      }
+                      if (estado === "seleccionada") {
+                        return {
+                          color: theme.colors.primary,
+                          bg: primarySoft,
+                          border: theme.colors.primary,
+                        };
+                      }
+                      if (estado === "disponible") {
+                        return {
+                          color: theme.colors.primary,
+                          bg: soft,
+                          border,
+                        };
+                      }
+                      if (estado === "bloqueada") {
+                        return { color: red, bg: redSoft, border: red };
+                      }
+
+                      return { color: gray, bg: graySoft, border: gray };
+                    })();
+
+                    const totalGrupos = Math.max(
+                      Number(carrera.gruposActivos ?? 0),
+                      1,
+                    );
+                    const porcentaje = Math.min(
+                      100,
+                      Math.round(
+                        (Number(carrera.gruposEnGestionSeleccionada ?? 0) /
+                          totalGrupos) *
+                          100,
+                      ),
+                    );
 
                     return (
                       <Pressable
                         key={carrera.idCarrera}
-                        disabled={!disponible}
                         onPress={() => toggleCarrera(carrera)}
                         style={({ pressed }) => [
                           styles.listRow,
+                          styles.carreraRow,
                           {
-                            backgroundColor: selected ? primarySoft : soft,
-                            borderColor: selected
-                              ? theme.colors.primary
-                              : border,
-                            opacity: !disponible ? 0.72 : pressed ? 0.75 : 1,
+                            backgroundColor: estadoColors.bg,
+                            borderColor: estadoColors.border,
+                            opacity: pressed ? 0.76 : 1,
                           },
                         ]}
                       >
                         <View
                           style={[
                             styles.listIcon,
-                            {
-                              backgroundColor: selected
-                                ? theme.colors.primary
-                                : primarySoft,
-                            },
+                            { backgroundColor: estadoColors.bg },
                           ]}
                         >
                           <Ionicons
                             name={
-                              selected ? "checkmark-circle" : "school-outline"
+                              estado === "asignada"
+                                ? "checkmark-done-outline"
+                                : estado === "bloqueada"
+                                  ? "lock-closed-outline"
+                                  : "school-outline"
                             }
                             size={22}
-                            color={
-                              selected ? "#FFFFFF" : theme.colors.primary
-                            }
+                            color={estadoColors.color}
                           />
                         </View>
 
@@ -479,48 +611,112 @@ export default function InscripcionGestionScreen() {
                           </ThemedText>
 
                           <ThemedText
-                            numberOfLines={1}
+                            numberOfLines={2}
                             style={[styles.listMeta, { color: mutedText }]}
                           >
                             Régimen: {carrera.regimen || "Sin régimen"} ·
-                            Estudiantes: {carrera.totalEstudiantes} · Materias:{" "}
-                            {carrera.materiasDisponiblesGestion} · Grupos:{" "}
-                            {carrera.gruposDisponiblesGestion}
+                            Materias activas: {carrera.materiasActivas} · Grupos:{" "}
+                            {carrera.gruposEnGestionSeleccionada}/
+                            {carrera.gruposActivos} en esta gestión
                           </ThemedText>
 
-                          <ThemedText
-                            numberOfLines={1}
+                          <View
                             style={[
-                              styles.listMetaStrong,
-                              { color: theme.colors.primary },
+                              styles.progressTrack,
+                              { backgroundColor: border },
                             ]}
                           >
-                            Disponible para esta gestión
+                            <View
+                              style={[
+                                styles.progressFill,
+                                {
+                                  width: `${porcentaje}%`,
+                                  backgroundColor: estadoColors.color,
+                                },
+                              ]}
+                            />
+                          </View>
+
+                          <ThemedText
+                            numberOfLines={2}
+                            style={[
+                              styles.listMetaStrong,
+                              { color: estadoColors.color },
+                            ]}
+                          >
+                            {carrera.motivoNoDisponible}
+                            {carrera.gestionAsignadaTexto &&
+                            carrera.asignadaAOtraGestion
+                              ? ` · ${carrera.gestionAsignadaTexto}`
+                              : ""}
                           </ThemedText>
                         </View>
 
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor: selected
-                                ? primarySoft
-                                : greenSoft,
-                            },
-                          ]}
-                        >
-                          <ThemedText
+                        <View style={styles.carreraActionColumn}>
+                          <View
                             style={[
-                              styles.statusText,
+                              styles.statusBadge,
+                              { backgroundColor: estadoColors.bg },
+                            ]}
+                          >
+                            <ThemedText
+                              style={[
+                                styles.statusText,
+                                { color: estadoColors.color },
+                              ]}
+                            >
+                              {textoEstadoCarreraGestionIG(estado)}
+                            </ThemedText>
+                          </View>
+
+                          <Pressable
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              void abrirGruposCarrera(carrera);
+                            }}
+                            style={({ pressed }) => [
+                              styles.viewGroupsButton,
                               {
-                                color: selected
-                                  ? theme.colors.primary
-                                  : green,
+                                backgroundColor: soft,
+                                borderColor: estadoColors.color,
+                                opacity: pressed ? 0.72 : 1,
                               },
                             ]}
                           >
-                            {selected ? "Elegida" : "Libre"}
-                          </ThemedText>
+                            <Ionicons
+                              name="eye-outline"
+                              size={15}
+                              color={estadoColors.color}
+                            />
+                            <ThemedText
+                              style={[
+                                styles.viewGroupsButtonText,
+                                { color: estadoColors.color },
+                              ]}
+                            >
+                              Ver grupos
+                            </ThemedText>
+                          </Pressable>
+
+                          <View
+                            style={[
+                              styles.checkbox,
+                              {
+                                backgroundColor: selected
+                                  ? estadoColors.color
+                                  : "transparent",
+                                borderColor: estadoColors.color,
+                              },
+                            ]}
+                          >
+                            {selected && (
+                              <Ionicons
+                                name="checkmark"
+                                size={19}
+                                color="#FFFFFF"
+                              />
+                            )}
+                          </View>
                         </View>
                       </Pressable>
                     );
@@ -530,124 +726,6 @@ export default function InscripcionGestionScreen() {
             </View>
           </View>
         </View>
-
-        {carrerasNoDisponibles.length > 0 &&
-          !cargandoGestion &&
-          !loadingDatos && (
-            <View
-              style={[
-                styles.card,
-                {
-                  backgroundColor: theme.colors.card,
-                  borderColor: border,
-                },
-              ]}
-            >
-              <ThemedText style={[styles.sectionTitle, { color: strongText }]}>
-                Carreras no disponibles
-              </ThemedText>
-
-              <ThemedText
-                style={[styles.sectionSubtitle, { color: mutedText }]}
-              >
-                Solo informativo. No se pueden seleccionar.
-              </ThemedText>
-
-              <ScrollView
-                nestedScrollEnabled
-                style={styles.carrerasScroll}
-                contentContainerStyle={styles.carrerasScrollContent}
-                showsVerticalScrollIndicator
-              >
-                {carrerasNoDisponibles.map((carrera) => {
-                  const motivo = motivoBloqueoCarreraIG(carrera);
-                  const ocupado = carrera.estaAsignada;
-
-                  return (
-                    <View
-                      key={carrera.idCarrera}
-                      style={[
-                        styles.listRow,
-                        {
-                          backgroundColor: ocupado ? redSoft : yellowSoft,
-                          borderColor: ocupado ? red : yellow,
-                          opacity: 0.82,
-                        },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.listIcon,
-                          {
-                            backgroundColor: ocupado ? redSoft : yellowSoft,
-                          },
-                        ]}
-                      >
-                        <Ionicons
-                          name={
-                            ocupado ? "lock-closed-outline" : "warning-outline"
-                          }
-                          size={22}
-                          color={ocupado ? red : yellow}
-                        />
-                      </View>
-
-                      <View style={styles.listInfo}>
-                        <ThemedText
-                          numberOfLines={1}
-                          style={[styles.listTitle, { color: strongText }]}
-                        >
-                          {carrera.nombreCarrera}
-                          {carrera.codigo ? ` · ${carrera.codigo}` : ""}
-                        </ThemedText>
-
-                        <ThemedText
-                          numberOfLines={1}
-                          style={[styles.listMeta, { color: mutedText }]}
-                        >
-                          Régimen: {carrera.regimen || "Sin régimen"} ·
-                          Estudiantes: {carrera.totalEstudiantes} · Materias:{" "}
-                          {carrera.materiasDisponiblesGestion} · Grupos:{" "}
-                          {carrera.gruposDisponiblesGestion}
-                        </ThemedText>
-
-                        <ThemedText
-                          numberOfLines={1}
-                          style={[
-                            styles.listMetaStrong,
-                            { color: ocupado ? red : yellow },
-                          ]}
-                        >
-                          {motivo}
-                          {carrera.gestionAsignadaTexto
-                            ? ` · ${carrera.gestionAsignadaTexto}`
-                            : ""}
-                        </ThemedText>
-                      </View>
-
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          {
-                            backgroundColor: ocupado ? redSoft : yellowSoft,
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          style={[
-                            styles.statusText,
-                            { color: ocupado ? red : yellow },
-                          ]}
-                        >
-                          {ocupado ? "Asignada" : "No disponible"}
-                        </ThemedText>
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
 
         <View
           style={[
@@ -659,53 +737,59 @@ export default function InscripcionGestionScreen() {
           ]}
         >
           <View style={styles.toolbar}>
-            <View>
+            <View style={{ flex: 1, minWidth: 250 }}>
               <ThemedText style={[styles.sectionTitle, { color: strongText }]}>
-                3. Confirmar inscripción
+                3. Guardar asignación
               </ThemedText>
 
               <ThemedText style={[styles.sectionSubtitle, { color: mutedText }]}>
-                Carreras: {carrerasSeleccionadas.length} · Estudiantes
-                estimados: {totalEstudiantesSeleccionados} · Materias:{" "}
-                {totalMateriasSeleccionadas}
+                Nuevas o parciales: {carrerasParaAsignar.length} · Grupos que
+                cambiarán de gestión: {totalGruposParaAsignar}
               </ThemedText>
             </View>
 
             <Pressable
-              disabled={
-                inscribiendo ||
-                cargandoGestion ||
-                !gestionSeleccionada ||
-                carrerasSeleccionadas.length === 0
-              }
-              onPress={() => void inscribirCarreras()}
+              disabled={!puedeGuardar}
+              onPress={() => void asignarCarreras()}
               style={({ pressed }) => [
                 styles.buttonPrimary,
                 {
                   backgroundColor: theme.colors.primary,
                   borderColor: theme.colors.primary,
-                  opacity:
-                    inscribiendo ||
-                    cargandoGestion ||
-                    !gestionSeleccionada ||
-                    carrerasSeleccionadas.length === 0
-                      ? 0.5
-                      : pressed
-                        ? 0.75
-                        : 1,
+                  opacity: !puedeGuardar ? 0.48 : pressed ? 0.76 : 1,
                 },
               ]}
             >
-              {inscribiendo ? (
+              {guardando ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Ionicons name="save-outline" size={18} color="#FFFFFF" />
               )}
 
               <ThemedText style={[styles.buttonText, { color: "#FFFFFF" }]}>
-                Inscribir carreras
+                {carrerasParaAsignar.length > 0
+                  ? "Asignar carreras"
+                  : "Sin cambios pendientes"}
               </ThemedText>
             </Pressable>
+          </View>
+
+          <View
+            style={[
+              styles.noteBox,
+              {
+                backgroundColor: yellowSoft,
+                borderColor: yellow,
+              },
+            ]}
+          >
+            <Ionicons name="information-circle-outline" size={21} color={yellow} />
+            <ThemedText style={[styles.noteText, { color: yellow }]}>
+              Esta vista no inscribe estudiantes. Mueve a la gestión activa los
+              grupos de las carreras elegidas. Los grupos que pertenezcan a otra
+              gestión activa quedan bloqueados; los de una gestión cerrada sí
+              pueden pasar a la nueva gestión.
+            </ThemedText>
           </View>
 
           {carrerasElegidas.length > 0 && (
@@ -716,22 +800,34 @@ export default function InscripcionGestionScreen() {
                   style={[
                     styles.selectedItem,
                     {
-                      backgroundColor: primarySoft,
-                      borderColor: theme.colors.primary,
+                      backgroundColor: carrera.asignadaAEstaGestion
+                        ? greenSoft
+                        : primarySoft,
+                      borderColor: carrera.asignadaAEstaGestion
+                        ? green
+                        : theme.colors.primary,
                     },
                   ]}
                 >
                   <Ionicons
                     name="checkmark-circle"
                     size={16}
-                    color={theme.colors.primary}
+                    color={
+                      carrera.asignadaAEstaGestion
+                        ? green
+                        : theme.colors.primary
+                    }
                   />
 
                   <ThemedText
                     numberOfLines={1}
                     style={[
                       styles.selectedItemText,
-                      { color: theme.colors.primary },
+                      {
+                        color: carrera.asignadaAEstaGestion
+                          ? green
+                          : theme.colors.primary,
+                      },
                     ]}
                   >
                     {carrera.nombreCarrera}
@@ -746,67 +842,56 @@ export default function InscripcionGestionScreen() {
               <View
                 style={[
                   styles.resultBox,
-                  {
-                    backgroundColor: greenSoft,
-                    borderColor: green,
-                  },
+                  { backgroundColor: greenSoft, borderColor: green },
                 ]}
               >
                 <ThemedText style={[styles.resultNumber, { color: green }]}>
-                  {resultado.totalInscripcionesCreadas}
+                  {resultado.totalGruposActualizados}
                 </ThemedText>
-
                 <ThemedText style={[styles.resultLabel, { color: green }]}>
-                  Inscripciones creadas
+                  Grupos actualizados
                 </ThemedText>
               </View>
 
               <View
                 style={[
                   styles.resultBox,
-                  {
-                    backgroundColor: primarySoft,
-                    borderColor: theme.colors.primary,
-                  },
+                  { backgroundColor: yellowSoft, borderColor: yellow },
                 ]}
               >
-                <ThemedText
-                  style={[
-                    styles.resultNumber,
-                    { color: theme.colors.primary },
-                  ]}
-                >
-                  {resultado.cuposDescontados}
+                <ThemedText style={[styles.resultNumber, { color: yellow }]}>
+                  {resultado.omitidos.length}
                 </ThemedText>
-
-                <ThemedText
-                  style={[styles.resultLabel, { color: theme.colors.primary }]}
-                >
-                  Cupos descontados
+                <ThemedText style={[styles.resultLabel, { color: yellow }]}>
+                  Grupos que ya pertenecían
                 </ThemedText>
               </View>
 
               <View
                 style={[
                   styles.resultBox,
-                  {
-                    backgroundColor: redSoft,
-                    borderColor: red,
-                  },
+                  { backgroundColor: redSoft, borderColor: red },
                 ]}
               >
                 <ThemedText style={[styles.resultNumber, { color: red }]}>
-                  {resultado.sinCupos.length}
+                  {resultado.bloqueados.length}
                 </ThemedText>
-
                 <ThemedText style={[styles.resultLabel, { color: red }]}>
-                  Sin cupos
+                  Grupos bloqueados
                 </ThemedText>
               </View>
             </View>
           )}
         </View>
       </ScrollView>
+
+      <GruposCarreraModal
+        visible={gruposModalVisible}
+        loading={loadingGruposCarrera}
+        carreraFallback={carreraDetalle}
+        detalle={detalleGruposCarrera}
+        onClose={cerrarGruposCarrera}
+      />
     </View>
   );
 }

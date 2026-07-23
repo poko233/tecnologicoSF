@@ -1,3 +1,9 @@
+export type EstadoGestionIG =
+  | "activo"
+  | "inactivo"
+  | "cerrado"
+  | string;
+
 export type GestionIG = {
   id: number;
   nombre: string;
@@ -5,9 +11,10 @@ export type GestionIG = {
   periodo: string;
   fecha_inicio?: string | null;
   fecha_fin?: string | null;
-  estado: "activo" | "inactivo" | "cerrado" | string;
+  estado: EstadoGestionIG;
   cerrado_por?: number | null;
   fecha_cierre?: string | null;
+  totalCarrerasAsignadas?: number;
 };
 
 export type GestionAsignadaIG = {
@@ -27,14 +34,23 @@ export type CarreraIG = {
   estadoCarrera?: string | null;
 
   totalEstudiantes: number;
+  materiasActivas: number;
   materiasDisponiblesGestion: number;
+
   gruposDisponiblesGestion: number;
+  gruposActivos: number;
+  gruposParaMover: number;
+  gruposEnGestionSeleccionada: number;
+  gruposEnOtraGestionActiva: number;
+  cuposTotalesGestion: number;
 
   disponible: boolean;
   motivoNoDisponible: string;
 
   estaAsignada: boolean;
   asignadaAEstaGestion: boolean;
+  asignacionCompleta: boolean;
+  asignacionParcial: boolean;
   asignadaAOtraGestion: boolean;
 
   idGestionAsignada?: number | null;
@@ -45,42 +61,139 @@ export type CarreraIG = {
   materiasInscritasGestionAsignada: number;
 };
 
+export type ResumenDatosIG = {
+  totalCarreras: number;
+  totalCarrerasAsignadas: number;
+  totalCarrerasDisponibles: number;
+  totalCarrerasNoDisponibles: number;
+  totalGruposEnGestion: number;
+  totalGruposParaMover: number;
+};
+
 export type DatosIGResponse = {
   idGestionSeleccionada: number | null;
   gestionSeleccionada?: GestionIG | null;
   gestiones: GestionIG[];
   carreras: CarreraIG[];
+  carrerasAsignadas?: CarreraIG[];
+  carrerasDisponibles?: CarreraIG[];
   carrerasNoDisponibles: CarreraIG[];
-  resumen?: {
-    totalCarrerasDisponibles: number;
-    totalCarrerasNoDisponibles: number;
-  };
+  resumen?: ResumenDatosIG;
 };
 
-export type ResultadoIGItem = {
-  idUsuario: number;
-  estudiante: string;
-  idCarrera?: number;
-  idMateria?: number;
-  materia?: string;
-  idGrupo?: number;
-  grupo?: string;
-  turno?: string;
-  motivo?: string;
+export type GrupoResultadoIG = {
+  idGrupo: number;
+  grupo: string;
+  codigoGrupo?: string | null;
+  paralelo?: string | null;
+  turno?: string | null;
+  cupos?: number;
+  idCarrera: number;
+  carrera: string;
+  motivo?: string | null;
+  gestionActual?: string | null;
+  gestionAnterior?: string | null;
+  gestionNueva?: string | null;
 };
 
-export type InscribirIGPayload = {
+export type AsignarCarrerasIGPayload = {
   idGestion: number;
   carreras: number[];
 };
 
-export type InscribirIGResponse = {
+export type AsignarCarrerasIGResponse = {
   message: string;
   gestion: GestionIG;
   carrerasSeleccionadas: number[];
-  totalInscripcionesCreadas: number;
-  cuposDescontados: number;
-  inscritos: ResultadoIGItem[];
-  omitidos: ResultadoIGItem[];
-  sinCupos: ResultadoIGItem[];
+  totalGruposActualizados: number;
+  gruposActualizados: GrupoResultadoIG[];
+  omitidos: GrupoResultadoIG[];
+  bloqueados: GrupoResultadoIG[];
+};
+
+export type EstadoAsignacionGrupoIG =
+  | "en_gestion"
+  | "movible"
+  | "bloqueado"
+  | "inactivo"
+  | string;
+
+export type GestionGrupoIG = {
+  id: number;
+  nombre?: string | null;
+  anio?: string | number | null;
+  periodo?: string | null;
+  estado?: string | null;
+  texto: string;
+};
+
+export type MateriaGrupoCarreraIG = {
+  idMateria: number;
+  idGrupoMateriaDocente: number;
+  nombreMateria: string;
+  codigoMateria?: string | null;
+  semestre?: number | null;
+};
+
+export type CarreraRelacionadaGrupoIG = {
+  idCarrera: number;
+  nombreCarrera: string;
+  codigo?: string | null;
+  regimen?: string | null;
+  estadoCarrera?: string | null;
+  compatibleConGestionDestino: boolean;
+};
+
+export type GrupoCarreraIG = {
+  idGrupo: number;
+  nombreGrupo: string;
+  codigoGrupo?: string | null;
+  paralelo?: string | null;
+  turno?: string | null;
+  cupos: number;
+  tipoGrupo?: string | null;
+  estadoGrupo?: string | null;
+
+  idGestionActual?: number | null;
+  gestionActual?: GestionGrupoIG | null;
+  idGestionDestino: number;
+  gestionDestinoTexto: string;
+
+  estadoAsignacion: EstadoAsignacionGrupoIG;
+  puedeMover: boolean;
+  conflicto: boolean;
+  tipoConflicto?: string | null;
+  motivo: string;
+
+  materiasCarrera: MateriaGrupoCarreraIG[];
+  totalMateriasCarrera: number;
+
+  carrerasRelacionadas: CarreraRelacionadaGrupoIG[];
+  otrasCarrerasRelacionadas: CarreraRelacionadaGrupoIG[];
+  grupoCompartido: boolean;
+  advertenciaCompartido?: string | null;
+};
+
+export type ResumenGruposCarreraIG = {
+  totalGrupos: number;
+  gruposEnGestion: number;
+  gruposMovibles: number;
+  gruposBloqueados: number;
+  gruposInactivos: number;
+  gruposCompartidos: number;
+};
+
+export type DetalleGruposCarreraIGResponse = {
+  gestionDestino: GestionIG;
+  carrera: Pick<
+    CarreraIG,
+    | "idCarrera"
+    | "nombreCarrera"
+    | "codigo"
+    | "regimen"
+    | "tipo"
+    | "estadoCarrera"
+  >;
+  resumen: ResumenGruposCarreraIG;
+  grupos: GrupoCarreraIG[];
 };

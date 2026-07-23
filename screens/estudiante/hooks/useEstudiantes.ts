@@ -26,14 +26,64 @@ export function invalidarCacheEstudiantes() {
   historialEstudianteCache = {};
 }
 
+/**
+ * Combina dos respuestas del mismo estudiante sin borrar información completa
+ * cuando una API devuelve solamente un resumen parcial.
+ */
+function fusionarEstudiante(
+  anterior: EstudianteUsuario | null | undefined,
+  nuevo: EstudianteUsuario,
+): EstudianteUsuario {
+  if (!anterior) return nuevo;
+
+  const resultado: EstudianteUsuario = {
+    ...anterior,
+    ...nuevo,
+  };
+
+  const conservarSiNoVino = <K extends keyof EstudianteUsuario>(campo: K) => {
+    if (nuevo[campo] === undefined) {
+      resultado[campo] = anterior[campo] as EstudianteUsuario[K];
+    }
+  };
+
+  conservarSiNoVino("documentos");
+  conservarSiNoVino("roles");
+  conservarSiNoVino("carreras");
+  conservarSiNoVino("promociones");
+  conservarSiNoVino("numeroReferencias");
+  conservarSiNoVino("numero_referencias");
+  conservarSiNoVino("foto");
+  conservarSiNoVino("fotoUrl");
+  conservarSiNoVino("codigo_qr");
+  conservarSiNoVino("qrUrl");
+
+  return resultado;
+}
+
+function buscarEstudianteCache(id: number): EstudianteUsuario | null {
+  return (
+    detalleEstudianteCache[id] ??
+    estudiantesCache?.find((item) => Number(item.id) === Number(id)) ??
+    null
+  );
+}
+
 function guardarEstudianteEnCache(estudiante: EstudianteUsuario) {
-  detalleEstudianteCache[estudiante.id] = estudiante;
+  const anterior = buscarEstudianteCache(estudiante.id);
+  const completo = fusionarEstudiante(anterior, estudiante);
+
+  detalleEstudianteCache[estudiante.id] = completo;
 
   if (estudiantesCache) {
     estudiantesCache = estudiantesCache.map((item) =>
-      item.id === estudiante.id ? estudiante : item,
+      Number(item.id) === Number(estudiante.id)
+        ? fusionarEstudiante(item, completo)
+        : item,
     );
   }
+
+  return completo;
 }
 
 export function useEstudiantes() {
@@ -48,9 +98,15 @@ export function useEstudiantes() {
   const [guardando, setGuardando] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
 
+  const sincronizarListado = useCallback(() => {
+    if (estudiantesCache) {
+      setEstudiantes([...estudiantesCache]);
+    }
+  }, []);
+
   const cargarEstudiantes = useCallback(async (forzar = false) => {
     if (!forzar && estudiantesCache && !estudiantesCacheDirty) {
-      setEstudiantes(estudiantesCache);
+      setEstudiantes([...estudiantesCache]);
       return estudiantesCache;
     }
 
@@ -58,18 +114,19 @@ export function useEstudiantes() {
       setLoading(true);
 
       const data = await obtenerEstudiantes();
-      const lista = data.estudiantes ?? [];
+      const lista = Array.isArray(data.estudiantes) ? data.estudiantes : [];
 
-      estudiantesCache = lista;
+      estudiantesCache = lista.map((item) =>
+        fusionarEstudiante(detalleEstudianteCache[item.id], item),
+      );
       estudiantesCacheDirty = false;
 
-      setEstudiantes(lista);
+      setEstudiantes([...estudiantesCache]);
 
-      return lista;
+      return estudiantesCache;
     } catch (error: any) {
-
       if (estudiantesCache) {
-        setEstudiantes(estudiantesCache);
+        setEstudiantes([...estudiantesCache]);
       }
 
       Toast.show({
@@ -86,27 +143,31 @@ export function useEstudiantes() {
 
   const cargarDetalleEstudiante = useCallback(
     async (id: number, forzar = false) => {
-      if (!forzar && !estudiantesCacheDirty && detalleEstudianteCache[id]) {
-        return detalleEstudianteCache[id];
+      const idUsuario = Number(id);
+
+      if (
+        !forzar &&
+        !estudiantesCacheDirty &&
+        detalleEstudianteCache[idUsuario]
+      ) {
+        return detalleEstudianteCache[idUsuario];
       }
 
       try {
         setCargandoDetalle(true);
 
-        const data = await obtenerDetalleEstudiante(id);
+        const data = await obtenerDetalleEstudiante(idUsuario);
         const estudiante = data.estudiante ?? null;
 
-        if (estudiante) {
-          guardarEstudianteEnCache(estudiante);
-
-          if (estudiantesCache) {
-            setEstudiantes(estudiantesCache);
-          }
+        if (!estudiante) {
+          return buscarEstudianteCache(idUsuario);
         }
 
-        return estudiante;
-      } catch (error: any) {
+        const completo = guardarEstudianteEnCache(estudiante);
+        sincronizarListado();
 
+        return completo;
+      } catch (error: any) {
         Toast.show({
           type: "error",
           text1: "Error",
@@ -114,38 +175,37 @@ export function useEstudiantes() {
             error?.message || "No se pudo cargar el detalle del estudiante.",
         });
 
-        return null;
+        return buscarEstudianteCache(idUsuario);
       } finally {
         setCargandoDetalle(false);
       }
     },
-    [],
+    [sincronizarListado],
   );
 
   const cargarHistorialEstudiante = useCallback(
     async (id: number, forzar = false) => {
-      if (!forzar && historialEstudianteCache[id]) {
-        return historialEstudianteCache[id];
+      const idUsuario = Number(id);
+
+      if (!forzar && historialEstudianteCache[idUsuario]) {
+        return historialEstudianteCache[idUsuario];
       }
 
       try {
         setCargandoHistorialEstudiante(true);
 
-        const data = await obtenerHistorialEstudiante(id);
+        const data = await obtenerHistorialEstudiante(idUsuario);
+        historialEstudianteCache[idUsuario] = data;
 
-        historialEstudianteCache[id] = data;
-
-        if (data.estudiante) {
-          guardarEstudianteEnCache(data.estudiante);
-
-          if (estudiantesCache) {
-            setEstudiantes(estudiantesCache);
-          }
-        }
+        /*
+         * IMPORTANTE:
+         * El endpoint de historial puede devolver un estudiante resumido.
+         * No se guarda ese resumen en detalleEstudianteCache porque podría
+         * borrar documentos, fotoUrl y qrUrl del detalle completo.
+         */
 
         return data;
       } catch (error: any) {
-
         Toast.show({
           type: "error",
           text1: "Error",
@@ -167,14 +227,10 @@ export function useEstudiantes() {
         setGuardando(true);
 
         const data = await actualizarEstudiante(id, form);
-        const estudiante = data.estudiante;
+        const estudiante = guardarEstudianteEnCache(data.estudiante);
 
-        guardarEstudianteEnCache(estudiante);
         delete historialEstudianteCache[id];
-
-        if (estudiantesCache) {
-          setEstudiantes(estudiantesCache);
-        }
+        sincronizarListado();
 
         Toast.show({
           type: "success",
@@ -183,7 +239,6 @@ export function useEstudiantes() {
 
         return estudiante;
       } catch (error: any) {
-
         Toast.show({
           type: "error",
           text1: "Error",
@@ -195,7 +250,7 @@ export function useEstudiantes() {
         setGuardando(false);
       }
     },
-    [],
+    [sincronizarListado],
   );
 
   const guardarFotoEstudiante = useCallback(
@@ -204,13 +259,9 @@ export function useEstudiantes() {
         setSubiendoFoto(true);
 
         const data = await actualizarFotoEstudiante(id, archivo);
-        const estudiante = data.estudiante;
+        const estudiante = guardarEstudianteEnCache(data.estudiante);
 
-        guardarEstudianteEnCache(estudiante);
-
-        if (estudiantesCache) {
-          setEstudiantes(estudiantesCache);
-        }
+        sincronizarListado();
 
         Toast.show({
           type: "success",
@@ -219,7 +270,6 @@ export function useEstudiantes() {
 
         return estudiante;
       } catch (error: any) {
-
         Toast.show({
           type: "error",
           text1: "Error",
@@ -231,11 +281,11 @@ export function useEstudiantes() {
         setSubiendoFoto(false);
       }
     },
-    [],
+    [sincronizarListado],
   );
 
   useEffect(() => {
-    cargarEstudiantes(false);
+    void cargarEstudiantes(false);
   }, [cargarEstudiantes]);
 
   return {

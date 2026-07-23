@@ -53,6 +53,10 @@ export function createEstudianteEditModalStyles(colors: any) {
       height: 88,
       borderRadius: 44,
       backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: "hidden",
+      resizeMode: "cover",
     },
 
     headerPhotoEmpty: {
@@ -64,6 +68,7 @@ export function createEstudianteEditModalStyles(colors: any) {
       borderColor: colors.border,
       alignItems: "center",
       justifyContent: "center",
+      overflow: "hidden",
     },
 
     headerTextBox: {
@@ -569,6 +574,42 @@ export function createEstudianteEditModalStyles(colors: any) {
       width: "100%",
       height: "100%",
       resizeMode: "contain",
+    },
+
+    qrActions: {
+      width: "100%",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 10,
+    },
+
+    regenerateQrBtn: {
+      minHeight: 44,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.card,
+      paddingHorizontal: 16,
+      justifyContent: "center",
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 8,
+    },
+
+    regenerateQrText: {
+      color: colors.primary,
+      fontWeight: "900",
+    },
+
+    qrHelper: {
+      maxWidth: 390,
+      color: muted,
+      textAlign: "center",
+      fontSize: 12,
+      fontWeight: "700",
+      lineHeight: 18,
     },
 
     emptyBox: {

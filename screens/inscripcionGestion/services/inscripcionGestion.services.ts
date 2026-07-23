@@ -1,9 +1,10 @@
 import { httpClient } from "../../../http/httpClient";
 
 import {
-    DatosIGResponse,
-    InscribirIGPayload,
-    InscribirIGResponse,
+  AsignarCarrerasIGPayload,
+  AsignarCarrerasIGResponse,
+  DatosIGResponse,
+  DetalleGruposCarreraIGResponse,
 } from "../types/inscripcionGestion.types";
 
 export async function getDatosInscripcionGestion(
@@ -14,20 +15,29 @@ export async function getDatosInscripcionGestion(
       ? `?idGestion=${Number(idGestion)}`
       : "";
 
-  const response = await httpClient.getAuth<DatosIGResponse>(
+  return httpClient.getAuth<DatosIGResponse>(
     `/api/inscripcion-gestion/datos${query}`,
   );
-
-  return response;
 }
 
-export async function postInscribirGestion(
-  payload: InscribirIGPayload,
-): Promise<InscribirIGResponse> {
-  const response = await httpClient.postAuth<InscribirIGResponse>(
-    "/api/inscripcion-gestion/inscribir",
+export async function getGruposCarreraGestion(
+  idGestion: number,
+  idCarrera: number,
+): Promise<DetalleGruposCarreraIGResponse> {
+  const params = new URLSearchParams({
+    idGestion: String(Number(idGestion)),
+  });
+
+  return httpClient.getAuth<DetalleGruposCarreraIGResponse>(
+    `/api/inscripcion-gestion/carreras/${Number(idCarrera)}/grupos?${params.toString()}`,
+  );
+}
+
+export async function postAsignarCarrerasGestion(
+  payload: AsignarCarrerasIGPayload,
+): Promise<AsignarCarrerasIGResponse> {
+  return httpClient.postAuth<AsignarCarrerasIGResponse>(
+    "/api/inscripcion-gestion/asignar-carreras",
     payload,
   );
-
-  return response;
 }

@@ -53,22 +53,12 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  selectionGrid: {
+  heroCounters: {
     flexDirection: "row",
-    gap: 16,
-    alignItems: "stretch",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
   },
-  selectionGridMobile: {
-    flexDirection: "column",
-  },
-  selectionColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sameHeightCard: {
-    flex: 1,
-  },
-
   counterPill: {
     borderWidth: 1,
     borderRadius: 999,
@@ -82,6 +72,27 @@ export const styles = StyleSheet.create({
   counterText: {
     fontSize: 12.5,
     fontWeight: "900",
+  },
+
+  selectionGrid: {
+    flexDirection: "row",
+    gap: 16,
+    alignItems: "stretch",
+  },
+  selectionGridMobile: {
+    flexDirection: "column",
+  },
+  selectionColumnGestion: {
+    width: 410,
+    minWidth: 320,
+  },
+  selectionColumnGestionMobile: {
+    width: "100%",
+    minWidth: 0,
+  },
+  selectionColumnCarreras: {
+    flex: 1,
+    minWidth: 0,
   },
 
   card: {
@@ -104,6 +115,7 @@ export const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: 12.5,
     fontWeight: "700",
+    lineHeight: 18,
   },
 
   toolbar: {
@@ -131,10 +143,10 @@ export const styles = StyleSheet.create({
     gap: 7,
   },
   buttonPrimary: {
-    minHeight: 46,
+    minHeight: 48,
     borderRadius: 15,
     borderWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -157,6 +169,9 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
+  carreraRow: {
+    minHeight: 112,
+  },
   listIcon: {
     width: 44,
     height: 44,
@@ -173,23 +188,45 @@ export const styles = StyleSheet.create({
     fontWeight: "900",
   },
   listMeta: {
-    marginTop: 3,
+    marginTop: 4,
     fontSize: 11.5,
     fontWeight: "700",
+    lineHeight: 16,
   },
   listMetaStrong: {
-    marginTop: 3,
+    marginTop: 5,
     fontSize: 11.5,
     fontWeight: "900",
+    lineHeight: 16,
+  },
+
+  progressTrack: {
+    marginTop: 8,
+    height: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+
+  checkbox: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   gestionScroll: {
-    maxHeight: 480,
+    maxHeight: 590,
   },
   carrerasScroll: {
-    maxHeight: 480,
+    maxHeight: 590,
   },
-  carrerasScrollContent: {
+  scrollContent: {
     gap: 10,
     paddingRight: 6,
     paddingBottom: 2,
@@ -205,19 +242,34 @@ export const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
+  summaryStrip: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  summaryBox: {
+    minWidth: 150,
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+  },
+  summaryNumber: {
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  summaryLabel: {
+    marginTop: 2,
+    fontSize: 11.5,
+    fontWeight: "800",
+  },
+
   loadingPanel: {
-    minHeight: 210,
+    minHeight: 310,
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
     padding: 22,
-  },
-  loadingPanelCompact: {
-    minHeight: 300,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    padding: 18,
   },
   loadingTitle: {
     fontSize: 18,
@@ -233,18 +285,11 @@ export const styles = StyleSheet.create({
   },
 
   emptyPanel: {
-    minHeight: 210,
+    minHeight: 310,
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
     padding: 22,
-  },
-  emptyPanelCompact: {
-    minHeight: 300,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    padding: 18,
   },
   emptyTitle: {
     fontSize: 18,
@@ -274,7 +319,7 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   selectedItemText: {
-    maxWidth: 220,
+    maxWidth: 250,
     fontSize: 11.5,
     fontWeight: "900",
   },
@@ -285,7 +330,7 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   resultBox: {
-    minWidth: 160,
+    minWidth: 170,
     flex: 1,
     borderWidth: 1,
     borderRadius: 16,
@@ -299,5 +344,299 @@ export const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     fontWeight: "800",
+  },
+
+  noteBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+
+
+  carreraActionColumn: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 8,
+  },
+  viewGroupsButton: {
+    minHeight: 34,
+    borderWidth: 1,
+    borderRadius: 11,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  viewGroupsButtonText: {
+    fontSize: 10.5,
+    fontWeight: "900",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(2,6,23,0.78)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 18,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 1240,
+    maxHeight: "94%",
+    borderWidth: 1,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  modalHeader: {
+    minHeight: 88,
+    borderBottomWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 14,
+  },
+  modalHeaderTitleBox: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  modalHeaderIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  modalSubtitle: {
+    marginTop: 3,
+    fontSize: 12.5,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
+  modalCloseButton: {
+    width: 46,
+    height: 46,
+    borderWidth: 1,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalLoadingPanel: {
+    minHeight: 430,
+    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  modalSummary: {
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  modalSummaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  modalSummaryBox: {
+    minWidth: 135,
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 15,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  modalSummaryNumber: {
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  modalSummaryLabel: {
+    marginTop: 1,
+    fontSize: 10.5,
+    fontWeight: "900",
+  },
+  modalFilters: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingRight: 8,
+  },
+  modalFilterButton: {
+    minHeight: 36,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  modalFilterText: {
+    fontSize: 10.5,
+    fontWeight: "900",
+  },
+  modalBodyScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  modalBodyContent: {
+    padding: 16,
+    gap: 12,
+  },
+  modalEmptyPanel: {
+    minHeight: 320,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 22,
+    gap: 9,
+  },
+  modalFooter: {
+    minHeight: 72,
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  modalFooterText: {
+    flex: 1,
+    fontSize: 11.5,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+
+  groupDetailCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    gap: 12,
+  },
+  groupDetailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  groupDetailHeaderMobile: {
+    alignItems: "flex-start",
+    flexDirection: "column",
+  },
+  groupDetailTitleBox: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+  },
+  groupDetailIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  groupDetailTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  groupDetailMeta: {
+    marginTop: 3,
+    fontSize: 11.5,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+  groupStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  groupStatusText: {
+    fontSize: 10.5,
+    fontWeight: "900",
+  },
+  groupManagementGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  groupManagementBox: {
+    minWidth: 230,
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+  },
+  groupManagementLabel: {
+    fontSize: 9.5,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  groupManagementValue: {
+    marginTop: 3,
+    fontSize: 11.5,
+    fontWeight: "900",
+    lineHeight: 16,
+  },
+  groupReasonBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  groupReasonText: {
+    flex: 1,
+    fontSize: 11.5,
+    fontWeight: "800",
+    lineHeight: 16,
+  },
+  groupSection: {
+    gap: 7,
+  },
+  groupSectionTitle: {
+    fontSize: 11.5,
+    fontWeight: "900",
+  },
+  groupChipList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  groupChip: {
+    maxWidth: "100%",
+    minHeight: 31,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  groupChipText: {
+    maxWidth: 310,
+    fontSize: 9.8,
+    fontWeight: "900",
   },
 });

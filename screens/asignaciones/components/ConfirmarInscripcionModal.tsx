@@ -48,6 +48,17 @@ function ordenar(
   });
 }
 
+function formatearFechaGrupo(value?: string | null): string {
+  if (!value) return "Sin fecha";
+
+  const limpia = String(value).split("T")[0].split(" ")[0];
+  const partes = limpia.split("-");
+
+  if (partes.length !== 3) return limpia;
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
 export default function ConfirmarInscripcionModal({
   visible,
   estudiante,
@@ -374,6 +385,16 @@ function ChangeSection({
                 <MetaPill
                   icon="people-outline"
                   text={`${seleccion.nombreGrupo} · Paralelo ${seleccion.paralelo}`}
+                  color={color}
+                />
+                <MetaPill
+                  icon="calendar-outline"
+                  text={`Inicio ${formatearFechaGrupo(seleccion.fechaInicio)}`}
+                  color={color}
+                />
+                <MetaPill
+                  icon="calendar-number-outline"
+                  text={`Fin ${formatearFechaGrupo(seleccion.fechaFin)}`}
                   color={color}
                 />
               </View>

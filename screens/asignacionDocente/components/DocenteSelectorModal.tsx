@@ -42,38 +42,24 @@ function compararTextoEspanol(a: unknown, b: unknown) {
   });
 }
 
-function compararDocentesPorApellido(a: Docente, b: Docente) {
-  const usuarioA = a.usuario;
-  const usuarioB = b.usuario;
+function compararDocentesAlfabeticamente(
+  a: Docente,
+  b: Docente,
+): number {
+  const nombreA = getNombreCompleto(a);
+  const nombreB = getNombreCompleto(b);
 
-  const comparacionApellidoPaterno = compararTextoEspanol(
-    usuarioA?.apellidoPaterno,
-    usuarioB?.apellidoPaterno,
-  );
+  const comparacion = nombreA.localeCompare(nombreB, "es", {
+    sensitivity: "base",
+    numeric: true,
+    ignorePunctuation: true,
+  });
 
-  if (comparacionApellidoPaterno !== 0) {
-    return comparacionApellidoPaterno;
+  if (comparacion !== 0) {
+    return comparacion;
   }
 
-  const comparacionApellidoMaterno = compararTextoEspanol(
-    usuarioA?.apellidoMaterno,
-    usuarioB?.apellidoMaterno,
-  );
-
-  if (comparacionApellidoMaterno !== 0) {
-    return comparacionApellidoMaterno;
-  }
-
-  const comparacionNombres = compararTextoEspanol(
-    usuarioA?.nombres,
-    usuarioB?.nombres,
-  );
-
-  if (comparacionNombres !== 0) {
-    return comparacionNombres;
-  }
-
-  return a.idDocente - b.idDocente;
+  return Number(a.idDocente) - Number(b.idDocente);
 }
 
 function getNombreCompleto(docente: Docente) {
@@ -92,12 +78,24 @@ function getNombreCompleto(docente: Docente) {
 }
 
 function getTituloProfesional(docente: Docente) {
-  const abreviatura =
-    docente.abreviaturaProfesional ?? docente.abreviaturaProfesion ?? "";
+  const abreviaturaOriginal =
+    docente.abreviaturaProfesional ??
+    docente.abreviaturaProfesion ??
+    "";
 
-  const profesion = docente.profesion ?? "Sin profesión";
+  const profesion = String(
+    docente.profesion ?? "Sin profesión",
+  ).trim();
 
-  return abreviatura ? `${abreviatura}. ${profesion}` : profesion;
+  const abreviatura = String(abreviaturaOriginal)
+    .trim()
+    .replace(/[.\-–—:\s]+$/g, "");
+
+  if (!abreviatura) {
+    return profesion;
+  }
+
+  return `${abreviatura}. ${profesion}`;
 }
 
 export default function DocenteSelectorModal({
@@ -153,7 +151,7 @@ export default function DocenteSelectorModal({
 
         return textoBusqueda.includes(termino);
       })
-      .sort(compararDocentesPorApellido);
+      .sort(compararDocentesAlfabeticamente);
   }, [docentes, busqueda]);
 
   const totalPaginas = Math.max(

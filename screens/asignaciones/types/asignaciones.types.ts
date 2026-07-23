@@ -40,6 +40,14 @@ export type Estudiante = {
   created_at?: string | null;
   updated_at?: string | null;
 
+  /** Estado del plan de cuotas para la carrera y gestión activas. */
+  tieneCuotasGestion?: boolean | number | string | null;
+  requiereCuotasGestion?: boolean | number | string | null;
+  totalCuotasGestion?: number;
+  totalCuotasMensualesGestion?: number;
+  totalCuotasCondonadasGestion?: number;
+  estadoCuotasGestion?: "CON_CUOTAS" | "SIN_CUOTAS" | string | null;
+
   yaInscrito?: boolean | number | string | null;
   puedeInscribir?: boolean | number | string | null;
   tieneMateriasDesbloqueadas?: boolean | number | string | null;
@@ -66,6 +74,8 @@ export type GrupoDisponible = {
   codigoGrupo: string;
   paralelo: string;
   turno: TurnoInscripcion;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
   gestion: string | number;
   anioGestion?: string | number | null;
   periodoGestion?: string | null;
@@ -142,6 +152,8 @@ export type SeleccionMateriaInscripcion = {
   codigoGrupo: string;
   paralelo: string;
   cupos: number;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
 };
 
 export type SeleccionMateriaPayload = Pick<
@@ -173,6 +185,8 @@ export type InscripcionDetalle = {
   codigoGrupo: string;
   paralelo: string;
   turno: TurnoInscripcion | string;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
   gestion: string | number;
   anioGestion?: string | number | null;
   periodoGestion?: string | null;
@@ -195,6 +209,7 @@ export type CarreraEstudiante = {
   tipoNivel?: string | null;
   nivelesAcademicos?: number[];
   notaAprobacion?: number | null;
+  turnoPreferido?: TurnoInscripcion | null;
 };
 
 export type DetalleEstudianteResponse = {
@@ -214,6 +229,92 @@ export type GestionActiva = {
   fecha_inicio?: string | null;
   fecha_fin?: string | null;
   estado: string;
+};
+
+export type EstadoCuotaGestion = "Debe" | "Pagado" | "Condonado";
+
+export type CuotaGestion = {
+  idCuota: number;
+  idUsuario: number;
+  idCarrera: number | null;
+  idGestion: number | null;
+  tipo: "MATRICULA" | "MENSUAL" | "CONVALIDACION" | string;
+  numeroCuota: number | string;
+  monto: number | string;
+  descuento: number | string;
+  fecha_vencimiento?: string | null;
+  estadoCuota: EstadoCuotaGestion;
+  fecha_pago?: string | null;
+};
+
+export type CarreraCuotasGestion = {
+  idCarrera: number;
+  nombreCarrera: string;
+  codigo?: string | null;
+  tipo?: string | null;
+  regimen?: string | null;
+  estadoCarrera?: string | null;
+  costo?: number | string | null;
+  costo_matricula?: number | string | null;
+  costoMatricula?: number | string | null;
+  cuota_mensual?: number | string | null;
+  cuotas_por_anio?: number | string | null;
+  numeroCuotas?: number | string | null;
+  duracion_meses?: number | string | null;
+  duracionMeses?: number | string | null;
+};
+
+export type CuotasGestionResponse = {
+  codigo:
+    | "CUOTAS_GESTION_REGISTRADAS"
+    | "CUOTAS_GESTION_REQUERIDAS"
+    | string;
+  tieneCuotasGestion: boolean;
+  totalCuotasGestion: number;
+  totalCuotasMensuales: number;
+  gestionActiva: GestionActiva;
+  carrera: CarreraCuotasGestion;
+  turnoPreferido?: TurnoInscripcion | null;
+  cuotas: CuotaGestion[];
+  message: string;
+};
+
+export type CuotaGestionEditablePayload = {
+  numeroCuota: number;
+  monto: number;
+  descuento: number;
+  fecha_vencimiento: string;
+  estadoCuota: "Debe" | "Condonado";
+};
+
+export type GuardarCuotasGestionPayload = {
+  idCarrera: number;
+  idGestion: number;
+  turnoPreferido: TurnoInscripcion;
+  matricula: {
+    monto: number;
+    descuento: number;
+    fecha_vencimiento: string;
+  };
+  cuotas: CuotaGestionEditablePayload[];
+};
+
+export type GuardarCuotasGestionResponse = {
+  ok: boolean;
+  guardado: boolean;
+  actualizado: boolean;
+  carreraCreada?: boolean;
+  carreraCambiada?: boolean;
+  idCarreraAnterior?: number | null;
+  idCarreraActual: number;
+  idGestion: number;
+  gestionActiva: GestionActiva;
+  turnoPreferido: TurnoInscripcion;
+  message: string;
+  total_insertado?: number;
+  total_actualizado?: number;
+  total_eliminado?: number;
+  total_protegido?: number;
 };
 
 export type MateriasSemestreUnoResponse = {
@@ -255,6 +356,9 @@ export type ActualizarInscripcionResponse = {
   inscritas?: MateriaActualizada[];
   cuposDescontados?: number;
   cuposDevueltos?: number;
+  code?: string;
+  requiereCuotas?: boolean;
+  cuotasGestion?: CuotasGestionResponse | null;
 };
 
 /** Compatibilidad con código anterior. */
