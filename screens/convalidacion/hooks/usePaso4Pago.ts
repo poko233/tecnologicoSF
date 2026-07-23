@@ -95,6 +95,53 @@ export function usePaso4Pago(solicitudId: number | null) {
   }
 };
 
+  const guardarPagoCuotas = async (payload: {
+    idUsuario: number;
+    idCarrera: number;
+    arancel_por_materia: number;
+    matricula: { monto: number; descuento: number; fecha_vencimiento: string };
+    cuotas: Array<{
+      numeroCuota: number;
+      monto: number;
+      descuento: number;
+      fecha_vencimiento: string;
+      estadoCuota: string;
+    }>;
+  }) => {
+    if (!solicitudId) return false;
+
+    try {
+      setLoading(true);
+
+      // 1. Guardar plan de cuotas (matrícula + mensualidades)
+      await convalidacionService.guardarPagoCuotas(solicitudId, payload);
+
+      // 2. Resolver solicitud (sin registrar pago - las cuotas se pagan después individualmente)
+      await convalidacionService.resolverSolicitud(solicitudId, {
+        estado: 'aprobada',
+        observacion_resolucion: 'Solicitud aprobada con plan de cuotas registrado',
+        fecha_resolucion: new Date().toISOString().split('T')[0],
+      });
+
+      Toast.show({
+        type: 'success',
+        text1: 'Solicitud completada',
+        text2: 'Plan de cuotas registrado correctamente',
+      });
+
+      return true;
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.message || 'No se pudo guardar el plan de cuotas',
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateField = <K extends keyof typeof formData>(
     field: K,
     value: typeof formData[K]
@@ -109,5 +156,6 @@ export function usePaso4Pago(solicitudId: number | null) {
     loading,
     loadingData,
     registrarPago,
+    guardarPagoCuotas,
   };
 }

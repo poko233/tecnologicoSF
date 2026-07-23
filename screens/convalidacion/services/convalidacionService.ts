@@ -78,9 +78,15 @@ export const convalidacionService = {
       data
     ),
 
+  guardarPagoCuotas: (id: number, data: any) =>
+    httpClient.postAuth<{ success: boolean; message: string }>(
+      `/api/convalidacion/solicitudes/${id}/pago-cuotas`,
+      data
+    ),
+
   getSolicitud: (id: number) =>
     httpClient.getAuth<{ success: boolean; data: any }>(
       `/api/convalidacion/solicitudes/${id}`
     ),
-  
+
 };

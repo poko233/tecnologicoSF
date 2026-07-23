@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message";
 import { useResponsive } from "../../../hooks/useResponsive";
 import { useTheme } from "../../../theme/useTheme";
 import { pagoService } from "../services/pago.service";
@@ -77,8 +78,33 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
 
       onPaymentSuccess(idPago);
       onClose();
-    } catch (_) {
-      // Manejado por capas superiores
+    } catch (error: any) {
+      // Cerrar el modal PRIMERO para que el Toast se vea bien
+      onClose();
+
+      // Mostrar error con Toast grande DESPUÉS de cerrar el modal
+      const mensaje = error?.message || error?.error || "No se pudo registrar el pago";
+
+      // Esperar un poquito para que el modal se cierre completamente
+      setTimeout(() => {
+        // Si el error es por arqueo, mostrar mensaje especial
+        if (mensaje.includes("arqueo") || mensaje.includes("turno")) {
+          Toast.show({
+            type: "error",
+            text1: "Arqueo cerrado",
+            text2: "Debe ABRIR UN ARQUEO antes de registrar pagos. Vaya al módulo de Arqueos.",
+            visibilityTime: 6000,
+            position: "top",
+          });
+        } else {
+          Toast.show({
+            type: "error",
+            text1: "Error al registrar pago",
+            text2: mensaje,
+            visibilityTime: 4000,
+          });
+        }
+      }, 300);
     } finally {
       setLoading(false);
     }

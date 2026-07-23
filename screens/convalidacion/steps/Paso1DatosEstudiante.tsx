@@ -16,10 +16,7 @@ import { usePaso1 } from '../hooks/usePaso1';
 
 const EXPEDIDOS = ['LPZ', 'CBBA', 'OR', 'PT', 'TJ', 'SCZ', 'BN', 'PD', 'CH', 'QR', 'EXT'];
 const GENEROS = ['MASCULINO', 'FEMENINO'];
-const TIPOS = [
-  { value: 'externa', label: 'Externa' },
-  { value: 'cambio_carrera', label: 'Cambio de carrera' },
-];
+
 
 export function Paso1DatosEstudiante() {
   const { theme } = useTheme();
@@ -370,18 +367,6 @@ export function Paso1DatosEstudiante() {
               )}
             </>
           )}
-        </View>
-
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.colors.textMuted }]}>
-            TIPO DE CONVALIDACIÓN *
-          </Text>
-          <SelectField
-            value={formData.tipo}
-            onChange={(value) => updateField('tipo', value as any)}
-            options={TIPOS}
-            placeholder="Seleccione tipo"
-          />
         </View>
 
         <View style={styles.field}>
