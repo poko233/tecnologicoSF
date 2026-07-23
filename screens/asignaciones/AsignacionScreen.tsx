@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Linking,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,11 +16,15 @@ import { ThemedText } from "../../components/ThemedText";
 import { BASE_URL } from "../../http/httpClient";
 import { useTheme } from "../../theme/useTheme";
 
+import CuotasGestionModal from "./components/CuotasGestionModal";
 import EstudiantesTable from "./components/EstudianteTable";
 import InscribirModal from "./components/InscribirModal";
 import { useAsignaciones } from "./hooks/useAsignaciones";
+import { getCuotasGestionAsignaciones } from "./services/asignaciones.services";
 import {
+  CuotasGestionResponse,
   Estudiante,
+  GuardarCuotasGestionResponse,
   SeleccionMateriaInscripcion,
 } from "./types/asignaciones.types";
 
@@ -53,6 +59,11 @@ export default function AsignacionesScreen() {
   } = useAsignaciones();
 
   const [inscribirVisible, setInscribirVisible] = useState(false);
+  const [cuotasVisible, setCuotasVisible] = useState(false);
+  const [verificandoCuotas, setVerificandoCuotas] = useState(false);
+  const [datosCuotasGestion, setDatosCuotasGestion] =
+    useState<CuotasGestionResponse | null>(null);
+  const [cuotasCarreraId, setCuotasCarreraId] = useState<number | null>(null);
 
   const isDark =
     theme.colors.background.toLowerCase().includes("0") ||
@@ -140,9 +151,41 @@ export default function AsignacionesScreen() {
 
       limpiarSeleccion(false);
       setEstudianteSeleccionado(estudiante);
-      setInscribirVisible(true);
+      setDatosCuotasGestion(null);
+      setCuotasCarreraId(carreraActual);
+      setVerificandoCuotas(true);
 
-      await cargarDetalle(estudiante.id);
+      try {
+        const [detalleCargado, cuotasGestion] = await Promise.all([
+          cargarDetalle(estudiante.id),
+          getCuotasGestionAsignaciones(estudiante.id, carreraActual),
+        ]);
+
+        if (!detalleCargado) {
+          setEstudianteSeleccionado(null);
+          return;
+        }
+
+        if (!cuotasGestion.tieneCuotasGestion) {
+          setDatosCuotasGestion(cuotasGestion);
+          setCuotasVisible(true);
+          return;
+        }
+
+        setInscribirVisible(true);
+      } catch (error: any) {
+        setEstudianteSeleccionado(null);
+
+        Toast.show({
+          type: "error",
+          text1: "No se pudo verificar las cuotas",
+          text2:
+            error?.response?.data?.message ??
+            "No se pudo comprobar el plan de cuotas de la gestión activa.",
+        });
+      } finally {
+        setVerificandoCuotas(false);
+      }
     },
     [
       carreraActual,
@@ -181,9 +224,91 @@ export default function AsignacionesScreen() {
 
   const cerrarInscribir = useCallback(() => {
     setInscribirVisible(false);
+    setDatosCuotasGestion(null);
+    setCuotasCarreraId(null);
     setEstudianteSeleccionado(null);
     limpiarSeleccion(false);
   }, [limpiarSeleccion, setEstudianteSeleccionado]);
+
+  const cerrarCuotas = useCallback(() => {
+    setCuotasVisible(false);
+    setDatosCuotasGestion(null);
+    setCuotasCarreraId(null);
+    setEstudianteSeleccionado(null);
+    limpiarSeleccion(false);
+  }, [limpiarSeleccion, setEstudianteSeleccionado]);
+
+  const cuotasGuardadas = useCallback(
+    async (
+      _response: GuardarCuotasGestionResponse,
+      datosActualizados: CuotasGestionResponse,
+    ) => {
+      if (!estudianteSeleccionado) return;
+
+      setDatosCuotasGestion(datosActualizados);
+      setCuotasVisible(false);
+
+      const tareas: Promise<unknown>[] = [
+        cargarDetalle(estudianteSeleccionado.id),
+      ];
+
+      if (carreraActual) {
+        tareas.push(cargarEstudiantes(carreraActual, nivelActual));
+      }
+
+      const [detalleActualizado] = await Promise.all(tareas);
+
+      if (detalleActualizado) {
+        setInscribirVisible(true);
+      }
+    },
+    [
+      estudianteSeleccionado,
+      cargarDetalle,
+      carreraActual,
+      nivelActual,
+      cargarEstudiantes,
+    ],
+  );
+
+  const mostrarModalCuotas = useCallback(
+    async (idCarrera: number, mensaje?: string) => {
+      if (!estudianteSeleccionado) return;
+
+      try {
+        setVerificandoCuotas(true);
+
+        const cuotasGestion = await getCuotasGestionAsignaciones(
+          estudianteSeleccionado.id,
+          idCarrera,
+        );
+
+        setDatosCuotasGestion(cuotasGestion);
+        setCuotasCarreraId(idCarrera);
+        setInscribirVisible(false);
+        setCuotasVisible(true);
+
+        Toast.show({
+          type: "info",
+          text1: "Cuotas de la gestión requeridas",
+          text2:
+            mensaje ??
+            "Registra el plan de cuotas antes de agregar materias.",
+        });
+      } catch (error: any) {
+        Toast.show({
+          type: "error",
+          text1: "No se pudieron cargar las cuotas",
+          text2:
+            error?.response?.data?.message ??
+            "No se pudo abrir el plan de cuotas de la gestión activa.",
+        });
+      } finally {
+        setVerificandoCuotas(false);
+      }
+    },
+    [estudianteSeleccionado],
+  );
 
   const confirmarCambios = useCallback(
     async (
@@ -193,6 +318,36 @@ export default function AsignacionesScreen() {
     ) => {
       if (!estudianteSeleccionado) return;
 
+      if (agregar.length > 0) {
+        try {
+          setVerificandoCuotas(true);
+
+          const cuotasGestion = await getCuotasGestionAsignaciones(
+            estudianteSeleccionado.id,
+            idCarrera,
+          );
+
+          if (!cuotasGestion.tieneCuotasGestion) {
+            setDatosCuotasGestion(cuotasGestion);
+            setCuotasCarreraId(idCarrera);
+            setInscribirVisible(false);
+            setCuotasVisible(true);
+            return;
+          }
+        } catch (error: any) {
+          Toast.show({
+            type: "error",
+            text1: "No se pudo verificar las cuotas",
+            text2:
+              error?.response?.data?.message ??
+              "No se pudo comprobar el plan de la gestión activa.",
+          });
+          return;
+        } finally {
+          setVerificandoCuotas(false);
+        }
+      }
+
       const response = await actualizarInscripcion(
         estudianteSeleccionado.id,
         idCarrera,
@@ -200,11 +355,21 @@ export default function AsignacionesScreen() {
         quitar,
       );
 
+      if (response?.requiereCuotas) {
+        await mostrarModalCuotas(idCarrera, response.message);
+        return;
+      }
+
       if (response) {
         cerrarInscribir();
       }
     },
-    [estudianteSeleccionado, actualizarInscripcion, cerrarInscribir],
+    [
+      estudianteSeleccionado,
+      actualizarInscripcion,
+      cerrarInscribir,
+      mostrarModalCuotas,
+    ],
   );
 
   return (
@@ -322,6 +487,42 @@ export default function AsignacionesScreen() {
         onLoadMaterias={cargarMateriasModal}
         onConfirm={confirmarCambios}
       />
+
+      <CuotasGestionModal
+        visible={cuotasVisible}
+        estudiante={estudianteSeleccionado}
+        idCarrera={cuotasCarreraId}
+        datosIniciales={datosCuotasGestion}
+        onClose={cerrarCuotas}
+        onSuccess={cuotasGuardadas}
+      />
+
+      <Modal
+        visible={verificandoCuotas}
+        transparent
+        animationType="fade"
+        onRequestClose={() => undefined}
+      >
+        <View style={styles.verifyingBackdrop}>
+          <View
+            style={[
+              styles.verifyingCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: heroBorder,
+              },
+            ]}
+          >
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <ThemedText style={[styles.verifyingTitle, { color: strongText }]}>
+              Verificando cuotas
+            </ThemedText>
+            <ThemedText style={[styles.verifyingText, { color: mutedText }]}>
+              Comprobando el plan de la gestión activa.
+            </ThemedText>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -404,5 +605,38 @@ const styles = StyleSheet.create({
   counterText: {
     fontSize: 13,
     fontWeight: "900",
+  },
+
+  verifyingBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(2,6,23,0.78)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 18,
+  },
+  verifyingCard: {
+    width: "92%",
+    maxWidth: 360,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    gap: 9,
+    shadowColor: "#000",
+    shadowOpacity: 0.28,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 16,
+  },
+  verifyingTitle: {
+    marginTop: 4,
+    fontSize: 17,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  verifyingText: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    textAlign: "center",
   },
 });
