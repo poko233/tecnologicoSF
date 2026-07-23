@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 import { moduloService } from "../services/modulo.service";
 import {
-    CreateModuloPayload,
-    Modulo,
-    UpdateModuloPayload,
+  CreateModuloPayload,
+  Modulo,
+  UpdateModuloPayload,
 } from "../types/modulo.types";
 
 const CACHE_KEY = "modulos_cache";
@@ -27,7 +27,6 @@ export function useModulos() {
         return true;
       }
     } catch (err) {
-      console.warn("Error loading cache:", err);
     }
     return false;
   }, []);
@@ -51,7 +50,6 @@ export function useModulos() {
         return age < CACHE_DURATION;
       }
     } catch (err) {
-      console.warn("Error checking cache:", err);
     }
     return false;
   }, []);
@@ -79,7 +77,11 @@ export function useModulos() {
       setModulos(data);
       await saveToCache(data);
     } catch (err: any) {
-      Toast.show({ type: "error", text1: "Error", text2: err.message });
+      Toast.show({
+        type: "error",
+        text1: "Error al cargar módulos",
+        text2: err.message || "Verifica tu conexión o sesión"
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -162,7 +164,7 @@ export function useModulos() {
 
   useEffect(() => {
     fetchModulos();
-  }, []);
+  }, [fetchModulos]);
 
   return {
     modulos,

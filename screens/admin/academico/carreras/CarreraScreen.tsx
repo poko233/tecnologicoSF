@@ -1,4 +1,6 @@
+import { useTheme } from '@theme'
 import React from 'react'
+import { Text } from 'react-native'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAdminCrud } from '../hooks/useAdminCrud'
@@ -7,19 +9,21 @@ import { Carrera } from './carrera.types'
 import { CarreraForm } from './CarreraForm'
 import { carreraService } from './carreraService'
 
-const columns: ColumnDef[] = [
-  { key: 'codigo', header: 'Código', width: 90 },
-  { key: 'nombreCarrera', header: 'Carrera', flex: 2 },
-  { key: 'regimen', header: 'Régimen', width: 100 },
-  { key: 'costo', header: 'Costo (Bs.)', width: 110, render: (val) => {
-    const React2 = require('react')
-    const { Text } = require('react-native')
-    return React2.createElement(Text, { style: { fontWeight: '600' } }, `Bs. ${Number(val).toLocaleString()}`)
-  }},
-  { key: 'estadoCarrera', header: 'Estado', width: 110, render: (val) => <StatusBadge status={val} /> },
-]
-
 export function CarreraScreen() {
+  const { theme } = useTheme()
+
+  const columns: ColumnDef[] = [
+    { key: 'codigo', header: 'Código', width: 90 },
+    { key: 'nombreCarrera', header: 'Carrera', flex: 2 },
+    { key: 'regimen', header: 'Régimen', width: 100 },
+    { key: 'costo', header: 'Costo (Bs.)', width: 110, render: (val) => (
+      <Text style={{ fontWeight: '600', color: theme.colors.text }}>
+        {`Bs. ${Number(val).toLocaleString()}`}
+      </Text>
+    )},
+    { key: 'estadoCarrera', header: 'Estado', width: 110, render: (val) => <StatusBadge status={val} /> },
+  ]
+
   const crud = useAdminCrud<Carrera>({
     fetchAll: carreraService.getAll,
     create: carreraService.create,

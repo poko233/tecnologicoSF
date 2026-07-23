@@ -105,9 +105,11 @@ export const SidebarHeader = () => {
             )}
           </View>
 
-          <ArqueoStatusDot
-            borderColor={theme.colors.card ?? theme.colors.background}
-          />
+          {roles?.includes("Administrador") && (
+            <ArqueoStatusDot
+              borderColor={theme.colors.card ?? theme.colors.background}
+            />
+          )}
         </View>
 
         {/* Nombre */}

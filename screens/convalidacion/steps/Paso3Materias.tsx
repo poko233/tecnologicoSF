@@ -18,7 +18,7 @@ import { usePaso3Materias } from '../hooks/usePaso3Materias';
 
 export function Paso3Materias() {
   const { theme } = useTheme();
-  const { solicitudId, idCarreraDestino, avanzarPaso, retrocederPaso } =
+  const { solicitudId, idCarreraDestino, avanzarPaso, retrocederPaso, paso1Data} =
     useConvalidacionContext();
   const { materias, detalles, loading, loadingData, agregarMateria, eliminarMateria } =
     usePaso3Materias(solicitudId, idCarreraDestino);
@@ -26,7 +26,7 @@ export function Paso3Materias() {
   const [modalVisible, setModalVisible] = useState(false);
   const [formData, setFormData] = useState({
     materia_origen_nombre: '',
-    materia_origen_institucion: '',
+    materia_origen_institucion: paso1Data?.institucion_origen ?? '',
     nota_origen: '',
     idMateriaDestino: null as number | null,
   });
@@ -34,7 +34,7 @@ export function Paso3Materias() {
   const resetForm = () => {
     setFormData({
       materia_origen_nombre: '',
-      materia_origen_institucion: '',
+      materia_origen_institucion: paso1Data?.institucion_origen ?? '',
       nota_origen: '',
       idMateriaDestino: null,
     });

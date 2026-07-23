@@ -46,7 +46,7 @@ export function ModuloCard({ modulo, onEdit, onDelete, isDragging = false }: Mod
 
       {/* Icono */}
       <View style={styles.iconWrap}>
-        <Ionicons name={iconicon} size={24} color={c.text} />
+        <Ionicons name={ionicon} size={24} color={c.text} />
       </View>
 
       {/* Info */}
