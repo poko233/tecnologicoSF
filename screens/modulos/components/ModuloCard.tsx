@@ -62,7 +62,7 @@ export function ModuloCard({ modulo, onEdit, onDelete, isDragging = false }: Mod
         {modulo.formularios !== undefined && (
           <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
             <Text style={[styles.badge, { color: c.muted }]}>
-              📋 {modulo.formularios.length} formulario
+              {modulo.formularios.length} formulario
               {modulo.formularios.length !== 1 ? "s" : ""}
             </Text>
           </View>
