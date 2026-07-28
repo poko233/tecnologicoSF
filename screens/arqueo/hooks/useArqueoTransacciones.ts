@@ -1,14 +1,23 @@
-// screens/arqueo/hooks/useArqueoTransacciones.ts
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Toast from "react-native-toast-message";
 import { transaccionService } from "../services/transaccion.service";
-import { Transaccion } from "../types/transaccion.types";
+import { Pago } from "../types/arqueo.types";
+import { IngresoCombinado, Transaccion } from "../types/transaccion.types";
 
-export const useArqueoTransacciones = (arqueoId: number | null) => {
+const tipoMap: Record<string, string> = {
+  MATRICULA: "Matrícula",
+  MENSUAL: "Mensualidad",
+  CONVALIDACION: "Convalidación",
+};
+
+export const useArqueoTransacciones = (
+  arqueoId: number | null | undefined,
+  pagos: Pago[] = [],
+) => {
   const [ingresos, setIngresos] = useState<Transaccion[]>([]);
   const [egresos, setEgresos] = useState<Transaccion[]>([]);
   const [loadingTransacciones, setLoadingTransacciones] = useState(false);
-  const [updatingId, setUpdatingId] = useState<number | null>(null); //  Para saber qué fila está cargando
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   const loadingRef = useRef(false);
 
@@ -86,7 +95,6 @@ export const useArqueoTransacciones = (arqueoId: number | null) => {
     [arqueoId, loadTransacciones],
   );
 
-  //  NUEVO: Actualizar estado de una transacción específica
   const updateTransaccionEstado = useCallback(
     async (
       tipo: "INGRESO" | "EGRESO",
@@ -94,7 +102,7 @@ export const useArqueoTransacciones = (arqueoId: number | null) => {
       nuevoEstado: "VALIDO" | "ANULADO",
     ) => {
       if (!arqueoId) return;
-      setUpdatingId(id); // Marcamos el ID que se está actualizando para deshabilitar el botón
+      setUpdatingId(id);
       try {
         if (tipo === "INGRESO") {
           await transaccionService.updateIngresoEstado(
@@ -112,9 +120,10 @@ export const useArqueoTransacciones = (arqueoId: number | null) => {
         Toast.show({
           type: "success",
           text1: "Éxito",
-          text2: `Transacción ${nuevoEstado === "ANULADO" ? "anulada" : "validada"} correctamente`,
+          text2: `Transacción ${
+            nuevoEstado === "ANULADO" ? "anulada" : "validada"
+          } correctamente`,
         });
-        // Recargar la lista correspondiente
         const target = tipo === "INGRESO" ? "ingresos" : "egresos";
         await loadTransacciones(target);
       } catch (err: any) {
@@ -131,13 +140,69 @@ export const useArqueoTransacciones = (arqueoId: number | null) => {
     [arqueoId, loadTransacciones],
   );
 
+  const ingresosCombinados = useMemo<IngresoCombinado[]>(() => {
+    const list: IngresoCombinado[] = [];
+
+    pagos.forEach((pago) => {
+      const concepto =
+        pago.cuotas && pago.cuotas.length > 0
+          ? [
+              ...new Set(pago.cuotas.map((c) => tipoMap[c.tipo] || c.tipo)),
+            ].join(" + ")
+          : "Pago";
+      list.push({
+        id: `pago-${pago.id}`,
+        fecha: pago.fecha,
+        fecha_registro: pago.fecha,
+        concepto,
+        metodo: pago.metodo,
+        monto: pago.monto,
+        estado: "VALIDO",
+        tipo: "Pago Estudiante",
+        origen: "pago",
+        idOriginal: pago.id,
+        usuario: pago.estudiante?.nombres
+          ? `${pago.estudiante.nombres} ${pago.estudiante.apellidoPaterno}`
+          : "Estudiante",
+        comprobante: pago.comprobante,
+        detalle: pago.observacion || null,
+        tipo_transaccion: concepto,
+      });
+    });
+
+    ingresos.forEach((ing) => {
+      if (ing.estado === "ANULADO") return;
+      list.push({
+        id: `ingreso-${ing.id}`,
+        fecha: ing.fecha_registro,
+        fecha_registro: ing.fecha_registro,
+        concepto: ing.tipo_transaccion || ing.detalle || "Sin concepto",
+        metodo: ing.metodo,
+        monto: ing.monto,
+        estado: ing.estado,
+        tipo: "Ingreso Manual",
+        origen: "ingreso",
+        idOriginal: ing.id,
+        usuario: ing.usuario,
+        comprobante: ing.comprobante,
+        detalle: ing.detalle,
+        tipo_transaccion: ing.tipo_transaccion,
+      });
+    });
+
+    return list.sort(
+      (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+    );
+  }, [pagos, ingresos]);
+
   return {
     ingresos,
     egresos,
+    ingresosCombinados,
     loadingTransacciones,
-    updatingId, //  Exponemos el ID que está cargando
+    updatingId,
     loadTransacciones,
     createTransaccion,
-    updateTransaccionEstado, //  Exponemos la función de actualización
+    updateTransaccionEstado,
   };
 };

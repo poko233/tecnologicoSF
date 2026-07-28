@@ -1,30 +1,36 @@
-// screens/arqueo/components/ArqueoTransaccionRow.tsx
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/theme/useTheme";
 import { formatDateTimeNatural } from "@/utils/dateHelpers";
-import { MoreVertical } from "lucide-react-native";
+import { MoreVertical, Receipt } from "lucide-react-native";
 import { MotiView } from "moti";
 import { MotiPressable } from "moti/interactions";
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Transaccion } from "../types/transaccion.types";
+import { Egreso, Ingreso } from "../types/arqueo.types";
+import { IngresoCombinado, Transaccion } from "../types/transaccion.types";
 import { tableStyles } from "./tableStyles";
 
 interface ArqueoTransaccionRowProps {
-  transaccion: Transaccion;
+  transaccion: Transaccion | IngresoCombinado | Egreso | Ingreso;
   index: number;
-  onUpdateEstado: (nuevoEstado: "VALIDO" | "ANULADO") => void;
-  isUpdating: boolean;
+  onUpdateEstado?: (nuevoEstado: "VALIDO" | "ANULADO") => void;
+  isUpdating?: boolean;
+  showReceipt?: boolean;
+  onPrintReceipt?: () => void;
+  showMenu?: boolean;
 }
 
 export function ArqueoTransaccionRow({
   transaccion,
   index,
   onUpdateEstado,
-  isUpdating,
+  isUpdating = false,
+  showReceipt = false,
+  onPrintReceipt,
+  showMenu = true, // por defecto true
 }: ArqueoTransaccionRowProps) {
   const { theme } = useTheme();
-  const [showMenu, setShowMenu] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
 
   const isAnulado = transaccion.estado === "ANULADO";
   const nuevoEstado = isAnulado ? "VALIDO" : "ANULADO";
@@ -55,63 +61,60 @@ export function ArqueoTransaccionRow({
     ? { color: theme.colors.destructive }
     : { color: theme.colors.textSecondary };
 
+  const fecha = transaccion.fecha_registro;
+  const comprobante = transaccion.comprobante || "—";
+  const usuario = transaccion.usuario || "—";
+  const concepto =
+    transaccion.tipo_transaccion || transaccion.detalle || "Sin concepto";
+
   const handleMenuPress = () => {
     if (isUpdating) return;
-    setShowMenu((prev) => !prev);
+    setShowContextMenu((prev) => !prev);
   };
 
-  //  NUEVO: Acción directa sin preguntas ni Alert
   const handleActionPress = () => {
-    setShowMenu(false);
-    onUpdateEstado(nuevoEstado);
+    setShowContextMenu(false);
+    if (onUpdateEstado) {
+      onUpdateEstado(nuevoEstado);
+    }
   };
 
   return (
     <View
       style={[styles.row, rowBg, { borderBottomColor: theme.colors.border }]}
     >
-      {/* # */}
       <View style={tableStyles.colId}>
         <ThemedText style={[{ fontSize: 13 }, textStyle]}>
           {index + 1}
         </ThemedText>
       </View>
 
-      {/* Fecha Registro */}
       <View style={tableStyles.colFecha}>
         <ThemedText style={[{ fontSize: 13 }, textStyle]}>
-          {formatDateTimeNatural(transaccion.fecha_registro)}
+          {formatDateTimeNatural(fecha)}
         </ThemedText>
       </View>
 
-      {/* Boleta */}
       <View style={tableStyles.colBoleta}>
         <ThemedText style={[{ fontSize: 13, fontWeight: "600" }, textStyle]}>
-          {transaccion.comprobante || "—"}
+          {comprobante}
         </ThemedText>
       </View>
 
-      {/* Cajero */}
       <View style={tableStyles.colCajero}>
-        <ThemedText style={[{ fontSize: 13 }, textStyle]}>
-          {transaccion.usuario}
-        </ThemedText>
+        <ThemedText style={[{ fontSize: 13 }, textStyle]}>{usuario}</ThemedText>
       </View>
 
-      {/* Concepto */}
       <View style={tableStyles.colConcepto}>
         <ThemedText
           style={[{ fontSize: 13, fontWeight: "500" }, textStyle]}
           numberOfLines={1}
           ellipsizeMode="tail"
         >
-          {transaccion.tipo_transaccion ||
-            transaccion.detalle ||
-            "Sin concepto"}
+          {concepto}
         </ThemedText>
       </View>
 
-      {/* Monto */}
       <View style={tableStyles.colMonto}>
         <ThemedText
           style={[
@@ -123,7 +126,6 @@ export function ArqueoTransaccionRow({
         </ThemedText>
       </View>
 
-      {/* Glosa */}
       <View style={tableStyles.colGlosa}>
         <ThemedText
           style={[{ fontSize: 12 }, textStyle]}
@@ -134,14 +136,12 @@ export function ArqueoTransaccionRow({
         </ThemedText>
       </View>
 
-      {/* Tipo Pago */}
       <View style={tableStyles.colTipoPago}>
         <ThemedText style={[{ fontSize: 13 }, textStyle]}>
           {transaccion.metodo}
         </ThemedText>
       </View>
 
-      {/* Estado */}
       <View style={tableStyles.colEstado}>
         <View style={[styles.badge, badgeBg, { borderWidth: 1 }]}>
           <ThemedText style={[{ fontSize: 10, fontWeight: "700" }, badgeText]}>
@@ -150,59 +150,75 @@ export function ArqueoTransaccionRow({
         </View>
       </View>
 
-      {/* Acciones */}
       <View style={tableStyles.colAcciones}>
-        {/* Botón de 3 puntos */}
-        <MotiPressable
-          onPress={handleMenuPress}
-          disabled={isUpdating}
-          animate={({ pressed }) => ({ scale: pressed ? 0.9 : 1 })}
-          style={styles.menuBtn}
-        >
-          <MoreVertical
-            size={18}
-            color={
-              isUpdating ? theme.colors.textMuted : theme.colors.textSecondary
-            }
-          />
-        </MotiPressable>
-
-        {/* Menú contextual flotante */}
-        {showMenu && (
-          <MotiView
-            from={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ type: "timing", duration: 150 }}
-            style={[
-              styles.contextMenu,
-              {
-                backgroundColor: theme.colors.card,
-                borderColor: theme.colors.border,
-                shadowColor: theme.colors.shadow,
-              },
-            ]}
-          >
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          {/* Botón de recibo (siempre visible) */}
+          {showReceipt && onPrintReceipt && (
             <MotiPressable
-              onPress={handleActionPress}
-              style={[
-                styles.menuItem,
-                { borderBottomColor: theme.colors.border },
-              ]}
+              onPress={onPrintReceipt}
+              animate={({ pressed }) => ({ scale: pressed ? 0.9 : 1 })}
             >
-              <ThemedText
-                style={{
-                  fontSize: 13,
-                  color: isAnulado
-                    ? theme.colors.primary
-                    : theme.colors.destructive,
-                }}
-              >
-                {labelAccion}
-              </ThemedText>
+              <Receipt size={18} color={theme.colors.primary} />
             </MotiPressable>
-          </MotiView>
-        )}
+          )}
+
+          {/* Menú de tres puntos solo si showMenu es true */}
+          {showMenu && (
+            <>
+              <MotiPressable
+                onPress={handleMenuPress}
+                disabled={isUpdating}
+                animate={({ pressed }) => ({ scale: pressed ? 0.9 : 1 })}
+                style={styles.menuBtn}
+              >
+                <MoreVertical
+                  size={18}
+                  color={
+                    isUpdating
+                      ? theme.colors.textMuted
+                      : theme.colors.textSecondary
+                  }
+                />
+              </MotiPressable>
+
+              {showContextMenu && (
+                <MotiView
+                  from={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: "timing", duration: 150 }}
+                  style={[
+                    styles.contextMenu,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border,
+                      shadowColor: theme.colors.shadow,
+                    },
+                  ]}
+                >
+                  <MotiPressable
+                    onPress={handleActionPress}
+                    style={[
+                      styles.menuItem,
+                      { borderBottomColor: theme.colors.border },
+                    ]}
+                  >
+                    <ThemedText
+                      style={{
+                        fontSize: 13,
+                        color: isAnulado
+                          ? theme.colors.primary
+                          : theme.colors.destructive,
+                      }}
+                    >
+                      {labelAccion}
+                    </ThemedText>
+                  </MotiPressable>
+                </MotiView>
+              )}
+            </>
+          )}
+        </View>
       </View>
     </View>
   );

@@ -1,7 +1,7 @@
-// screens/arqueo/components/ArqueoCloseModal.tsx
 import { ThemedText } from "@/components/ThemedText";
+import { getToken } from "@/storage/secureStorage";
 import { useTheme } from "@/theme/useTheme";
-import { formatDateTimeNatural } from "@/utils/dateHelpers"; //  Usamos la función con hora
+import { formatDateTimeNatural } from "@/utils/dateHelpers";
 import { BlurView } from "expo-blur";
 import { AlertTriangle, X } from "lucide-react-native";
 import { AnimatePresence, MotiView } from "moti";
@@ -20,8 +20,10 @@ import {
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { useArqueo } from "../hooks/useArqueo";
+import { useArqueoTransacciones } from "../hooks/useArqueoTransacciones";
 import { arqueoService } from "../services/arqueo.service";
 import { Conteo, Egreso, Ingreso, Pago } from "../types/arqueo.types";
+import { ArqueoTransaccionTable } from "./ArqueoTransaccionTable";
 
 interface ArqueoCloseModalProps {
   visible: boolean;
@@ -73,9 +75,17 @@ export default function ArqueoCloseModal({
 
   const arqueo = activeArqueo?.id === arqueoId ? activeArqueo : null;
 
+  const {
+    ingresosCombinados,
+    updateTransaccionEstado,
+    updatingId,
+    loadTransacciones,
+  } = useArqueoTransacciones(arqueoId, pagos);
+
   useEffect(() => {
     if (visible && arqueoId) {
       loadArqueoDetail(arqueoId);
+      loadTransacciones("INGRESO");
     }
   }, [visible, arqueoId]);
 
@@ -98,14 +108,10 @@ export default function ArqueoCloseModal({
     }
   };
 
-  // ---- Cálculos ----
-  // Total de pagos (estudiantes)
   const totalPagos = useMemo(
     () => pagos.reduce((s, p) => s + p.monto, 0),
     [pagos],
   );
-
-  // Total de ingresos manuales (solo válidos)
   const totalIngresosManual = useMemo(
     () =>
       ingresos
@@ -113,8 +119,6 @@ export default function ArqueoCloseModal({
         .reduce((s, i) => s + i.monto, 0),
     [ingresos],
   );
-
-  // Total de egresos (solo válidos)
   const totalEgresos = useMemo(
     () =>
       egresos
@@ -122,22 +126,15 @@ export default function ArqueoCloseModal({
         .reduce((s, e) => s + e.monto, 0),
     [egresos],
   );
-
-  // Saldo anterior
   const saldoAnterior = arqueo?.saldo_anterior || 0;
-
-  // Caja esperada general (incluye saldo anterior)
   const cajaEsperadaGeneral =
     saldoAnterior + totalPagos + totalIngresosManual - totalEgresos;
 
-  // ---- Totales por método (pagos + ingresos - egresos, sin saldo) ----
   const totalesPorMetodo = useMemo(() => {
     let efectivo = 0,
       tarjeta = 0,
       qr = 0,
       transferencia = 0;
-
-    // Pagos
     pagos.forEach((p) => {
       const monto = p.monto || 0;
       switch (p.metodo) {
@@ -155,8 +152,6 @@ export default function ArqueoCloseModal({
           break;
       }
     });
-
-    // Ingresos manuales (válidos)
     ingresos.forEach((i) => {
       if (i.estado === "ANULADO") return;
       const monto = i.monto || 0;
@@ -175,8 +170,6 @@ export default function ArqueoCloseModal({
           break;
       }
     });
-
-    // Egresos (válidos)
     egresos.forEach((e) => {
       if (e.estado === "ANULADO") return;
       const monto = e.monto || 0;
@@ -195,30 +188,24 @@ export default function ArqueoCloseModal({
           break;
       }
     });
-
     return { efectivo, tarjeta, qr, transferencia };
   }, [pagos, ingresos, egresos]);
 
-  // Suma de los métodos (sin saldo)
   const totalMovimientos =
     totalesPorMetodo.efectivo +
     totalesPorMetodo.tarjeta +
     totalesPorMetodo.qr +
     totalesPorMetodo.transferencia;
 
-  // ---- Caja esperada en efectivo (solo movimientos en efectivo, SIN saldo) ----
   const expectedEfectivo = useMemo(() => {
     let efectivo = 0;
-    // sumar pagos en efectivo
     pagos.forEach((p) => {
       if (p.metodo === "EFECTIVO") efectivo += p.monto;
     });
-    // sumar ingresos manuales en efectivo (válidos)
     ingresos.forEach((i) => {
       if (i.metodo === "EFECTIVO" && i.estado !== "ANULADO")
         efectivo += i.monto;
     });
-    // restar egresos en efectivo (válidos)
     egresos.forEach((e) => {
       if (e.metodo === "EFECTIVO" && e.estado !== "ANULADO")
         efectivo -= e.monto;
@@ -265,7 +252,30 @@ export default function ArqueoCloseModal({
     }
   };
 
-  // Preparar cuotas con índice de pago
+  const handlePrintReceipt = async (
+    idOriginal: number,
+    origen: "pago" | "ingreso" | "egreso",
+  ) => {
+    try {
+      const token = await getToken();
+      let url = "";
+      if (origen === "pago")
+        url = `/api/pagos/${idOriginal}/recibo?token=${token}`;
+      else if (origen === "ingreso")
+        url = `/api/ingresos/${idOriginal}/recibo?token=${token}`;
+      else if (origen === "egreso")
+        url = `/api/egresos/${idOriginal}/recibo?token=${token}`;
+      const fullUrl = `${process.env.EXPO_PUBLIC_API_URL}${url}`;
+      window.open(fullUrl, "_blank");
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo abrir el recibo",
+      });
+    }
+  };
+
   const cuotasConPago = useMemo(() => {
     return pagos.flatMap((pago, pagoIndex) =>
       (pago.cuotas || []).map((cuota) => ({
@@ -274,46 +284,6 @@ export default function ArqueoCloseModal({
       })),
     );
   }, [pagos]);
-
-  // Preparar la lista combinada de ingresos (pagos + ingresos manuales)
-  const ingresosCombinados = useMemo(() => {
-    const list: any[] = [];
-    // Pagos
-    pagos.forEach((pago) => {
-      list.push({
-        id: `pago-${pago.id}`,
-        fecha: pago.fecha,
-        concepto:
-          pago.cuotas && pago.cuotas.length > 0
-            ? [
-                ...new Set(pago.cuotas.map((c) => tipoMap[c.tipo] || c.tipo)),
-              ].join(" + ")
-            : "Pago",
-        metodo: pago.metodo,
-        monto: pago.monto,
-        estado: "VALIDO",
-        tipo: "Pago Estudiante",
-        original: pago,
-      });
-    });
-    // Ingresos manuales
-    ingresos.forEach((ing) => {
-      list.push({
-        id: `ingreso-${ing.id}`,
-        fecha: ing.fecha_registro,
-        concepto: ing.tipo_transaccion || ing.detalle || "Sin concepto",
-        metodo: ing.metodo,
-        monto: ing.monto,
-        estado: ing.estado,
-        tipo: "Ingreso Manual",
-        original: ing,
-      });
-    });
-    // Ordenar por fecha descendente
-    return list.sort(
-      (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
-    );
-  }, [pagos, ingresos]);
 
   if (!arqueo) return null;
 
@@ -347,7 +317,6 @@ export default function ArqueoCloseModal({
                   },
                 ]}
               >
-                {/* Header */}
                 <View
                   style={[
                     styles.header,
@@ -386,7 +355,6 @@ export default function ArqueoCloseModal({
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                  {/* ===== BLOQUE DE RESUMEN ===== */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -426,7 +394,6 @@ export default function ArqueoCloseModal({
                     </View>
                   </View>
 
-                  {/* ===== DESGLOSE POR MÉTODO ===== */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -466,7 +433,6 @@ export default function ArqueoCloseModal({
                     </View>
                   </View>
 
-                  {/* ===== INGRESOS (PAGOS + INGRESOS MANUALES) ===== */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -486,155 +452,20 @@ export default function ArqueoCloseModal({
                         No hay ingresos registrados
                       </ThemedText>
                     ) : (
-                      <View style={styles.tableWrapper}>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={{ minWidth: "100%" }}
-                        >
-                          <View style={[styles.table, { flex: 1 }]}>
-                            <View
-                              style={[
-                                styles.tableRow,
-                                styles.tableHeader,
-                                {
-                                  backgroundColor:
-                                    theme.colors.backgroundSecondary,
-                                },
-                              ]}
-                            >
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                #
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Fecha
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Concepto
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Método
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Monto
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Tipo
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Estado
-                              </ThemedText>
-                            </View>
-                            {ingresosCombinados.map((item, idx) => (
-                              <View
-                                key={item.id}
-                                style={[
-                                  styles.tableRow,
-                                  { borderBottomColor: theme.colors.border },
-                                ]}
-                              >
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {idx + 1}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {formatDateTimeNatural(item.fecha)}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {item.concepto}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {item.metodo}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {item.monto.toFixed(2)}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {item.tipo}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {item.estado === "ANULADO"
-                                    ? "ANULADO"
-                                    : "VÁLIDO"}
-                                </ThemedText>
-                              </View>
-                            ))}
-                          </View>
-                        </ScrollView>
-                      </View>
+                      <ArqueoTransaccionTable
+                        transacciones={ingresosCombinados}
+                        loading={pagosLoading}
+                        tipo="INGRESO"
+                        showMenu={false}
+                        onUpdateEstado={undefined}
+                        updatingId={null}
+                        arqueoId={arqueo.id}
+                        showReceipt={true}
+                        onPrintReceipt={handlePrintReceipt}
+                      />
                     )}
                   </View>
 
-                  {/* ===== EGRESOS ===== */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -654,141 +485,20 @@ export default function ArqueoCloseModal({
                         No hay egresos en este turno
                       </ThemedText>
                     ) : (
-                      <View style={styles.tableWrapper}>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={{ minWidth: "100%" }}
-                        >
-                          <View style={[styles.table, { flex: 1 }]}>
-                            <View
-                              style={[
-                                styles.tableRow,
-                                styles.tableHeader,
-                                {
-                                  backgroundColor:
-                                    theme.colors.backgroundSecondary,
-                                },
-                              ]}
-                            >
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                #
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Fecha
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Concepto
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Método
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Monto
-                              </ThemedText>
-                              <ThemedText
-                                style={[
-                                  styles.tableCellHeader,
-                                  { color: theme.colors.text },
-                                ]}
-                              >
-                                Estado
-                              </ThemedText>
-                            </View>
-                            {egresos.map((eg, idx) => (
-                              <View
-                                key={eg.id}
-                                style={[
-                                  styles.tableRow,
-                                  { borderBottomColor: theme.colors.border },
-                                ]}
-                              >
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {idx + 1}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {formatDateTimeNatural(eg.fecha_registro)}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {eg.tipo_transaccion ||
-                                    eg.detalle ||
-                                    "Sin concepto"}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {eg.metodo}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {eg.monto.toFixed(2)}
-                                </ThemedText>
-                                <ThemedText
-                                  style={[
-                                    styles.tableCell,
-                                    { color: theme.colors.text },
-                                  ]}
-                                >
-                                  {eg.estado === "ANULADO"
-                                    ? "ANULADO"
-                                    : "VÁLIDO"}
-                                </ThemedText>
-                              </View>
-                            ))}
-                          </View>
-                        </ScrollView>
-                      </View>
+                      <ArqueoTransaccionTable
+                        transacciones={egresos}
+                        loading={pagosLoading}
+                        tipo="EGRESO"
+                        onUpdateEstado={undefined}
+                        updatingId={null}
+                        arqueoId={arqueo.id}
+                        showReceipt={true}
+                        showMenu={false}
+                        onPrintReceipt={handlePrintReceipt}
+                      />
                     )}
                   </View>
 
-                  {/* ===== PAGOS ===== */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -947,7 +657,6 @@ export default function ArqueoCloseModal({
                     )}
                   </View>
 
-                  {/* ===== CUOTAS ===== */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -1069,7 +778,6 @@ export default function ArqueoCloseModal({
                     )}
                   </View>
 
-                  {/* ===== CONTEO DE EFECTIVO ===== */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -1173,7 +881,6 @@ export default function ArqueoCloseModal({
                   </View>
                 </ScrollView>
 
-                {/* Footer */}
                 <View
                   style={[
                     styles.footer,
@@ -1216,7 +923,6 @@ export default function ArqueoCloseModal({
   );
 }
 
-// Componentes auxiliares
 const ResumenItem = ({ label, value, theme, highlight = false }: any) => (
   <View
     style={[
@@ -1270,7 +976,6 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 24, gap: 24 },
   section: { gap: 8 },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
-  // Resumen
   resumenGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   resumenItem: {
     flex: 1,
@@ -1280,17 +985,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   resumenValue: { fontSize: 14, fontWeight: "600", marginTop: 4 },
-  // Tablas
   tableWrapper: {
     borderWidth: 1,
     borderRadius: 8,
     overflow: "hidden",
     width: "100%",
   },
-  table: {
-    flexDirection: "column",
-    width: "100%",
-  },
+  table: { flexDirection: "column", width: "100%" },
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
@@ -1312,7 +1013,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 4,
   },
-  // Conteo
   conteoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   conteoField: { width: "48%", minWidth: 120 },
   conteoLabel: { fontSize: 12, marginBottom: 4 },

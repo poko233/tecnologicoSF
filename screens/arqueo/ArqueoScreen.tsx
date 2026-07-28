@@ -1,11 +1,12 @@
-// screens/arqueo/ArqueoScreen.tsx
 import { Plus } from "lucide-react-native";
 import { MotiView } from "moti";
 import { MotiPressable } from "moti/interactions";
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
+import Toast from "react-native-toast-message";
 import { ThemedText } from "../../components/ThemedText";
 import { useResponsive } from "../../hooks/useResponsive";
+import { getToken } from "../../storage/secureStorage";
 import { useTheme } from "../../theme/useTheme";
 import { ArqueoDetailModal } from "./components/ArqueoDetailModal";
 import { ArqueoHistoryHeader } from "./components/ArqueoHistoryHeader";
@@ -30,13 +31,11 @@ export default function ArqueoScreen() {
   const [activeTab, setActiveTab] = useState<Tab>("arqueos");
   const [openModalVisible, setOpenModalVisible] = useState(false);
 
-  // Modales de transacciones
   const [transaccionFormVisible, setTransaccionFormVisible] = useState(false);
   const [transaccionFormTipo, setTransaccionFormTipo] = useState<
     "INGRESO" | "EGRESO"
   >("INGRESO");
 
-  // Estado de Arqueos (Historial)
   const [arqueos, setArqueos] = useState<Arqueo[]>([]);
   const [loadingArqueos, setLoadingArqueos] = useState(true);
   const [selectedArqueo, setSelectedArqueo] = useState<Arqueo | null>(null);
@@ -56,16 +55,43 @@ export default function ArqueoScreen() {
   const [totalMin, setTotalMin] = useState<number | undefined>(undefined);
   const [totalMax, setTotalMax] = useState<number | undefined>(undefined);
 
-  // Estado de Transacciones (Sin paginación)
+  const [arqueoDetalle, setArqueoDetalle] = useState<Arqueo | null>(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
+
   const {
     ingresos,
     egresos,
+    ingresosCombinados,
     loadingTransacciones,
     loadTransacciones,
     createTransaccion,
     updateTransaccionEstado,
     updatingId,
-  } = useArqueoTransacciones(activeArqueo?.id || null);
+  } = useArqueoTransacciones(
+    activeArqueo?.id ?? null,
+    arqueoDetalle?.pagos ?? [],
+  );
+
+  useEffect(() => {
+    if (activeTab === "ingresos" && activeArqueo && !arqueoDetalle) {
+      const loadDetalle = async () => {
+        setLoadingDetalle(true);
+        try {
+          const response = await arqueoService.getById(activeArqueo.id);
+          setArqueoDetalle(response.data);
+        } catch (err) {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "No se pudo cargar el detalle del arqueo",
+          });
+        } finally {
+          setLoadingDetalle(false);
+        }
+      };
+      loadDetalle();
+    }
+  }, [activeTab, activeArqueo, arqueoDetalle]);
 
   const loadArqueos = useCallback(
     async (page: number) => {
@@ -87,7 +113,6 @@ export default function ArqueoScreen() {
         setHasNextPageArqueos(response.data.length === PER_PAGE);
         setCurrentPageArqueos(page);
       } catch {
-        // Error handling silencioso o mostrar un Toast si lo deseas
       } finally {
         setLoadingArqueos(false);
       }
@@ -109,7 +134,6 @@ export default function ArqueoScreen() {
     loadArqueos(1);
   }, [loadArqueos]);
 
-  //  Carga de transacciones SIN parámetro de página
   useEffect(() => {
     if (activeTab === "ingresos") loadTransacciones("INGRESO");
     else if (activeTab === "egresos") loadTransacciones("EGRESO");
@@ -139,11 +163,36 @@ export default function ArqueoScreen() {
     setTransaccionFormVisible(true);
   };
 
+  const handlePrintReceipt = async (
+    idOriginal: number,
+    origen: "pago" | "ingreso" | "egreso",
+  ) => {
+    try {
+      const token = await getToken();
+      let url = "";
+      if (origen === "pago") {
+        url = `/api/pagos/${idOriginal}/recibo?token=${token}`;
+      } else if (origen === "ingreso") {
+        url = `/api/ingresos/${idOriginal}/recibo?token=${token}`;
+      } else if (origen === "egreso") {
+        url = `/api/egresos/${idOriginal}/recibo?token=${token}`;
+      }
+      const fullUrl = `${process.env.EXPO_PUBLIC_API_URL}${url}`;
+      window.open(fullUrl, "_blank");
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo abrir el recibo",
+      });
+    }
+  };
+
   const tabs = [
     { key: "arqueos", label: "Arqueos Diarios" },
     { key: "ingresos", label: "Ingresos" },
     { key: "egresos", label: "Egresos" },
-    { key: "configuracion", label: "Tansacciones" },
+    { key: "configuracion", label: "Configuración de Cajas" },
   ] as const;
 
   return (
@@ -263,7 +312,6 @@ export default function ArqueoScreen() {
 
         {(activeTab === "ingresos" || activeTab === "egresos") && (
           <View style={{ marginTop: 16 }}>
-            {/* Encabezado con botón */}
             <View
               style={{
                 flexDirection: "row",
@@ -302,10 +350,11 @@ export default function ArqueoScreen() {
               </MotiPressable>
             </View>
 
-            {/* Tabla sin encabezado de búsqueda */}
             <ArqueoTransaccionTable
-              transacciones={activeTab === "ingresos" ? ingresos : egresos}
-              loading={loadingTransacciones}
+              transacciones={
+                activeTab === "ingresos" ? ingresosCombinados : egresos
+              }
+              loading={loadingTransacciones || loadingDetalle}
               tipo={activeTab === "ingresos" ? "INGRESO" : "EGRESO"}
               onUpdateEstado={(id, nuevoEstado) =>
                 updateTransaccionEstado(
@@ -316,6 +365,8 @@ export default function ArqueoScreen() {
               }
               updatingId={updatingId}
               arqueoId={activeArqueo?.id ?? null}
+              showReceipt={true}
+              onPrintReceipt={handlePrintReceipt}
             />
           </View>
         )}
@@ -327,7 +378,6 @@ export default function ArqueoScreen() {
         )}
       </ScrollView>
 
-      {/* Modales */}
       <ArqueoOpenModal
         visible={openModalVisible}
         onClose={() => setOpenModalVisible(false)}

@@ -13,8 +13,25 @@ export interface Transaccion {
   metodo: "EFECTIVO" | "TARJETA" | "QR" | "TRANSFERENCIA";
   detalle: string | null;
   comprobante: string | null;
-  fecha_registro: string; // ISO
+  fecha_registro: string;
   estado: "VALIDO" | "ANULADO";
   usuario: string;
+  tipo_transaccion: string | null;
+}
+
+export interface IngresoCombinado {
+  id: string;
+  fecha: string;
+  fecha_registro: string;
+  concepto: string;
+  metodo: string;
+  monto: number;
+  estado: "VALIDO" | "ANULADO";
+  tipo: string;
+  origen: "pago" | "ingreso";
+  idOriginal: number;
+  usuario: string;
+  comprobante: string | null;
+  detalle: string | null;
   tipo_transaccion: string | null;
 }

@@ -1,22 +1,28 @@
-// screens/arqueo/components/ArqueoTransaccionTable.tsx
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/theme/useTheme";
 import { MotiView } from "moti";
 import { Skeleton } from "moti/skeleton";
 import React from "react";
 import { FlatList, StyleSheet, View } from "react-native";
-import { Transaccion } from "../types/transaccion.types";
+import { Egreso, Ingreso } from "../types/arqueo.types";
+import { IngresoCombinado, Transaccion } from "../types/transaccion.types";
 import { ArqueoTransaccionHeader } from "./ArqueoTransaccionHeader";
 import { ArqueoTransaccionRow } from "./ArqueoTransaccionRow";
 import { tableStyles } from "./tableStyles";
 
 interface ArqueoTransaccionTableProps {
-  transacciones: Transaccion[];
+  transacciones: (Transaccion | IngresoCombinado | Egreso | Ingreso)[];
   loading: boolean;
   tipo: "INGRESO" | "EGRESO";
-  onUpdateEstado: (id: number, nuevoEstado: "VALIDO" | "ANULADO") => void;
-  updatingId: number | null;
-  arqueoId: number | null; //  Nueva prop para saber si hay arqueo
+  onUpdateEstado?: (id: number, nuevoEstado: "VALIDO" | "ANULADO") => void;
+  updatingId?: number | null;
+  arqueoId?: number | null;
+  showReceipt?: boolean;
+  onPrintReceipt?: (
+    idOriginal: number,
+    origen: "pago" | "ingreso" | "egreso",
+  ) => void;
+  showMenu?: boolean;
 }
 
 export function ArqueoTransaccionTable({
@@ -24,8 +30,11 @@ export function ArqueoTransaccionTable({
   loading,
   tipo,
   onUpdateEstado,
-  updatingId,
+  updatingId = null,
   arqueoId,
+  showReceipt = false,
+  onPrintReceipt,
+  showMenu = true, // por defecto true
 }: ArqueoTransaccionTableProps) {
   const { theme } = useTheme();
   const safeTransacciones = transacciones || [];
@@ -122,7 +131,6 @@ export function ArqueoTransaccionTable({
     </View>
   );
 
-  //  Renderizado de skeletons cuando no hay datos
   const renderSkeletonRows = () =>
     Array.from({ length: 5 }).map((_, i) => (
       <View
@@ -204,7 +212,6 @@ export function ArqueoTransaccionTable({
       </View>
     ));
 
-  //  Fila de carga al final de la lista (con las mismas columnas)
   const ListFooter = () => {
     if (loading && safeTransacciones.length > 0) {
       return (
@@ -320,24 +327,47 @@ export function ArqueoTransaccionTable({
         stickyHeaderIndices={[0]}
         ListHeaderComponent={HeaderRow}
         ListFooterComponent={ListFooter}
-        renderItem={({ item, index }) => (
-          <MotiView
-            from={{ opacity: 0, translateY: 10 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: "timing", duration: 300, delay: index * 50 }}
-          >
-            <ArqueoTransaccionRow
-              transaccion={item}
-              index={index}
-              onUpdateEstado={(nuevoEstado) => {
-                onUpdateEstado(item.id, nuevoEstado);
-              }}
-              isUpdating={updatingId === item.id}
-            />
-          </MotiView>
-        )}
+        renderItem={({ item, index }) => {
+          let origen: "pago" | "ingreso" | "egreso" =
+            (item as any).origen || (tipo === "EGRESO" ? "egreso" : "ingreso");
+          if (tipo === "EGRESO") origen = "egreso";
+
+          const showReceiptRow = showReceipt && onPrintReceipt && !!origen;
+          const idOriginal = (item as any).idOriginal || item.id;
+
+          let showMenuForItem = showMenu;
+          if ((item as any).origen === "pago") {
+            showMenuForItem = false;
+          }
+
+          return (
+            <MotiView
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: "timing", duration: 300, delay: index * 50 }}
+            >
+              <ArqueoTransaccionRow
+                transaccion={item}
+                index={index}
+                onUpdateEstado={
+                  showMenuForItem && onUpdateEstado
+                    ? (nuevoEstado) =>
+                        onUpdateEstado(item.id as number, nuevoEstado)
+                    : undefined
+                }
+                isUpdating={updatingId === item.id}
+                showReceipt={showReceiptRow}
+                onPrintReceipt={
+                  showReceiptRow
+                    ? () => onPrintReceipt(idOriginal, origen)
+                    : undefined
+                }
+                showMenu={showMenuForItem}
+              />
+            </MotiView>
+          );
+        }}
         contentContainerStyle={styles.contentContainer}
-        //  Mensaje condicional según si hay arqueo activo o no
         ListEmptyComponent={
           !loading && safeTransacciones.length === 0 ? (
             <View style={styles.empty}>
