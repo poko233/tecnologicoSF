@@ -27,9 +27,9 @@ interface ArqueoDetailModalProps {
 }
 
 const tipoMap: Record<string, string> = {
-  MATRICULA: "Matrícula",
-  MENSUAL: "Mensualidad",
-  CONVALIDACION: "Convalidación",
+  MATRICULA: "MATRICULA",
+  MENSUAL: "MENSUALIDAD",
+  CONVALIDACION: "CONVALIDACION",
 };
 
 export function ArqueoDetailModal({

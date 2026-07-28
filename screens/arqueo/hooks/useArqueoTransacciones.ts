@@ -5,9 +5,9 @@ import { Pago } from "../types/arqueo.types";
 import { IngresoCombinado, Transaccion } from "../types/transaccion.types";
 
 const tipoMap: Record<string, string> = {
-  MATRICULA: "Matrícula",
-  MENSUAL: "Mensualidad",
-  CONVALIDACION: "Convalidación",
+  MATRICULA: "MATRICULA",
+  MENSUAL: "MENSUALIDAD",
+  CONVALIDACION: "CONVALIDACION",
 };
 
 export const useArqueoTransacciones = (

@@ -192,7 +192,7 @@ export default function ArqueoScreen() {
     { key: "arqueos", label: "Arqueos Diarios" },
     { key: "ingresos", label: "Ingresos" },
     { key: "egresos", label: "Egresos" },
-    { key: "configuracion", label: "Configuración de Cajas" },
+    { key: "configuracion", label: "Transacciones" },
   ] as const;
 
   return (
