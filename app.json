@@ -44,7 +44,15 @@
       ],
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que Tecnológico del Sur use la cámara para tomar la foto del estudiante.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

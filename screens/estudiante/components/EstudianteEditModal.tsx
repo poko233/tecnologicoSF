@@ -34,6 +34,7 @@ import {
   obtenerPromocionActual,
   obtenerReferencia,
 } from "../utils/estudiante.helpers";
+import EstudianteCamaraModal from "./EstudianteCamaraModal";
 import EstudianteDatePickerModal from "./EstudianteDatePickerModal";
 import EstudianteDocumentosPanel from "./EstudianteDocumentosPanel";
 
@@ -401,6 +402,7 @@ export default function EstudianteEditModal({
   const [fotoLocal, setFotoLocal] = useState<FotoEstudianteArchivo | null>(
     null,
   );
+  const [camaraVisible, setCamaraVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [regenerandoQr, setRegenerandoQr] = useState(false);
   const [qrRegeneradoUrl, setQrRegeneradoUrl] = useState<string | null>(null);
@@ -436,6 +438,7 @@ export default function EstudianteEditModal({
     setSubmitted(false);
     setTab("datos");
     setFotoLocal(null);
+    setCamaraVisible(false);
     setQrRegeneradoUrl(null);
     setRegenerandoQr(false);
   }, [visible, estudiante?.id]);
@@ -736,6 +739,30 @@ export default function EstudianteEditModal({
     if (actualizado) {
       setFotoLocal(null);
     }
+  };
+
+  const guardarFotoCapturada = async (
+    archivo: FotoEstudianteArchivo,
+  ): Promise<boolean> => {
+    if (!estudiante || subiendoFoto) return false;
+
+    /*
+     * La captura se muestra inmediatamente como vista previa y luego se
+     * envía usando exactamente el mismo endpoint que la foto seleccionada.
+     * No hace falta presionar un segundo botón para subirla.
+     */
+    setFotoLocal(archivo);
+
+    const actualizado = await onFotoActualizada(estudiante.id, archivo);
+
+    if (!actualizado) {
+      return false;
+    }
+
+    setFotoLocal(null);
+    setCamaraVisible(false);
+
+    return true;
   };
 
   const abrirUrl = async (url?: string | null) => {
@@ -1518,27 +1545,59 @@ export default function EstudianteEditModal({
         )}
 
         <View style={styles.photoActions}>
-          <Pressable style={styles.selectPhotoBtn} onPress={elegirFoto}>
+          <Pressable
+            disabled={subiendoFoto}
+            style={[
+              styles.selectPhotoBtn,
+              subiendoFoto && styles.disabled,
+            ]}
+            onPress={elegirFoto}
+          >
             <Ionicons name="image-outline" size={18} color={colors.primary} />
 
-            <ThemedText style={styles.selectPhotoText}>Elegir foto</ThemedText>
+            <ThemedText style={styles.selectPhotoText}>
+              Subir archivo
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            disabled={subiendoFoto}
+            style={[styles.primaryBtn, subiendoFoto && styles.disabled]}
+            onPress={() => setCamaraVisible(true)}
+          >
+            <Ionicons
+              name="camera-outline"
+              size={18}
+              color={colors.primaryForeground}
+            />
+
+            <ThemedText style={styles.primaryBtnText}>Tomar foto</ThemedText>
           </Pressable>
 
           {fotoServidorUrl && (
             <Pressable
-              style={styles.primaryBtn}
+              disabled={subiendoFoto}
+              style={[
+                styles.selectPhotoBtn,
+                subiendoFoto && styles.disabled,
+              ]}
               onPress={() => abrirUrl(fotoServidorUrl)}
             >
               <Ionicons
                 name="open-outline"
                 size={18}
-                color={colors.primaryForeground}
+                color={colors.primary}
               />
 
-              <ThemedText style={styles.primaryBtnText}>Abrir foto</ThemedText>
+              <ThemedText style={styles.selectPhotoText}>Abrir foto</ThemedText>
             </Pressable>
           )}
         </View>
+
+        <ThemedText style={styles.qrHelper}>
+          Al tomar una foto con la cámara se subirá automáticamente al perfil
+          del estudiante.
+        </ThemedText>
 
         {fotoLocal && (
           <Pressable
@@ -1829,6 +1888,17 @@ export default function EstudianteEditModal({
           touchField("fecha_nac");
           setValue("fecha_nac", date);
         }}
+      />
+
+      <EstudianteCamaraModal
+        visible={camaraVisible}
+        subiendo={subiendoFoto}
+        onClose={() => {
+          if (!subiendoFoto) {
+            setCamaraVisible(false);
+          }
+        }}
+        onCapture={guardarFotoCapturada}
       />
     </>
   );
