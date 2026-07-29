@@ -11,6 +11,8 @@ import {
   GuardarCuotasGestionResponse,
   MateriasSemestreUnoResponse,
   RetiroMateriaPayload,
+  ReutilizarPlanCuotasGestionPayload,
+  ReutilizarPlanCuotasGestionResponse,
   SeleccionMateriaInscripcion,
   SeleccionMateriaPayload,
 } from "../types/asignaciones.types";
@@ -52,7 +54,6 @@ export async function getDetalleEstudiante(
   );
 }
 
-
 export async function getCuotasGestionAsignaciones(
   idUsuario: number,
   idCarrera: number,
@@ -72,6 +73,16 @@ export async function guardarCuotasGestionAsignaciones(
 ): Promise<GuardarCuotasGestionResponse> {
   return httpClient.postAuth<GuardarCuotasGestionResponse>(
     `/api/asignaciones/estudiantes/${idUsuario}/cuotas-gestion`,
+    payload,
+  );
+}
+
+export async function reutilizarPlanCuotasGestionAsignaciones(
+  idUsuario: number,
+  payload: ReutilizarPlanCuotasGestionPayload,
+): Promise<ReutilizarPlanCuotasGestionResponse> {
+  return httpClient.postAuth<ReutilizarPlanCuotasGestionResponse>(
+    `/api/asignaciones/estudiantes/${idUsuario}/cuotas-gestion/reutilizar`,
     payload,
   );
 }

@@ -47,6 +47,7 @@ export type Estudiante = {
   totalCuotasMensualesGestion?: number;
   totalCuotasCondonadasGestion?: number;
   estadoCuotasGestion?: "CON_CUOTAS" | "SIN_CUOTAS" | string | null;
+  planCuotasReutilizado?: boolean | number | string | null;
 
   yaInscrito?: boolean | number | string | null;
   puedeInscribir?: boolean | number | string | null;
@@ -264,6 +265,35 @@ export type CarreraCuotasGestion = {
   duracionMeses?: number | string | null;
 };
 
+export type UltimoPlanCuotasGestion = {
+  disponible: boolean;
+  esLegacy?: boolean;
+  gestion: GestionActiva;
+  totalCuotas: number;
+  totalCuotasMensuales: number;
+  totalCuotasCondonadas: number;
+  totalCuotasPagadas: number;
+  matricula: CuotaGestion;
+  cuotas: CuotaGestion[];
+  copiaMontos: boolean;
+  copiaDescuentos: boolean;
+  copiaCondonaciones: boolean;
+  copiaPagos: boolean;
+  copiaFechas: boolean;
+};
+
+export type PlanCuotaGestionReutilizado = {
+  idPlanCuotaGestion: number;
+  idGestionDestino: number;
+  idGestionOrigen?: number | null;
+  tipoOrigen: "GESTION" | "LEGACY" | string;
+  gestionOrigen?: GestionActiva | null;
+  totalCuotas: number;
+  totalCuotasMensuales: number;
+  totalCuotasCondonadas: number;
+  totalCuotasPagadas: number;
+};
+
 export type CuotasGestionResponse = {
   codigo:
     | "CUOTAS_GESTION_REGISTRADAS"
@@ -276,6 +306,11 @@ export type CuotasGestionResponse = {
   carrera: CarreraCuotasGestion;
   turnoPreferido?: TurnoInscripcion | null;
   cuotas: CuotaGestion[];
+  planReutilizado?: boolean;
+  planCuotaGestion?: PlanCuotaGestionReutilizado | null;
+  puedeMantenerCuotasAnteriores?: boolean;
+  puedeReutilizarPlanAnterior?: boolean;
+  ultimoPlanCuotas?: UltimoPlanCuotasGestion | null;
   message: string;
 };
 
@@ -298,6 +333,18 @@ export type GuardarCuotasGestionPayload = {
   };
   cuotas: CuotaGestionEditablePayload[];
 };
+
+export type ReutilizarPlanCuotasGestionPayload = {
+  idCarrera: number;
+  idGestion: number;
+};
+
+export type ReutilizarPlanCuotasGestionResponse =
+  GuardarCuotasGestionResponse & {
+    reutilizado: true;
+    idPlanCuotaGestion?: number;
+    totalCuotasVinculadas?: number;
+  };
 
 export type GuardarCuotasGestionResponse = {
   ok: boolean;

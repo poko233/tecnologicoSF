@@ -1,36 +1,39 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
 import {
-    getCuotasGestionAsignaciones,
-    guardarCuotasGestionAsignaciones,
+  getCuotasGestionAsignaciones,
+  guardarCuotasGestionAsignaciones,
+  reutilizarPlanCuotasGestionAsignaciones,
 } from "../services/asignaciones.services";
 import {
-    CuotasGestionResponse,
-    Estudiante,
-    GuardarCuotasGestionPayload,
-    GuardarCuotasGestionResponse,
-    TurnoInscripcion,
+  CuotasGestionResponse,
+  Estudiante,
+  GuardarCuotasGestionPayload,
+  GuardarCuotasGestionResponse,
+  TurnoInscripcion,
 } from "../types/asignaciones.types";
 
 type EstadoEditable = "Debe" | "Condonado";
+type ModoPlanCuotas = "elegir" | "nuevo" | "anterior" | "existente";
 
 type CuotaEditable = {
   numeroCuota: number;
   monto: string;
+  descuento: string;
   fecha_vencimiento: string;
   estadoCuota: EstadoEditable;
   bloqueada: boolean;
@@ -145,6 +148,7 @@ function generarCuotas(
     return {
       numeroCuota: index + 1,
       monto: previa?.monto ?? "0.00",
+      descuento: previa?.descuento ?? "0.00",
       fecha_vencimiento:
         previa?.fecha_vencimiento ?? fechaPorIndice(fechaBase, index),
       estadoCuota: previa?.estadoCuota ?? "Debe",
@@ -243,57 +247,163 @@ export default function CuotasGestionModal({
 
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [reutilizando, setReutilizando] = useState(false);
   const [datos, setDatos] = useState<CuotasGestionResponse | null>(null);
   const [turnoPreferido, setTurnoPreferido] =
     useState<TurnoInscripcion | null>(null);
   const [montoMatricula, setMontoMatricula] = useState("0.00");
+  const [descuentoMatricula, setDescuentoMatricula] = useState("0.00");
   const [fechaMatricula, setFechaMatricula] = useState(fechaActual());
   const [matriculaBloqueada, setMatriculaBloqueada] = useState(false);
   const [cantidadCuotas, setCantidadCuotas] = useState("1");
   const [cuotas, setCuotas] = useState<CuotaEditable[]>([]);
   const [montoTodasCuotas, setMontoTodasCuotas] = useState("");
+  const [modoPlan, setModoPlan] = useState<ModoPlanCuotas>("nuevo");
+
+  /*
+   * Evita que una consulta iniciada al abrir el modal sobrescriba la
+   * decisión del usuario unos segundos después.
+   */
+  const cargaDatosIdRef = useRef(0);
+  const decisionPlanTomadaRef = useRef(false);
 
   const totalCarrera = Number(datos?.carrera?.costo ?? 0);
   const matriculaNumero = Number(montoMatricula || 0);
   const saldoCarrera = redondear2(Math.max(totalCarrera - matriculaNumero, 0));
 
-  const aplicarDatos = useCallback((response: CuotasGestionResponse) => {
-    setDatos(response);
-    setTurnoPreferido(normalizarTurno(response.turnoPreferido));
+  const prepararPlanNuevo = useCallback(
+    (response: CuotasGestionResponse) => {
+      setDatos(response);
+      setTurnoPreferido(normalizarTurno(response.turnoPreferido));
 
-    const cuotasServidor = Array.isArray(response.cuotas)
-      ? response.cuotas
-      : [];
-    const matricula = cuotasServidor.find(
-      (cuota) => String(cuota.tipo).toUpperCase() === "MATRICULA",
-    );
-    const mensuales = cuotasServidor
-      .filter((cuota) => String(cuota.tipo).toUpperCase() === "MENSUAL")
-      .sort((a, b) => Number(a.numeroCuota) - Number(b.numeroCuota));
+      const matriculaDefault = Number(
+        response.carrera.costo_matricula ??
+          response.carrera.costoMatricula ??
+          0,
+      );
+      const fechaBase = fechaActual();
+      const numeroCuotas = Math.max(
+        Number(
+          response.carrera.numeroCuotas ??
+            response.carrera.cuotas_por_anio ??
+            1,
+        ),
+        1,
+      );
+      const totalARepartir = redondear2(
+        Math.max(Number(response.carrera.costo ?? 0) - matriculaDefault, 0),
+      );
 
-    const matriculaDefault = Number(
-      response.carrera.costo_matricula ??
-        response.carrera.costoMatricula ??
-        0,
-    );
-    const fechaBase = String(
-      matricula?.fecha_vencimiento ?? fechaActual(),
-    ).slice(0, 10);
-    const matriculaPagada = Boolean(
-      matricula?.fecha_pago || matricula?.estadoCuota === "Pagado",
-    );
+      setMontoMatricula(matriculaDefault.toFixed(2));
+      setDescuentoMatricula("0.00");
+      setFechaMatricula(fechaBase);
+      setMatriculaBloqueada(false);
+      setCantidadCuotas(String(numeroCuotas));
+      setCuotas(generarCuotas(numeroCuotas, totalARepartir, fechaBase));
+      setMontoTodasCuotas("");
+      setModoPlan("nuevo");
+    },
+    [],
+  );
 
-    setMontoMatricula(
-      Number(matricula?.monto ?? matriculaDefault).toFixed(2),
-    );
-    setFechaMatricula(fechaBase);
-    setMatriculaBloqueada(matriculaPagada);
-    setMontoTodasCuotas("");
+  const prepararPlanAnterior = useCallback(
+    (response: CuotasGestionResponse) => {
+      const planAnterior = response.ultimoPlanCuotas;
 
-    if (mensuales.length > 0) {
+      if (!planAnterior?.disponible) {
+        prepararPlanNuevo(response);
+        return;
+      }
+
+      setDatos(response);
+      setTurnoPreferido(normalizarTurno(response.turnoPreferido));
+
+      const fechaBase = fechaActual();
+      const matriculaAnterior = planAnterior.matricula;
+      const mensualesAnteriores = Array.isArray(planAnterior.cuotas)
+        ? [...planAnterior.cuotas].sort(
+            (a, b) => Number(a.numeroCuota) - Number(b.numeroCuota),
+          )
+        : [];
+
+      const cuotasCopiadas = mensualesAnteriores.map((cuota, index) => ({
+        numeroCuota: Number(cuota.numeroCuota ?? index + 1),
+        monto: Number(cuota.monto ?? 0).toFixed(2),
+        descuento: Number(cuota.descuento ?? 0).toFixed(2),
+        fecha_vencimiento: fechaPorIndice(fechaBase, index),
+        estadoCuota:
+          String(cuota.estadoCuota).toLowerCase() === "condonado"
+            ? "Condonado"
+            : "Debe",
+        bloqueada: false,
+      })) satisfies CuotaEditable[];
+
+      setMontoMatricula(
+        Number(
+          matriculaAnterior?.monto ??
+            response.carrera.costo_matricula ??
+            response.carrera.costoMatricula ??
+            0,
+        ).toFixed(2),
+      );
+      setDescuentoMatricula(
+        Number(matriculaAnterior?.descuento ?? 0).toFixed(2),
+      );
+      setFechaMatricula(fechaBase);
+      setMatriculaBloqueada(false);
+      setCantidadCuotas(String(Math.max(cuotasCopiadas.length, 1)));
+      setCuotas(
+        cuotasCopiadas.length > 0
+          ? cuotasCopiadas
+          : generarCuotas(1, Number(response.carrera.costo ?? 0), fechaBase),
+      );
+      setMontoTodasCuotas("");
+      setModoPlan("anterior");
+    },
+    [prepararPlanNuevo],
+  );
+
+  const aplicarPlanExistente = useCallback(
+    (response: CuotasGestionResponse) => {
+      setDatos(response);
+      setTurnoPreferido(normalizarTurno(response.turnoPreferido));
+
+      const cuotasServidor = Array.isArray(response.cuotas)
+        ? response.cuotas
+        : [];
+      const matricula = cuotasServidor.find(
+        (cuota) => String(cuota.tipo).toUpperCase() === "MATRICULA",
+      );
+      const mensuales = cuotasServidor
+        .filter((cuota) => String(cuota.tipo).toUpperCase() === "MENSUAL")
+        .sort((a, b) => Number(a.numeroCuota) - Number(b.numeroCuota));
+
+      const matriculaDefault = Number(
+        response.carrera.costo_matricula ??
+          response.carrera.costoMatricula ??
+          0,
+      );
+      const fechaBase = String(
+        matricula?.fecha_vencimiento ?? fechaActual(),
+      ).slice(0, 10);
+      const matriculaPagada = Boolean(
+        matricula?.fecha_pago || matricula?.estadoCuota === "Pagado",
+      );
+
+      setMontoMatricula(
+        Number(matricula?.monto ?? matriculaDefault).toFixed(2),
+      );
+      setDescuentoMatricula(
+        Number(matricula?.descuento ?? 0).toFixed(2),
+      );
+      setFechaMatricula(fechaBase);
+      setMatriculaBloqueada(matriculaPagada);
+      setMontoTodasCuotas("");
+
       const existentes = mensuales.map((cuota, index) => ({
         numeroCuota: Number(cuota.numeroCuota ?? index + 1),
         monto: Number(cuota.monto ?? 0).toFixed(2),
+        descuento: Number(cuota.descuento ?? 0).toFixed(2),
         fecha_vencimiento: String(
           cuota.fecha_vencimiento ?? fechaPorIndice(fechaBase, index),
         ).slice(0, 10),
@@ -304,29 +414,58 @@ export default function CuotasGestionModal({
         ),
       })) satisfies CuotaEditable[];
 
-      setCantidadCuotas(String(existentes.length));
+      setCantidadCuotas(String(Math.max(existentes.length, 1)));
       setCuotas(existentes);
-      return;
-    }
+      setModoPlan("existente");
+    },
+    [],
+  );
 
-    const numeroCuotas = Math.max(
-      Number(
-        response.carrera.numeroCuotas ??
-          response.carrera.cuotas_por_anio ??
-          1,
-      ),
-      1,
-    );
-    const totalARepartir = redondear2(
-      Math.max(Number(response.carrera.costo ?? 0) - matriculaDefault, 0),
-    );
+  const aplicarDatos = useCallback(
+    (response: CuotasGestionResponse) => {
+      const cuotasServidor = Array.isArray(response.cuotas)
+        ? response.cuotas
+        : [];
+      const tieneMatriculaActual = cuotasServidor.some(
+        (cuota) => String(cuota.tipo).toUpperCase() === "MATRICULA",
+      );
+      const tieneMensualesActuales = cuotasServidor.some(
+        (cuota) => String(cuota.tipo).toUpperCase() === "MENSUAL",
+      );
 
-    setCantidadCuotas(String(numeroCuotas));
-    setCuotas(generarCuotas(numeroCuotas, totalARepartir, fechaBase));
-  }, []);
+      if (
+        response.tieneCuotasGestion ||
+        (tieneMatriculaActual && tieneMensualesActuales)
+      ) {
+        aplicarPlanExistente(response);
+        return;
+      }
+
+      setDatos(response);
+      setTurnoPreferido(normalizarTurno(response.turnoPreferido));
+      setMontoMatricula("0.00");
+      setDescuentoMatricula("0.00");
+      setFechaMatricula(fechaActual());
+      setMatriculaBloqueada(false);
+      setCantidadCuotas("1");
+      setCuotas([]);
+      setMontoTodasCuotas("");
+
+      /*
+       * Siempre pregunta antes de crear un plan para una gestión nueva.
+       * Cuando no existe plan anterior, la opción de reutilizar se mostrará
+       * deshabilitada, pero la confirmación seguirá siendo explícita.
+       */
+      setModoPlan("elegir");
+    },
+    [aplicarPlanExistente, prepararPlanNuevo],
+  );
 
   const cargarDatos = useCallback(async () => {
     if (!estudiante || !idCarrera) return;
+
+    const requestId = cargaDatosIdRef.current + 1;
+    cargaDatosIdRef.current = requestId;
 
     try {
       setLoading(true);
@@ -335,8 +474,22 @@ export default function CuotasGestionModal({
         estudiante.id,
         idCarrera,
       );
+
+      /*
+       * Si apareció una respuesta vieja después de que el usuario ya eligió
+       * crear o reutilizar un plan, se descarta y no se vuelve a "elegir".
+       */
+      if (
+        cargaDatosIdRef.current !== requestId ||
+        decisionPlanTomadaRef.current
+      ) {
+        return;
+      }
+
       aplicarDatos(response);
     } catch (error: any) {
+      if (cargaDatosIdRef.current !== requestId) return;
+
       Toast.show({
         type: "error",
         text1: "No se pudieron cargar las cuotas",
@@ -345,29 +498,162 @@ export default function CuotasGestionModal({
           "No se encontró la gestión activa de la carrera.",
       });
     } finally {
-      setLoading(false);
+      if (cargaDatosIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }, [aplicarDatos, estudiante, idCarrera]);
 
   useEffect(() => {
     if (!visible) {
+      /* Invalida cualquier petición que todavía estuviera en curso. */
+      cargaDatosIdRef.current += 1;
+      decisionPlanTomadaRef.current = false;
+
       setDatos(null);
       setTurnoPreferido(null);
       setMontoMatricula("0.00");
+      setDescuentoMatricula("0.00");
       setFechaMatricula(fechaActual());
       setMatriculaBloqueada(false);
       setCantidadCuotas("1");
       setCuotas([]);
       setMontoTodasCuotas("");
+      setModoPlan("nuevo");
+      setReutilizando(false);
+      setLoading(false);
       return;
     }
 
+    decisionPlanTomadaRef.current = false;
+
+    /*
+     * AsignacionesScreen ya consulta las cuotas antes de abrir el modal y
+     * las entrega en datosIniciales. No se debe iniciar otra consulta porque
+     * su respuesta tardía volvería a ejecutar aplicarDatos() y mostraría otra
+     * vez la pantalla de elección.
+     */
     if (datosIniciales) {
+      cargaDatosIdRef.current += 1;
       aplicarDatos(datosIniciales);
+      setLoading(false);
+      return;
     }
 
     void cargarDatos();
   }, [visible, datosIniciales, aplicarDatos, cargarDatos]);
+
+  const elegirPlanNuevo = useCallback(() => {
+    if (!datos) return;
+
+    decisionPlanTomadaRef.current = true;
+    cargaDatosIdRef.current += 1;
+
+    /*
+     * Al crear un plan nuevo se usa automáticamente el plan anterior como
+     * referencia. Si no existe uno, se utilizan los valores de la carrera.
+     */
+    if (
+      datos.puedeReutilizarPlanAnterior ||
+      datos.puedeMantenerCuotasAnteriores
+    ) {
+      prepararPlanAnterior(datos);
+      return;
+    }
+
+    prepararPlanNuevo(datos);
+  }, [datos, prepararPlanAnterior, prepararPlanNuevo]);
+
+  const reutilizarPlanAnterior = useCallback(async () => {
+    if (
+      !datos ||
+      !estudiante ||
+      !datos.gestionActiva?.id ||
+      !datos.carrera?.idCarrera ||
+      reutilizando
+    ) {
+      return;
+    }
+
+    decisionPlanTomadaRef.current = true;
+    cargaDatosIdRef.current += 1;
+
+    const puedeReutilizar = Boolean(
+      datos.puedeReutilizarPlanAnterior ??
+        datos.puedeMantenerCuotasAnteriores,
+    );
+
+    if (!puedeReutilizar || !datos.ultimoPlanCuotas?.disponible) {
+      decisionPlanTomadaRef.current = false;
+
+      Toast.show({
+        type: "info",
+        text1: "No existe un plan anterior",
+        text2: "Debes crear un nuevo plan para esta gestión.",
+      });
+      return;
+    }
+
+    try {
+      setReutilizando(true);
+
+      const response = await reutilizarPlanCuotasGestionAsignaciones(
+        estudiante.id,
+        {
+          idCarrera: Number(datos.carrera.idCarrera),
+          idGestion: Number(datos.gestionActiva.id),
+        },
+      );
+
+      const actualizados = await getCuotasGestionAsignaciones(
+        estudiante.id,
+        Number(datos.carrera.idCarrera),
+      );
+
+      Toast.show({
+        type: "success",
+        text1: "Plan anterior mantenido",
+        text2: response.message,
+      });
+
+      await onSuccess(response, actualizados);
+    } catch (error: any) {
+      decisionPlanTomadaRef.current = false;
+
+      const backend = error?.response?.data;
+      const errores = backend?.errors;
+      const primerError =
+        errores && typeof errores === "object"
+          ? Object.values(errores).flat().find(Boolean)
+          : null;
+
+      Toast.show({
+        type: "error",
+        text1: "No se pudo mantener el plan",
+        text2: String(
+          primerError ??
+            backend?.message ??
+            error?.message ??
+            "No se pudo reutilizar el plan de cuotas anterior.",
+        ),
+      });
+    } finally {
+      setReutilizando(false);
+    }
+  }, [datos, estudiante, onSuccess, reutilizando]);
+
+  const volverAElegirOrigen = useCallback(() => {
+    if (
+      !datos?.puedeMantenerCuotasAnteriores ||
+      !datos.ultimoPlanCuotas?.disponible ||
+      datos.tieneCuotasGestion
+    ) {
+      return;
+    }
+
+    decisionPlanTomadaRef.current = false;
+    setModoPlan("elegir");
+  }, [datos]);
 
   const minimoCuotas = useMemo(() => {
     const numerosBloqueados = cuotas
@@ -593,13 +879,13 @@ export default function CuotasGestionModal({
       turnoPreferido,
       matricula: {
         monto: Number(montoMatricula || 0),
-        descuento: 0,
+        descuento: Number(descuentoMatricula || 0),
         fecha_vencimiento: fechaMatricula,
       },
       cuotas: cuotas.map((cuota, index) => ({
         numeroCuota: cuota.numeroCuota,
         monto: Number(cuota.monto || 0),
-        descuento: 0,
+        descuento: Number(cuota.descuento || 0),
         fecha_vencimiento:
           cuota.bloqueada || index > 0
             ? cuota.fecha_vencimiento
@@ -659,12 +945,20 @@ export default function CuotasGestionModal({
     ? `${datos.gestionActiva.nombre} · ${datos.gestionActiva.periodo}`
     : "Gestión activa";
 
+  const puedeReutilizarPlan = Boolean(
+    (datos?.puedeReutilizarPlanAnterior ??
+      datos?.puedeMantenerCuotasAnteriores) &&
+      datos?.ultimoPlanCuotas?.disponible,
+  );
+
+  const ocupado = guardando || reutilizando;
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={guardando ? undefined : onClose}
+      onRequestClose={ocupado ? undefined : onClose}
     >
       <View style={styles.backdrop}>
         <View
@@ -707,7 +1001,7 @@ export default function CuotasGestionModal({
             </View>
 
             <Pressable
-              disabled={guardando}
+              disabled={ocupado}
               onPress={onClose}
               style={({ pressed }) => [
                 styles.closeButton,
@@ -745,6 +1039,327 @@ export default function CuotasGestionModal({
                 <ThemedText style={styles.primaryButtonText}>Reintentar</ThemedText>
               </Pressable>
             </View>
+          ) : modoPlan === "elegir" ? (
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.choiceContent}
+              showsVerticalScrollIndicator
+            >
+              <View
+                style={[
+                  styles.choiceHero,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(59,130,246,0.10)"
+                      : "#EFF6FF",
+                    borderColor: isDark
+                      ? "rgba(96,165,250,0.35)"
+                      : "#BFDBFE",
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.choiceHeroIcon,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(59,130,246,0.20)"
+                        : "#DBEAFE",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="git-compare-outline"
+                    size={31}
+                    color={theme.colors.primary}
+                  />
+                </View>
+
+                <View style={styles.choiceHeroText}>
+                  <ThemedText
+                    style={[styles.choiceTitle, { color: strongText }]}
+                  >
+                    ¿Quieres crear un nuevo plan de cuotas para esta gestión?
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.choiceSubtitle, { color: mutedText }]}
+                  >
+                    Elige Sí para crear cuotas nuevas usando el último plan
+                    como referencia. Elige No para continuar utilizando
+                    exactamente el plan anterior sin duplicar cuotas.
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.choiceContext,
+                  { backgroundColor: panelBackground, borderColor },
+                ]}
+              >
+                <View style={styles.choiceContextItem}>
+                  <ThemedText
+                    style={[styles.choiceContextLabel, { color: mutedText }]}
+                  >
+                    NUEVA GESTIÓN
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.choiceContextValue, { color: strongText }]}
+                  >
+                    {datos.gestionActiva.nombre} · {datos.gestionActiva.periodo}
+                  </ThemedText>
+                </View>
+                <View style={styles.choiceContextItem}>
+                  <ThemedText
+                    style={[styles.choiceContextLabel, { color: mutedText }]}
+                  >
+                    CARRERA
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.choiceContextValue, { color: strongText }]}
+                  >
+                    {datos.carrera.nombreCarrera}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.choiceGrid,
+                  isMobile && styles.choiceGridMobile,
+                ]}
+              >
+                <Pressable
+                  disabled={ocupado}
+                  onPress={elegirPlanNuevo}
+                  style={({ pressed }) => [
+                    styles.choiceCard,
+                    {
+                      backgroundColor: panelBackground,
+                      borderColor,
+                      opacity: ocupado ? 0.55 : pressed ? 0.78 : 1,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.choiceCardIcon,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(34,197,94,0.16)"
+                          : "#DCFCE7",
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={29}
+                      color="#16A34A"
+                    />
+                  </View>
+
+                  <ThemedText
+                    style={[styles.choiceCardTitle, { color: strongText }]}
+                  >
+                    Sí, crear un nuevo plan
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.choiceCardText, { color: mutedText }]}
+                  >
+                    {puedeReutilizarPlan
+                      ? "Se cargarán automáticamente los montos, descuentos y condonaciones del último plan como referencia. Podrás revisar todo antes de guardar."
+                      : "No existe un plan anterior. Se preparará un plan nuevo usando la configuración actual de la carrera."}
+                  </ThemedText>
+
+                  <View style={styles.choiceBullets}>
+                    <ChoiceBullet
+                      icon="refresh-outline"
+                      text={
+                        puedeReutilizarPlan
+                          ? "Montos anteriores como referencia"
+                          : "Montos desde la carrera"
+                      }
+                      color="#16A34A"
+                      textColor={strongText}
+                    />
+                    <ChoiceBullet
+                      icon="calendar-outline"
+                      text="Fechas nuevas para esta gestión"
+                      color="#16A34A"
+                      textColor={strongText}
+                    />
+                    <ChoiceBullet
+                      icon="gift-outline"
+                      text={
+                        puedeReutilizarPlan
+                          ? "Conserva condonaciones como referencia"
+                          : "Sin condonaciones anteriores"
+                      }
+                      color="#16A34A"
+                      textColor={strongText}
+                    />
+                  </View>
+
+                  <View
+                    style={[
+                      styles.choiceAction,
+                      { backgroundColor: "#16A34A" },
+                    ]}
+                  >
+                    <ThemedText style={styles.choiceActionText}>
+                      Sí, preparar plan nuevo
+                    </ThemedText>
+                    <Ionicons
+                      name="arrow-forward"
+                      size={18}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  disabled={ocupado || !puedeReutilizarPlan}
+                  onPress={() => void reutilizarPlanAnterior()}
+                  style={({ pressed }) => [
+                    styles.choiceCard,
+                    styles.choiceCardRecommended,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(245,158,11,0.08)"
+                        : "#FFFBEB",
+                      borderColor: isDark
+                        ? "rgba(245,158,11,0.42)"
+                        : "#FCD34D",
+                      opacity:
+                        ocupado || !puedeReutilizarPlan
+                          ? 0.48
+                          : pressed
+                            ? 0.78
+                            : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.recommendedBadge}>
+                    <Ionicons name="time-outline" size={14} color="#B45309" />
+                    <ThemedText style={styles.recommendedBadgeText}>
+                      SIN CREAR CUOTAS
+                    </ThemedText>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.choiceCardIcon,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(245,158,11,0.18)"
+                          : "#FEF3C7",
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="copy-outline"
+                      size={29}
+                      color="#D97706"
+                    />
+                  </View>
+
+                  <ThemedText
+                    style={[styles.choiceCardTitle, { color: strongText }]}
+                  >
+                    No, mantener el plan anterior
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.choiceCardText, { color: mutedText }]}
+                  >
+                    {puedeReutilizarPlan
+                      ? `La gestión actual utilizará exactamente las cuotas de ${
+                          datos.ultimoPlanCuotas?.gestion.nombre ??
+                          "la gestión anterior"
+                        }. No se crearán filas nuevas y se conservarán pagos, fechas y condonaciones.`
+                      : "No existe un plan anterior completo que pueda utilizarse. Debes crear un plan nuevo."}
+                  </ThemedText>
+
+                  <View style={styles.choiceStats}>
+                    <ChoiceStat
+                      value={String(
+                        datos.ultimoPlanCuotas?.totalCuotasMensuales ?? 0,
+                      )}
+                      label="Cuotas"
+                      color="#D97706"
+                      mutedText={mutedText}
+                    />
+                    <ChoiceStat
+                      value={String(
+                        datos.ultimoPlanCuotas?.totalCuotasCondonadas ?? 0,
+                      )}
+                      label="Condonadas"
+                      color="#D97706"
+                      mutedText={mutedText}
+                    />
+                    <ChoiceStat
+                      value={formatoBs(
+                        Number(datos.ultimoPlanCuotas?.matricula?.monto ?? 0),
+                      )}
+                      label="Matrícula"
+                      color="#D97706"
+                      mutedText={mutedText}
+                    />
+                  </View>
+
+                  <View
+                    style={[
+                      styles.choiceAction,
+                      { backgroundColor: "#D97706" },
+                    ]}
+                  >
+                    {reutilizando ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Ionicons
+                        name="link-outline"
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                    )}
+                    <ThemedText style={styles.choiceActionText}>
+                      {reutilizando
+                        ? "Manteniendo plan..."
+                        : puedeReutilizarPlan
+                          ? "No, usar plan anterior"
+                          : "Plan anterior no disponible"}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              </View>
+
+              <View
+                style={[
+                  styles.choiceWarning,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(124,58,237,0.10)"
+                      : "#F5F3FF",
+                    borderColor: isDark
+                      ? "rgba(196,181,253,0.30)"
+                      : "#DDD6FE",
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={22}
+                  color="#7C3AED"
+                />
+                <ThemedText
+                  style={[styles.choiceWarningText, { color: strongText }]}
+                >
+                  Si eliges Sí, se crea un plan nuevo y el anterior solo sirve
+                  como referencia. Si eliges No, no se crean cuotas nuevas: la
+                  gestión actual queda vinculada al plan anterior y conserva
+                  sus pagos, fechas, descuentos y condonaciones.
+                </ThemedText>
+              </View>
+            </ScrollView>
           ) : (
             <>
               <ScrollView
@@ -780,6 +1395,104 @@ export default function CuotasGestionModal({
                     </ThemedText>
                   </View>
                 </View>
+
+                {modoPlan !== "existente" &&
+                  datos.puedeMantenerCuotasAnteriores &&
+                  datos.ultimoPlanCuotas?.disponible && (
+                    <View
+                      style={[
+                        styles.sourceBanner,
+                        {
+                          backgroundColor:
+                            modoPlan === "anterior"
+                              ? isDark
+                                ? "rgba(245,158,11,0.09)"
+                                : "#FFFBEB"
+                              : isDark
+                                ? "rgba(34,197,94,0.09)"
+                                : "#F0FDF4",
+                          borderColor:
+                            modoPlan === "anterior"
+                              ? isDark
+                                ? "rgba(245,158,11,0.35)"
+                                : "#FCD34D"
+                              : isDark
+                                ? "rgba(34,197,94,0.35)"
+                                : "#86EFAC",
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.sourceBannerIcon,
+                          {
+                            backgroundColor:
+                              modoPlan === "anterior"
+                                ? "rgba(217,119,6,0.16)"
+                                : "rgba(22,163,74,0.16)",
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={
+                            modoPlan === "anterior"
+                              ? "copy-outline"
+                              : "add-circle-outline"
+                          }
+                          size={21}
+                          color={
+                            modoPlan === "anterior" ? "#D97706" : "#16A34A"
+                          }
+                        />
+                      </View>
+
+                      <View style={styles.sourceBannerText}>
+                        <ThemedText
+                          style={[styles.sourceBannerTitle, { color: strongText }]}
+                        >
+                          {modoPlan === "anterior"
+                            ? "Plan recuperado de la gestión anterior"
+                            : "Plan nuevo desde la configuración de la carrera"}
+                        </ThemedText>
+                        <ThemedText
+                          style={[styles.sourceBannerSubtitle, { color: mutedText }]}
+                        >
+                          {modoPlan === "anterior"
+                            ? `Se copiaron montos y condonaciones de ${
+                                datos.ultimoPlanCuotas.gestion.nombre
+                              }. Revisa los datos antes de guardar.`
+                            : "Los montos se calcularon desde cero y no se heredaron condonaciones."}
+                        </ThemedText>
+                      </View>
+
+                      <Pressable
+                        disabled={guardando}
+                        onPress={volverAElegirOrigen}
+                        style={({ pressed }) => [
+                          styles.changeSourceButton,
+                          {
+                            backgroundColor: panelStrong,
+                            borderColor,
+                            opacity: pressed || guardando ? 0.65 : 1,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name="swap-horizontal-outline"
+                          size={16}
+                          color={theme.colors.primary}
+                        />
+                        <ThemedText
+                          style={[
+                            styles.changeSourceButtonText,
+                            { color: theme.colors.primary },
+                          ]}
+                        >
+                          Cambiar opción
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  )}
 
                 <View style={[styles.summaryGrid, isTablet && styles.summaryGridTablet]}>
                   <SummaryCard
@@ -1570,6 +2283,50 @@ function TotalRow({
   );
 }
 
+function ChoiceBullet({
+  icon,
+  text,
+  color,
+  textColor,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+  color: string;
+  textColor: string;
+}) {
+  return (
+    <View style={styles.choiceBullet}>
+      <Ionicons name={icon} size={16} color={color} />
+      <ThemedText style={[styles.choiceBulletText, { color: textColor }]}>
+        {text}
+      </ThemedText>
+    </View>
+  );
+}
+
+function ChoiceStat({
+  value,
+  label,
+  color,
+  mutedText,
+}: {
+  value: string;
+  label: string;
+  color: string;
+  mutedText: string;
+}) {
+  return (
+    <View style={styles.choiceStat}>
+      <ThemedText style={[styles.choiceStatValue, { color }]}>
+        {value}
+      </ThemedText>
+      <ThemedText style={[styles.choiceStatLabel, { color: mutedText }]}>
+        {label}
+      </ThemedText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -1646,6 +2403,223 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+  },
+  choiceContent: {
+    padding: 20,
+    gap: 18,
+    paddingBottom: 30,
+  },
+  choiceHero: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  choiceHeroIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  choiceHeroText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  choiceTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    lineHeight: 25,
+  },
+  choiceSubtitle: {
+    marginTop: 5,
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontWeight: "650" as any,
+  },
+  choiceContext: {
+    borderWidth: 1,
+    borderRadius: 17,
+    padding: 14,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  choiceContextItem: {
+    flex: 1,
+    minWidth: 220,
+  },
+  choiceContextLabel: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  choiceContextValue: {
+    marginTop: 4,
+    fontSize: 13.5,
+    fontWeight: "900",
+  },
+  choiceGrid: {
+    flexDirection: "row",
+    gap: 14,
+    alignItems: "stretch",
+  },
+  choiceGridMobile: {
+    flexDirection: "column",
+  },
+  choiceCard: {
+    flex: 1,
+    minWidth: 0,
+    borderWidth: 1,
+    borderRadius: 21,
+    padding: 17,
+    gap: 12,
+  },
+  choiceCardRecommended: {
+    position: "relative",
+  },
+  recommendedBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: "rgba(217,119,6,0.14)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  recommendedBadgeText: {
+    color: "#B45309",
+    fontSize: 9.5,
+    fontWeight: "900",
+    letterSpacing: 0.55,
+  },
+  choiceCardIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  choiceCardTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  choiceCardText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "650" as any,
+  },
+  choiceBullets: {
+    gap: 8,
+    flex: 1,
+  },
+  choiceBullet: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  choiceBulletText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  choiceStats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    flex: 1,
+  },
+  choiceStat: {
+    flex: 1,
+    minWidth: 92,
+    borderRadius: 13,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    backgroundColor: "rgba(217,119,6,0.09)",
+  },
+  choiceStatValue: {
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  choiceStatLabel: {
+    marginTop: 2,
+    fontSize: 9.5,
+    fontWeight: "800",
+  },
+  choiceAction: {
+    minHeight: 45,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  choiceActionText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  choiceWarning: {
+    borderWidth: 1,
+    borderRadius: 17,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  choiceWarningText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  sourceBanner: {
+    borderWidth: 1,
+    borderRadius: 17,
+    padding: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  sourceBannerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sourceBannerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sourceBannerTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  sourceBannerSubtitle: {
+    marginTop: 3,
+    fontSize: 10.5,
+    lineHeight: 15,
+    fontWeight: "650" as any,
+  },
+  changeSourceButton: {
+    minHeight: 38,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  changeSourceButtonText: {
+    fontSize: 10.5,
+    fontWeight: "900",
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 18, gap: 18, paddingBottom: 28 },

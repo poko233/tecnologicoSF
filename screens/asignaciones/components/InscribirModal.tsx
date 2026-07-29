@@ -141,14 +141,37 @@ function elegirGrupo(
           (toNumber(grupo.cupos) > 0 || Boolean(grupo.estudianteYaEnGrupo)),
       )
       .sort((a, b) => {
-        if (Boolean(a.estudianteYaEnGrupo) !== Boolean(b.estudianteYaEnGrupo)) {
+        /*
+         * Si el estudiante ya está inscrito en un grupo, se mantiene
+         * ese mismo grupo aunque sus cupos hayan llegado a cero.
+         */
+        if (
+          Boolean(a.estudianteYaEnGrupo) !==
+          Boolean(b.estudianteYaEnGrupo)
+        ) {
           return a.estudianteYaEnGrupo ? -1 : 1;
         }
 
-        if (toNumber(a.cupos) !== toNumber(b.cupos)) {
-          return toNumber(b.cupos) - toNumber(a.cupos);
+        /*
+         * Orden secuencial de paralelos:
+         * A primero, después B, C, D...
+         */
+        const comparacionParalelo = String(a.paralelo ?? "").localeCompare(
+          String(b.paralelo ?? ""),
+          "es",
+          {
+            numeric: true,
+            sensitivity: "base",
+          },
+        );
+
+        if (comparacionParalelo !== 0) {
+          return comparacionParalelo;
         }
 
+        /*
+         * Desempate estable cuando dos grupos tienen el mismo paralelo.
+         */
         return toNumber(a.idGrupo) - toNumber(b.idGrupo);
       })[0] ?? null
   );
