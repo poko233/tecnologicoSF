@@ -1,7 +1,5 @@
-// screens/admin/academico/grupos/GrupoForm.tsx
 import { gestionesService } from "@/screens/gestiones/services/gestiones.service";
 import { Gestion } from "@/screens/gestiones/types/gestiones.types";
-import FormDateInput from "@/screens/inscripcion/components/FormDateInput";
 import { useTheme } from "@theme";
 import { ChevronDown } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -78,27 +76,21 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     idGestion: undefined as number | undefined,
     gestionNombre: "",
     cupos: "",
-    fecha_inicio: "",
-    fecha_fin: "",
     activo: true,
   });
 
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [cuposError, setCuposError] = useState("");
   const [horariosError, setHorariosError] = useState("");
-  const [fechasError, setFechasError] = useState("");
 
-  // Selectores de hora individuales
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timeTarget, setTimeTarget] = useState<TimeTarget>(null);
   const [horaActual, setHoraActual] = useState("08:00");
 
-  // Selector de gestión
   const [gestiones, setGestiones] = useState<Gestion[]>([]);
   const [loadingGestiones, setLoadingGestiones] = useState(false);
   const [gestionModalVisible, setGestionModalVisible] = useState(false);
 
-  // Modo Horario Fijo
   const [isFixedSchedule, setIsFixedSchedule] = useState(false);
   const [fixedStart, setFixedStart] = useState("08:00");
   const [fixedEnd, setFixedEnd] = useState("10:00");
@@ -107,7 +99,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     "inicio" | "fin" | null
   >(null);
 
-  // Cargar gestiones activas al montar
   useEffect(() => {
     (async () => {
       setLoadingGestiones(true);
@@ -115,7 +106,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         const res = await gestionesService.listar({ estado: "activo" });
         setGestiones(res.data);
       } catch {
-        // si falla, la lista queda vacía
       } finally {
         setLoadingGestiones(false);
       }
@@ -132,8 +122,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         idGestion: initialData.idGestion,
         gestionNombre: initialData.gestionNombre ?? "",
         cupos: String(initialData.cupos ?? ""),
-        fecha_inicio: convertirFechaParaMostrar(initialData.fecha_inicio ?? ""),
-        fecha_fin: convertirFechaParaMostrar(initialData.fecha_fin ?? ""),
         activo: initialData.estado === "activo",
       });
 
@@ -154,8 +142,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         idGestion: undefined,
         gestionNombre: "",
         cupos: "",
-        fecha_inicio: "",
-        fecha_fin: "",
         activo: true,
       });
 
@@ -164,7 +150,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
     setCuposError("");
     setHorariosError("");
-    setFechasError("");
     setIsFixedSchedule(false);
     setFixedSelectedDays([]);
   }, [initialData]);
@@ -192,7 +177,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
   const lbl = [styles.label, { color: theme.colors.text }];
 
-  // --- Horarios individuales ---
   const addHorario = () =>
     setHorarios((h) => [
       ...h,
@@ -237,10 +221,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
   const confirmarHoraPicker = (hora: string) => {
     if (timeTarget) {
-      // picker individual
       setHorario(timeTarget.index, timeTarget.key, normalizarHora(hora));
     } else if (fixedTimeTarget) {
-      // picker del horario fijo
       if (fixedTimeTarget === "inicio") setFixedStart(normalizarHora(hora));
       else setFixedEnd(normalizarHora(hora));
     }
@@ -250,7 +232,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
     setFixedTimeTarget(null);
   };
 
-  // --- Horario Fijo ---
   const toggleFixedDay = (day: string) => {
     setFixedSelectedDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
@@ -273,24 +254,8 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
   const abrirFixedTimePicker = (tipo: "inicio" | "fin") => {
     setFixedTimeTarget(tipo);
     setHoraActual(tipo === "inicio" ? fixedStart : fixedEnd);
-    setTimeTarget(null); // aseguramos que no se confunda con el individual
+    setTimeTarget(null);
     setTimePickerVisible(true);
-  };
-
-  // Función para convertir formato DD/MM/YYYY a YYYY-MM-DD
-  const convertirFechaParaBackend = (fechaDD_MM_YYYY: string): string => {
-    if (!fechaDD_MM_YYYY) return "";
-    const parts = fechaDD_MM_YYYY.split("/");
-    if (parts.length !== 3) return fechaDD_MM_YYYY; // Ya está en formato correcto
-    return `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
-  };
-
-  // Función para convertir formato YYYY-MM-DD a DD/MM/YYYY
-  const convertirFechaParaMostrar = (fechaYYYY_MM_DD: string): string => {
-    if (!fechaYYYY_MM_DD) return "";
-    const parts = fechaYYYY_MM_DD.split("-");
-    if (parts.length !== 3) return fechaYYYY_MM_DD; // Ya está en formato DD/MM/YYYY
-    return `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
   };
 
   const validarHorarios = () => {
@@ -325,25 +290,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
       return;
     }
 
-    if (!form.fecha_inicio) {
-      setFechasError("La fecha de inicio es obligatoria.");
-      return;
-    }
-
-    if (!form.fecha_fin) {
-      setFechasError("La fecha de fin es obligatoria.");
-      return;
-    }
-
-    // Convertir fechas a formato comparable YYYY-MM-DD
-    const fechaInicioBackend = convertirFechaParaBackend(form.fecha_inicio);
-    const fechaFinBackend = convertirFechaParaBackend(form.fecha_fin);
-
-    if (fechaFinBackend < fechaInicioBackend) {
-      setFechasError("La fecha de fin debe ser posterior a la fecha de inicio.");
-      return;
-    }
-
     const errorHorario = validarHorarios();
 
     if (errorHorario) {
@@ -353,7 +299,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
     setCuposError("");
     setHorariosError("");
-    setFechasError("");
     setSaving(true);
 
     try {
@@ -365,8 +310,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         cupos: Number(form.cupos),
         estado: form.activo ? "activo" : "inactivo",
         tipo: "Curso",
-        fecha_inicio: fechaInicioBackend,
-        fecha_fin: fechaFinBackend,
         horarios: horarios.map(({ dia, horaInicio, horaFin }) => ({
           dia,
           horaInicio: normalizarHora(horaInicio),
@@ -387,7 +330,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
 
   return (
     <View>
-      {/* Nombre y Código */}
       <View style={styles.row2}>
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Nombre *</Text>
@@ -414,7 +356,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         </View>
       </View>
 
-      {/* Paralelo */}
       <Text style={lbl}>Paralelo</Text>
       <TextInput
         style={inp}
@@ -424,7 +365,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         placeholderTextColor={theme.colors.textMuted}
       />
 
-      {/* Turno */}
       <Text style={lbl}>Turno</Text>
       <View style={styles.chipRow}>
         {TURNOS.map((t) => (
@@ -457,7 +397,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         ))}
       </View>
 
-      {/* Gestión y Cupos */}
       <View style={styles.row2}>
         <View style={{ flex: 1 }}>
           <Text style={lbl}>Gestión *</Text>
@@ -517,36 +456,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         </View>
       </View>
 
-      {/* Fecha inicio y Fecha fin */}
-      <View style={styles.row2}>
-        <FormDateInput
-          label="Fecha inicio"
-          placeholder="dd/mm/aaaa"
-          value={form.fecha_inicio}
-          onChangeText={(text) => {
-            setForm((f) => ({ ...f, fecha_inicio: text }));
-            setFechasError("");
-          }}
-          error={fechasError}
-          required
-        />
-
-        <View style={{ width: 12 }} />
-
-        <FormDateInput
-          label="Fecha fin"
-          placeholder="dd/mm/aaaa"
-          value={form.fecha_fin}
-          onChangeText={(text) => {
-            setForm((f) => ({ ...f, fecha_fin: text }));
-            setFechasError("");
-          }}
-          error={fechasError}
-          required
-        />
-      </View>
-
-      {/* Horarios */}
       <View
         style={[styles.horarioSection, { borderColor: theme.colors.border }]}
       >
@@ -555,7 +464,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
             🕐 Horarios de Clase
           </Text>
 
-          {/* Switch Horario Fijo */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
               Horario fijo
@@ -584,7 +492,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
           </Text>
         ) : null}
 
-        {/* Panel de Horario Fijo */}
         {isFixedSchedule && (
           <View
             style={[
@@ -733,7 +640,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
           </View>
         )}
 
-        {/* Lista de horarios existentes */}
         {horarios.length === 0 && !isFixedSchedule ? (
           <Text
             style={{
@@ -872,7 +778,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
           ))
         )}
 
-        {/* Botón para agregar horario individual (visible solo si no está en modo fijo) */}
         {!isFixedSchedule && (
           <Pressable
             onPress={addHorario}
@@ -891,7 +796,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         )}
       </View>
 
-      {/* Estado activo */}
       <View style={styles.switchRow}>
         <Text style={[lbl, { marginBottom: 0, marginTop: 0 }]}>
           Estado activo
@@ -908,7 +812,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         />
       </View>
 
-      {/* Botones Cancelar/Guardar */}
       <View style={styles.btns}>
         <Pressable
           onPress={onCancel}
@@ -957,7 +860,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         </Pressable>
       </View>
 
-      {/* Picker de hora (individual o fijo) */}
       <HoraPickerModal
         visible={timePickerVisible}
         value={horaActual}
@@ -965,7 +867,6 @@ export function GrupoForm({ initialData, onSave, onCancel }: Props) {
         onConfirm={confirmarHoraPicker}
       />
 
-      {/* Modal de selección de gestión */}
       <Modal visible={gestionModalVisible} transparent animationType="fade">
         <Pressable
           style={styles.gestionOverlay}

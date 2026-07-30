@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { useResponsive } from "../hooks/useResponsive";
 import { useTheme } from "../theme/useTheme";
+import { useThemeStore } from "../store/themeStore";
 import { ThemedText } from "./ThemedText";
 
 /* ─────────────────── Tipos ─────────────────── */
@@ -120,6 +121,7 @@ export default function DatePickerModal({
   initialYear,
 }: DatePickerModalProps) {
   const { theme } = useTheme();
+  const themeName = useThemeStore((s) => s.themeName);
   const { isMobile } = useResponsive();
   const todayIso = todayInBoliviaIso();
 
@@ -628,7 +630,7 @@ export default function DatePickerModal({
         <RNModal transparent visible={visible} onRequestClose={onClose}>
           <BlurView
             intensity={20}
-            tint="dark"
+            tint={themeName === "dark" ? "dark" : "light"}
             style={[StyleSheet.absoluteFill, styles.backdropWrapper]}
           >
             <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />

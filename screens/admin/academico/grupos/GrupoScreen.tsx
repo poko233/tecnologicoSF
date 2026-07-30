@@ -1,4 +1,3 @@
-// screens/admin/academico/grupos/GrupoScreen.tsx
 import { useTheme } from "@theme";
 import React from "react";
 import { Text } from "react-native";
@@ -29,34 +28,6 @@ export function GrupoScreen() {
       ),
     },
     { key: "cupos", header: "Cupos", width: 70 },
-    {
-      key: "fecha_inicio",
-      header: "Fecha inicio",
-      width: 110,
-      render: (val: string) => {
-        if (!val) return <Text style={{ fontSize: 12, color: theme.colors.text }}>-</Text>;
-        const [year, month, day] = val.split("-");
-        return (
-          <Text style={{ fontSize: 12, color: theme.colors.text }}>
-            {`${day}/${month}/${year}`}
-          </Text>
-        );
-      },
-    },
-    {
-      key: "fecha_fin",
-      header: "Fecha fin",
-      width: 110,
-      render: (val: string) => {
-        if (!val) return <Text style={{ fontSize: 12, color: theme.colors.text }}>-</Text>;
-        const [year, month, day] = val.split("-");
-        return (
-          <Text style={{ fontSize: 12, color: theme.colors.text }}>
-            {`${day}/${month}/${year}`}
-          </Text>
-        );
-      },
-    },
     {
       key: "horarios",
       header: "Horarios",

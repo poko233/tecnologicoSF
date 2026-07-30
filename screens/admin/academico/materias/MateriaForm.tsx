@@ -1,6 +1,7 @@
 import { useTheme } from '@theme'
 import React, { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View, TouchableOpacity } from 'react-native'
+import DatePickerModal from '@/components/DatePickerModal'
 import { Carrera } from '../carreras/carrera.types'
 import { carreraService } from '../carreras/carreraService'
 import { Materia } from './materia.types'
@@ -21,7 +22,10 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
   const [form, setForm] = useState({
     nombreMateria: '', codigo: '', semestre: '1',
     idPrerequisito: '', idCarrera: '', activo: true,
+    fecha_inicio: '', fecha_fin: '',
   })
+  const [fechaInicioModalVisible, setFechaInicioModalVisible] = useState(false)
+  const [fechaFinModalVisible, setFechaFinModalVisible] = useState(false)
 
   useEffect(() => {
     carreraService.getAll().then(setCarreras).catch(() => {})
@@ -37,6 +41,8 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
         idPrerequisito: String(initialData.idPrerequisito ?? ''),
         idCarrera: '',
         activo: initialData.estado === 'activo',
+        fecha_inicio: initialData.fecha_inicio ?? '',
+        fecha_fin: initialData.fecha_fin ?? '',
       })
     }
   }, [initialData])
@@ -54,8 +60,16 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
       estado: form.activo ? 'activo' : 'inactivo',
       idPrerequisito: form.idPrerequisito ? Number(form.idPrerequisito) : undefined,
       idCarrera: form.idCarrera ? Number(form.idCarrera) : undefined,
+      fecha_inicio: form.fecha_inicio || undefined,
+      fecha_fin: form.fecha_fin || undefined,
     })
     setSaving(false)
+  }
+
+  const formatearFecha = (isoDate: string): string => {
+    if (!isoDate) return ''
+    const [year, month, day] = isoDate.split('-')
+    return `${day}/${month}/${year}`
   }
 
   return (
@@ -79,7 +93,6 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
         ))}
       </View>
 
-      {/* Prerrequisito - acordeón */}
       <Pressable
         onPress={() => setShowPrereqs(v => !v)}
         style={{
@@ -140,6 +153,20 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
         </View>
       )}
 
+      <Text style={lbl}>Fecha inicio (opcional)</Text>
+      <TouchableOpacity onPress={() => setFechaInicioModalVisible(true)} style={[inp, { justifyContent: 'center' }]}>
+        <Text style={{ color: form.fecha_inicio ? theme.colors.text : theme.colors.textMuted, fontSize: 14 }}>
+          {form.fecha_inicio ? formatearFecha(form.fecha_inicio) : 'Seleccionar fecha'}
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={lbl}>Fecha fin (opcional)</Text>
+      <TouchableOpacity onPress={() => setFechaFinModalVisible(true)} style={[inp, { justifyContent: 'center' }]}>
+        <Text style={{ color: form.fecha_fin ? theme.colors.text : theme.colors.textMuted, fontSize: 14 }}>
+          {form.fecha_fin ? formatearFecha(form.fecha_fin) : 'Seleccionar fecha'}
+        </Text>
+      </TouchableOpacity>
+
       <View style={styles.switchRow}>
         <Text style={[lbl, { marginBottom: 0, marginTop: 0 }]}>Estado activo</Text>
         <Switch value={form.activo} onValueChange={v => setForm(f => ({ ...f, activo: v }))} thumbColor={form.activo ? theme.colors.primary : '#ccc'} trackColor={{ false: '#ddd', true: theme.colors.primary + '60' }} />
@@ -153,6 +180,33 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
           {saving ? <ActivityIndicator size="small" color={theme.colors.primaryForeground} /> : <Text style={[styles.btnText, { color: theme.colors.primaryForeground }]}>Guardar</Text>}
         </Pressable>
       </View>
+
+      <DatePickerModal
+        visible={fechaInicioModalVisible}
+        onClose={() => setFechaInicioModalVisible(false)}
+        mode="single"
+        initialDate={form.fecha_inicio || undefined}
+        onApply={(result) => {
+          if (result.type === 'single') {
+            setForm(f => ({ ...f, fecha_inicio: result.date }))
+          }
+          setFechaInicioModalVisible(false)
+        }}
+      />
+
+      <DatePickerModal
+        visible={fechaFinModalVisible}
+        onClose={() => setFechaFinModalVisible(false)}
+        mode="single"
+        initialDate={form.fecha_fin || undefined}
+        minDate={form.fecha_inicio || undefined}
+        onApply={(result) => {
+          if (result.type === 'single') {
+            setForm(f => ({ ...f, fecha_fin: result.date }))
+          }
+          setFechaFinModalVisible(false)
+        }}
+      />
     </View>
   )
 }

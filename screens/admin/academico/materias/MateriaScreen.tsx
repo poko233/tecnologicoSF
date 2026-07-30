@@ -1,4 +1,3 @@
-// screens/admin/academico/materias/MateriaScreen.tsx
 import { useTheme } from '@theme'
 import React from 'react'
 import { Text } from 'react-native'
@@ -36,6 +35,46 @@ export function MateriaScreen() {
             ellipsizeMode="tail"
           >
             {val.map((c: any) => c.nombreCarrera).join(', ')}
+          </Text>
+        )
+      },
+    },
+    {
+      key: 'fecha_inicio',
+      header: 'Fecha Inicio',
+      width: 120,
+      render: (val: any) => {
+        if (!val) {
+          return (
+            <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontStyle: 'italic' }}>
+              --
+            </Text>
+          )
+        }
+        const [year, month, day] = val.split('-')
+        return (
+          <Text style={{ fontSize: 13, color: theme.colors.text }}>
+            {`${day}/${month}/${year}`}
+          </Text>
+        )
+      },
+    },
+    {
+      key: 'fecha_fin',
+      header: 'Fecha Fin',
+      width: 120,
+      render: (val: any) => {
+        if (!val) {
+          return (
+            <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontStyle: 'italic' }}>
+              --
+            </Text>
+          )
+        }
+        const [year, month, day] = val.split('-')
+        return (
+          <Text style={{ fontSize: 13, color: theme.colors.text }}>
+            {`${day}/${month}/${year}`}
           </Text>
         )
       },

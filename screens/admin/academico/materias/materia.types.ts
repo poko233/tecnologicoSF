@@ -1,4 +1,3 @@
-// materia.types.ts
 export interface Materia {
   idMateria: number
   nombreMateria: string
@@ -7,5 +6,7 @@ export interface Materia {
   estado: 'activo' | 'inactivo'
   idPrerequisito?: number
   prerequisito?: { idMateria: number; nombreMateria: string }
-  carreras?: { idCarrera: number; nombreCarrera: string }[]   
+  carreras?: { idCarrera: number; nombreCarrera: string }[]
+  fecha_inicio?: string
+  fecha_fin?: string
 }
