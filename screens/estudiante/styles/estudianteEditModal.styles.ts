@@ -73,6 +73,34 @@ export function createEstudianteEditModalStyles(colors: any) {
 
     headerTextBox: {
       flex: 1,
+      minWidth: 0,
+    },
+
+    headerTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 12,
+    },
+
+    headerCareerBadge: {
+      maxWidth: 430,
+      minHeight: 34,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: `${colors.primary}66`,
+      backgroundColor: `${colors.primary}14`,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+    },
+
+    headerCareerBadgeText: {
+      flexShrink: 1,
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: "900",
     },
 
     title: {
@@ -357,6 +385,69 @@ export function createEstudianteEditModalStyles(colors: any) {
       color: colors.text,
       fontSize: 15,
       fontWeight: "900",
+    },
+
+    careerSelectCard: {
+      flex: 1,
+      minWidth: 280,
+      minHeight: 76,
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+
+    careerSelectIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 1,
+    },
+
+    careerSelectText: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    careerSelectLabel: {
+      fontSize: 11,
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: 0.35,
+    },
+
+    careerSelectValue: {
+      marginTop: 3,
+      fontSize: 14.5,
+      lineHeight: 19,
+      fontWeight: "900",
+    },
+
+    careerSelectMeta: {
+      marginTop: 3,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "700",
+    },
+
+    careerChangeNotice: {
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: 12,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+
+    careerChangeNoticeText: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 18,
+      fontWeight: "700",
     },
 
     estadoSection: {

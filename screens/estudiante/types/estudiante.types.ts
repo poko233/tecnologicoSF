@@ -44,6 +44,37 @@ export type CarreraEstudiante = {
   regimen?: string | null;
   tipo?: string | null;
   estadoCarrera?: string | null;
+  idCarreraUsuario?: number | string | null;
+  turnoPreferido?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type GestionCambioCarreraEstudiante = {
+  idGestion: number;
+  nombre?: string | null;
+  anio?: number | string | null;
+  periodo?: string | null;
+};
+
+export type ImpactoCambioCarreraEstudiante = {
+  idCarreraActual: number;
+  nombreCarreraActual: string;
+  tieneInscripcionGestionActiva: boolean;
+  requiereConfirmacion: boolean;
+  totalInscripcionesCarreraAnterior: number;
+  totalInscripcionesActivas: number;
+  totalMateriasActivas: number;
+  cuposADevolver: number;
+  totalNotasActuales: number;
+  totalNotasFinales?: number;
+  totalNotasCompetencias?: number;
+  totalNotasElementos?: number;
+  totalAsistencias?: number;
+  totalRegistrosHistorial: number;
+  totalConvalidaciones?: number;
+  gestionesActivas: GestionCambioCarreraEstudiante[];
+  mensaje?: string | null;
 };
 
 export type EstudianteUsuario = {
@@ -78,6 +109,9 @@ export type EstudianteUsuario = {
   roles?: RolEstudiante[];
   documentos?: DocumentoEstudiante[];
   carreras?: CarreraEstudiante[];
+  carreraActual?: CarreraEstudiante | null;
+  carrerasDisponibles?: CarreraEstudiante[];
+  cambioCarreraImpacto?: ImpactoCambioCarreraEstudiante | null;
 
   nivelesAcademicos?: string[];
   nivelesPorCarrera?: Array<{
@@ -118,6 +152,9 @@ export type EstudianteForm = {
   referenciaParentesco: string;
   referenciaNumero: string;
   observacionPromociones: string;
+
+  idCarrera: number | null;
+  confirmarCambioCarrera?: boolean;
 };
 
 export type FotoEstudianteArchivo = {
@@ -142,24 +179,50 @@ export type CarreraHistorialEstudiante = {
   estadoCarrera?: string | null;
 };
 
+export type TipoHistorialEstudiante = "HISTORICO" | "GESTION_ACTUAL";
+
+export type OrigenNotaHistorialEstudiante =
+  | "HISTORIAL_ACADEMICO"
+  | "NOTA_FINAL_ACTUAL"
+  | "SEGUNDA_INSTANCIA"
+  | "PROMEDIO_COMPETENCIAS"
+  | "SIN_NOTA"
+  | string;
+
 export type MateriaHistorialEstudiante = {
+  tipoHistorial?: TipoHistorialEstudiante;
+  esGestionActual?: boolean;
+
   idCarrera: number;
   nombreCarrera: string;
   codigoCarrera?: string | null;
   regimen?: string | null;
   tipoCarrera?: string | null;
+  estadoCarrera?: string | null;
 
   idMateria: number;
   nombreMateria: string;
   codigoMateria?: string | null;
   nivel: number;
+  estadoRegistro?: string | null;
+  notaAprobacion?: number | null;
 
   notaFinal?: number | null;
+  notaActual?: number | null;
+  notaAsistencia?: number | null;
+  notaAcademica?: number | null;
+  segundaInstanciaNota?: number | null;
+  origenNota?: OrigenNotaHistorialEstudiante | null;
+
+  idGestion?: number | null;
   gestion?: string | null;
+  estadoGestion?: string | null;
   estadoMateria: EstadoMateriaHistorialEstudiante;
   observacion?: string | null;
 
+  idInscripcion?: number | null;
   idGrupo?: number | null;
+  idGrupoMateriaDocente?: number | null;
   nombreGrupo?: string | null;
   codigoGrupo?: string | null;
   paralelo?: string | null;
@@ -169,6 +232,8 @@ export type MateriaHistorialEstudiante = {
 
 export type ResumenHistorialEstudiante = {
   totalMaterias: number;
+  materiasActivas?: number;
+  materiasInactivas?: number;
   aprobadas: number;
   reprobadas: number;
   inscritas: number;
@@ -177,11 +242,25 @@ export type ResumenHistorialEstudiante = {
   promedioGeneral?: number | null;
 };
 
+export type GestionActualHistorialEstudiante = {
+  id: number;
+  nombre: string;
+  estado?: string | null;
+};
+
 export type HistorialEstudianteResponse = {
   estudiante: EstudianteUsuario;
   carreras: CarreraHistorialEstudiante[];
+
+  /** Compatibilidad: mantiene el historial histórico. */
   materias: MateriaHistorialEstudiante[];
   resumen: ResumenHistorialEstudiante;
+
+  materiasHistoricas?: MateriaHistorialEstudiante[];
+  materiasGestionActual?: MateriaHistorialEstudiante[];
+  resumenHistorico?: ResumenHistorialEstudiante;
+  resumenGestionActual?: ResumenHistorialEstudiante;
+  gestionesActuales?: GestionActualHistorialEstudiante[];
 };
 
 export type EstudiantesResponse = {
@@ -192,7 +271,24 @@ export type EstudianteDetalleResponse = {
   estudiante: EstudianteUsuario;
 };
 
+export type ResultadoCambioCarreraEstudiante = {
+  carreraCambiada?: boolean;
+  carreraCreada?: boolean;
+  requiereConfirmacion?: boolean;
+  idCarreraAnterior?: number | null;
+  nombreCarreraAnterior?: string | null;
+  idCarreraNueva?: number | null;
+  nombreCarreraNueva?: string | null;
+  cuposDevueltos?: number;
+  materiasDepuradas?: number;
+  notasDepuradas?: number;
+  asistenciasDepuradas?: number;
+  convalidacionesDepuradas?: number;
+  historialDepurado?: number;
+};
+
 export type EstudianteUpdateResponse = {
   message: string;
   estudiante: EstudianteUsuario;
+  cambioCarrera?: ResultadoCambioCarreraEstudiante | null;
 };

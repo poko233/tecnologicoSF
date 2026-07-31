@@ -1,19 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-    ActivityIndicator,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../../components/ThemedText";
 import { useTheme } from "../../../theme/useTheme";
 import {
-    Estudiante,
-    SeleccionMateriaInscripcion,
+  Estudiante,
+  SeleccionMateriaInscripcion,
 } from "../types/asignaciones.types";
 
 type Props = {
@@ -48,7 +48,7 @@ function ordenar(
   });
 }
 
-function formatearFechaGrupo(value?: string | null): string {
+function formatearFechaMateria(value?: string | null): string {
   if (!value) return "Sin fecha";
 
   const limpia = String(value).split("T")[0].split(" ")[0];
@@ -389,12 +389,12 @@ function ChangeSection({
                 />
                 <MetaPill
                   icon="calendar-outline"
-                  text={`Inicio ${formatearFechaGrupo(seleccion.fechaInicio)}`}
+                  text={`Inicio materia ${formatearFechaMateria(seleccion.fechaInicio)}`}
                   color={color}
                 />
                 <MetaPill
                   icon="calendar-number-outline"
-                  text={`Fin ${formatearFechaGrupo(seleccion.fechaFin)}`}
+                  text={`Fin materia ${formatearFechaMateria(seleccion.fechaFin)}`}
                   color={color}
                 />
               </View>

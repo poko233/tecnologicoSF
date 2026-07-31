@@ -8,6 +8,7 @@ import { createHistorialEstudianteStyles } from "../styles/historialEstudiante.s
 import {
   EstudianteUsuario,
   MateriaHistorialEstudiante,
+  OrigenNotaHistorialEstudiante,
 } from "../types/estudiante.types";
 import {
   formatearFecha,
@@ -50,6 +51,30 @@ function getValor(value?: string | number | null) {
   return String(value);
 }
 
+function getOrigenNotaLabel(
+  origen?: OrigenNotaHistorialEstudiante | null,
+): string {
+  switch (origen) {
+    case "HISTORIAL_ACADEMICO":
+      return "Nota final cerrada";
+    case "SEGUNDA_INSTANCIA":
+      return "Segunda instancia actual";
+    case "NOTA_FINAL_ACTUAL":
+      return "Nota consolidada actual";
+    case "PROMEDIO_COMPETENCIAS":
+      return "Promedio actual de competencias";
+    case "SIN_NOTA":
+    case null:
+    case undefined:
+      return "Todavía sin nota";
+    default:
+      return String(origen)
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .replace(/^./, (letra) => letra.toUpperCase());
+  }
+}
+
 function InfoCard({
   label,
   value,
@@ -81,6 +106,15 @@ export default function HistorialEstudianteDetalleModal({
   );
 
   const materiaUi = materia as MateriaHistorialUI | null;
+  const esGestionActual = Boolean(
+    materiaUi?.esGestionActual ||
+      materiaUi?.tipoHistorial === "GESTION_ACTUAL",
+  );
+
+  const notaMostrada = esGestionActual
+    ? materiaUi?.notaActual ?? materiaUi?.notaFinal
+    : materiaUi?.notaFinal;
+
   const estadoColor = getEstadoColor(
     materiaUi?.estadoMateria || "PENDIENTE",
     colors,
@@ -102,7 +136,9 @@ export default function HistorialEstudianteDetalleModal({
           <View style={styles.detailHeader}>
             <View style={styles.detailHeaderInfo}>
               <ThemedText style={styles.detailKicker}>
-                Detalle del historial
+                {esGestionActual
+                  ? "Detalle de la gestión actual"
+                  : "Detalle del historial histórico"}
               </ThemedText>
 
               <ThemedText style={styles.detailTitle} numberOfLines={3}>
@@ -131,12 +167,14 @@ export default function HistorialEstudianteDetalleModal({
                 },
               ]}
             >
-              <ThemedText style={styles.bigNotaLabel}>Nota final</ThemedText>
+              <ThemedText style={styles.bigNotaLabel}>
+                {esGestionActual ? "Nota actual" : "Nota final histórica"}
+              </ThemedText>
 
               <ThemedText
                 style={[styles.bigNotaValue, { color: estadoColor }]}
               >
-                {formatearNotaFinal(materiaUi?.notaFinal)}
+                {formatearNotaFinal(notaMostrada)}
               </ThemedText>
 
               <View
@@ -146,10 +184,62 @@ export default function HistorialEstudianteDetalleModal({
                 ]}
               >
                 <ThemedText style={styles.estadoBadgeText}>
-                  {obtenerEstadoMateriaLabel(materiaUi?.estadoMateria)}
+                  {esGestionActual
+                    ? "GESTIÓN EN CURSO"
+                    : obtenerEstadoMateriaLabel(materiaUi?.estadoMateria)}
                 </ThemedText>
               </View>
             </View>
+
+            {esGestionActual && (
+              <View style={styles.detailSection}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons
+                    name="pulse-outline"
+                    size={19}
+                    color={colors.primary}
+                  />
+                  <ThemedText style={styles.sectionTitle}>
+                    Calificación actual
+                  </ThemedText>
+                </View>
+
+                <View style={styles.detailGrid}>
+                  <InfoCard
+                    label="Nota actual"
+                    value={formatearNotaFinal(notaMostrada)}
+                    styles={styles}
+                  />
+                  <InfoCard
+                    label="Nota académica"
+                    value={formatearNotaFinal(materiaUi?.notaAcademica)}
+                    styles={styles}
+                  />
+                  <InfoCard
+                    label="Nota de asistencia"
+                    value={formatearNotaFinal(materiaUi?.notaAsistencia)}
+                    styles={styles}
+                  />
+                  <InfoCard
+                    label="Segunda instancia"
+                    value={formatearNotaFinal(
+                      materiaUi?.segundaInstanciaNota,
+                    )}
+                    styles={styles}
+                  />
+                  <InfoCard
+                    label="Origen de la nota"
+                    value={getOrigenNotaLabel(materiaUi?.origenNota)}
+                    styles={styles}
+                  />
+                  <InfoCard
+                    label="Estado de gestión"
+                    value={materiaUi?.estadoGestion || "ACTIVA"}
+                    styles={styles}
+                  />
+                </View>
+              </View>
+            )}
 
             <View style={styles.detailSection}>
               <View style={styles.sectionHeader}>
@@ -194,6 +284,15 @@ export default function HistorialEstudianteDetalleModal({
               </View>
 
               <View style={styles.detailGrid}>
+                <InfoCard
+                  label="Tipo de consulta"
+                  value={
+                    esGestionActual
+                      ? "HISTORIAL DE ESTA GESTIÓN"
+                      : "HISTORIAL HISTÓRICO"
+                  }
+                  styles={styles}
+                />
                 <InfoCard
                   label="Código"
                   value={materiaUi?.codigoMateria}

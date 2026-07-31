@@ -87,6 +87,17 @@ const normalizar = (texto: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+function formatearFechaMateria(value?: string | null) {
+  if (!value) return "Sin fecha";
+
+  const limpia = String(value).split("T")[0].split(" ")[0];
+  const partes = limpia.split("-");
+
+  if (partes.length !== 3) return limpia;
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
 const resolverUrlDocumento = (doc: DocumentoServidor) => {
   const raw = doc.url || doc.ubicacionArchivo || doc.ruta || doc.archivo || "";
 
@@ -447,6 +458,11 @@ export default function EditarEstudianteModal({
 
                         <ThemedText style={[styles.itemText, { color: mutedText }]}>
                           Semestre {i.semestre} · {i.nombreCarrera ?? "Sin carrera"}
+                        </ThemedText>
+
+                        <ThemedText style={[styles.itemText, { color: mutedText }]}>
+                          Materia: {formatearFechaMateria(i.fechaInicio)} al{" "}
+                          {formatearFechaMateria(i.fechaFin)}
                         </ThemedText>
                       </View>
                     </View>

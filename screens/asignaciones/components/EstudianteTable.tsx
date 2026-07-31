@@ -17,6 +17,7 @@ import { useTheme } from "../../../theme/useTheme";
 import {
   CarreraAsignacion,
   Estudiante,
+  TurnoInscripcion,
 } from "../types/asignaciones.types";
 
 type Props = {
@@ -35,6 +36,9 @@ type Props = {
 };
 
 type FiltroCuotas = "todos" | "sinCuotas" | "conCuotas" | "condonadas";
+type FiltroTurno = "todos" | TurnoInscripcion;
+
+const TURNOS: TurnoInscripcion[] = ["Mañana", "Tarde", "Noche"];
 
 type EstadoVisual = {
   key: "completo" | "agregar" | "pendientes" | "listo" | "revision";
@@ -60,6 +64,16 @@ function tienePlanCuotasGestion(estudiante: Estudiante): boolean {
 
 function totalCondonadasGestion(estudiante: Estudiante): number {
   return Math.max(Number(estudiante.totalCuotasCondonadasGestion ?? 0), 0);
+}
+
+function obtenerTurnoEstudiante(
+  estudiante: Estudiante,
+): TurnoInscripcion | null {
+  const turno = estudiante.turnoEstudiante ?? estudiante.turnoPreferido;
+
+  return TURNOS.includes(turno as TurnoInscripcion)
+    ? (turno as TurnoInscripcion)
+    : null;
 }
 
 function nombreCompleto(estudiante: Estudiante): string {
@@ -234,9 +248,11 @@ export default function EstudiantesTable({
 
   const [search, setSearch] = useState("");
   const [filtroCuotas, setFiltroCuotas] = useState<FiltroCuotas>("todos");
+  const [filtroTurno, setFiltroTurno] = useState<FiltroTurno>("todos");
   const [page, setPage] = useState(1);
   const [modalCarreraVisible, setModalCarreraVisible] = useState(false);
   const [modalNivelVisible, setModalNivelVisible] = useState(false);
+  const [modalTurnoVisible, setModalTurnoVisible] = useState(false);
   const [seleccionandoCarreraId, setSeleccionandoCarreraId] = useState<
     number | null
   >(null);
@@ -258,6 +274,7 @@ export default function EstudiantesTable({
   useEffect(() => {
     setSearch("");
     setFiltroCuotas("todos");
+    setFiltroTurno("todos");
     setPage(1);
   }, [carreraSeleccionadaId, nivelSeleccionadoId]);
 
@@ -279,6 +296,13 @@ export default function EstudiantesTable({
           acc.condonadas += 1;
         }
 
+        const turno = obtenerTurnoEstudiante(estudiante);
+
+        if (turno === "Mañana") acc.manana += 1;
+        if (turno === "Tarde") acc.tarde += 1;
+        if (turno === "Noche") acc.noche += 1;
+        if (!turno) acc.sinTurno += 1;
+
         return acc;
       },
       {
@@ -290,6 +314,10 @@ export default function EstudiantesTable({
         conCuotas: 0,
         sinCuotas: 0,
         condonadas: 0,
+        manana: 0,
+        tarde: 0,
+        noche: 0,
+        sinTurno: 0,
       },
     );
   }, [estudiantes, isDark, theme.colors.primary]);
@@ -305,6 +333,10 @@ export default function EstudiantesTable({
       );
       const tieneCuotas = tienePlanCuotasGestion(estudiante);
       const condonadas = totalCondonadasGestion(estudiante);
+      const turno = obtenerTurnoEstudiante(estudiante);
+
+      const coincideTurno =
+        filtroTurno === "todos" || turno === filtroTurno;
 
       const coincideFiltro =
         filtroCuotas === "todos" ||
@@ -312,7 +344,7 @@ export default function EstudiantesTable({
         (filtroCuotas === "conCuotas" && tieneCuotas) ||
         (filtroCuotas === "condonadas" && condonadas > 0);
 
-      if (!coincideFiltro) return false;
+      if (!coincideFiltro || !coincideTurno) return false;
       if (!q) return true;
 
       const estadoCuotas = !tieneCuotas
@@ -330,12 +362,14 @@ export default function EstudiantesTable({
         visual.label,
         visual.description,
         estadoCuotas,
+        turno ?? "sin turno",
       ].some((value) => String(value ?? "").toLowerCase().includes(q));
     });
   }, [
     estudiantes,
     search,
     filtroCuotas,
+    filtroTurno,
     isDark,
     theme.colors.primary,
   ]);
@@ -479,6 +513,45 @@ export default function EstudiantesTable({
             </View>
             <Ionicons name="chevron-down" size={18} color={mutedText} />
           </Pressable>
+
+          <Pressable
+            disabled={!carreraSeleccionadaId || !nivelSeleccionadoId}
+            onPress={() => setModalTurnoVisible(true)}
+            style={({ pressed }) => [
+              styles.filterButton,
+              {
+                backgroundColor: softCard,
+                borderColor:
+                  filtroTurno !== "todos" ? theme.colors.primary : border,
+                opacity:
+                  !carreraSeleccionadaId || !nivelSeleccionadoId
+                    ? 0.5
+                    : pressed
+                      ? 0.8
+                      : 1,
+              },
+            ]}
+          >
+            <Ionicons
+              name="time-outline"
+              size={18}
+              color={
+                filtroTurno !== "todos" ? theme.colors.primary : mutedText
+              }
+            />
+            <View style={styles.filterTextBox}>
+              <ThemedText style={[styles.filterLabel, { color: mutedText }]}>
+                Turno
+              </ThemedText>
+              <ThemedText
+                numberOfLines={1}
+                style={[styles.filterValue, { color: strongText }]}
+              >
+                {filtroTurno === "todos" ? "Todos los turnos" : filtroTurno}
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-down" size={18} color={mutedText} />
+          </Pressable>
         </View>
       </View>
 
@@ -599,7 +672,7 @@ export default function EstudiantesTable({
               setSearch(value);
               setPage(1);
             }}
-            placeholder="Buscar por nombre, CI, matrícula, estado o cuotas..."
+            placeholder="Buscar por nombre, CI, matrícula, turno, estado o cuotas..."
             placeholderTextColor={mutedText}
             style={[styles.searchInput, { color: strongText }]}
           />
@@ -755,7 +828,7 @@ export default function EstudiantesTable({
                         { color: mutedText },
                       ]}
                     >
-                      Fecha
+                      Turno / fecha
                     </ThemedText>
                     <ThemedText
                       style={[
@@ -836,6 +909,12 @@ export default function EstudiantesTable({
                             style={[styles.compactText, { color: mutedText }]}
                           >
                             Matrícula: {estudiante.matricula || "Sin matrícula"}
+                          </ThemedText>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.compactText, { color: mutedText }]}
+                          >
+                            Turno: {obtenerTurnoEstudiante(estudiante) ?? "Sin turno"}
                           </ThemedText>
                           <StatusBadge visual={visual} />
                         </View>
@@ -919,6 +998,12 @@ export default function EstudiantesTable({
                           <ThemedText
                             numberOfLines={1}
                             style={[styles.cellStrong, { color: strongText }]}
+                          >
+                            {obtenerTurnoEstudiante(estudiante) ?? "Sin turno"}
+                          </ThemedText>
+                          <ThemedText
+                            numberOfLines={1}
+                            style={[styles.cellSmall, { color: mutedText }]}
                           >
                             {formatearFecha(estudiante.fechaInscripcion)}
                           </ThemedText>
@@ -1065,6 +1150,68 @@ export default function EstudiantesTable({
             }
             borderColor={border}
             onPress={() => void seleccionarNivel(nivel)}
+          />
+        ))}
+      </SelectorModal>
+
+      <SelectorModal
+        visible={modalTurnoVisible}
+        title="Filtrar por turno"
+        subtitle="Muestra únicamente estudiantes del turno seleccionado."
+        onClose={() => setModalTurnoVisible(false)}
+        backgroundColor={theme.colors.card}
+        borderColor={border}
+        strongText={strongText}
+        mutedText={mutedText}
+      >
+        <SelectorOption
+          title="Todos los turnos"
+          subtitle={`Mañana ${resumen.manana} · Tarde ${resumen.tarde} · Noche ${resumen.noche}`}
+          selected={filtroTurno === "todos"}
+          icon="people-outline"
+          primary={theme.colors.primary}
+          strongText={strongText}
+          mutedText={mutedText}
+          backgroundColor={softCard}
+          selectedBackground={
+            isDark ? "rgba(59,130,246,0.20)" : "#EFF6FF"
+          }
+          borderColor={border}
+          onPress={() => {
+            setFiltroTurno("todos");
+            setPage(1);
+            setModalTurnoVisible(false);
+          }}
+        />
+
+        {TURNOS.map((turno) => (
+          <SelectorOption
+            key={turno}
+            title={turno}
+            subtitle={`${estudiantes.filter(
+              (item) => obtenerTurnoEstudiante(item) === turno,
+            ).length} estudiante(s)`}
+            selected={filtroTurno === turno}
+            icon={
+              turno === "Mañana"
+                ? "sunny-outline"
+                : turno === "Tarde"
+                  ? "partly-sunny-outline"
+                  : "moon-outline"
+            }
+            primary={theme.colors.primary}
+            strongText={strongText}
+            mutedText={mutedText}
+            backgroundColor={softCard}
+            selectedBackground={
+              isDark ? "rgba(59,130,246,0.20)" : "#EFF6FF"
+            }
+            borderColor={border}
+            onPress={() => {
+              setFiltroTurno(turno);
+              setPage(1);
+              setModalTurnoVisible(false);
+            }}
           />
         ))}
       </SelectorModal>
@@ -1304,6 +1451,7 @@ function MobileCard({
       <View style={styles.mobileDetails}>
         <MobileDetail label="CI" value={estudiante.ci || "—"} strongText={strongText} mutedText={mutedText} />
         <MobileDetail label="Matrícula" value={estudiante.matricula || "Sin matrícula"} strongText={strongText} mutedText={mutedText} />
+        <MobileDetail label="Turno" value={obtenerTurnoEstudiante(estudiante) ?? "Sin turno"} strongText={strongText} mutedText={mutedText} />
         <MobileDetail label="Fecha" value={formatearFecha(estudiante.fechaInscripcion)} strongText={strongText} mutedText={mutedText} />
       </View>
 

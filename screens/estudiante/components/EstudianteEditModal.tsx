@@ -23,9 +23,12 @@ import { BASE_URL, httpClient } from "../../../http/httpClient";
 import { useTheme } from "../../../theme/useTheme";
 import { createEstudianteEditModalStyles } from "../styles/estudianteEditModal.styles";
 import {
+  CarreraEstudiante,
+  EstudianteDetalleResponse,
   EstudianteForm,
   EstudianteUsuario,
   FotoEstudianteArchivo,
+  ImpactoCambioCarreraEstudiante,
 } from "../types/estudiante.types";
 import {
   nombreCompleto,
@@ -35,6 +38,8 @@ import {
   obtenerReferencia,
 } from "../utils/estudiante.helpers";
 import EstudianteCamaraModal from "./EstudianteCamaraModal";
+import EstudianteCambioCarreraModal from "./EstudianteCambioCarreraModal";
+import EstudianteCarreraSelectModal from "./EstudianteCarreraSelectModal";
 import EstudianteDatePickerModal from "./EstudianteDatePickerModal";
 import EstudianteDocumentosPanel from "./EstudianteDocumentosPanel";
 
@@ -118,6 +123,7 @@ const FIELD_LABELS: Partial<Record<keyof EstudianteForm, string>> = {
   referenciaNombre: "Nombre de referencia",
   referenciaParentesco: "Parentesco",
   referenciaNumero: "Número de referencia",
+  idCarrera: "Carrera",
 };
 
 function parseDate(value: string) {
@@ -251,6 +257,10 @@ function validateForm(form: EstudianteForm): FormErrors {
   const referenciaNombre = form.referenciaNombre.trim();
   const referenciaParentesco = form.referenciaParentesco.trim();
   const referenciaNumero = form.referenciaNumero.trim();
+
+  if (!form.idCarrera || Number(form.idCarrera) <= 0) {
+    errors.idCarrera = "Debes seleccionar una carrera.";
+  }
 
   if (!ci) {
     errors.ci = "El carnet es obligatorio.";
@@ -404,6 +414,14 @@ export default function EstudianteEditModal({
   );
   const [camaraVisible, setCamaraVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [carreraSelectVisible, setCarreraSelectVisible] = useState(false);
+  const [cambioCarreraVisible, setCambioCarreraVisible] = useState(false);
+  const [verificandoCambioCarrera, setVerificandoCambioCarrera] =
+    useState(false);
+  const [impactoCambioConfirmacion, setImpactoCambioConfirmacion] =
+    useState<ImpactoCambioCarreraEstudiante | null>(null);
+  const [payloadCambioPendiente, setPayloadCambioPendiente] =
+    useState<EstudianteForm | null>(null);
   const [regenerandoQr, setRegenerandoQr] = useState(false);
   const [qrRegeneradoUrl, setQrRegeneradoUrl] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -429,6 +447,8 @@ export default function EstudianteEditModal({
     referenciaParentesco: "",
     referenciaNumero: "",
     observacionPromociones: "",
+    idCarrera: null,
+    confirmarCambioCarrera: false,
   });
 
   useEffect(() => {
@@ -439,6 +459,11 @@ export default function EstudianteEditModal({
     setTab("datos");
     setFotoLocal(null);
     setCamaraVisible(false);
+    setCarreraSelectVisible(false);
+    setCambioCarreraVisible(false);
+    setVerificandoCambioCarrera(false);
+    setImpactoCambioConfirmacion(null);
+    setPayloadCambioPendiente(null);
     setQrRegeneradoUrl(null);
     setRegenerandoQr(false);
   }, [visible, estudiante?.id]);
@@ -475,6 +500,13 @@ export default function EstudianteEditModal({
       referenciaParentesco: referencia?.parentesco || "",
       referenciaNumero: referencia?.numeroReferencia || "",
       observacionPromociones: promocionActual,
+      idCarrera: Number(
+        estudiante.carreraActual?.idCarrera ??
+          estudiante.idCarrera ??
+          estudiante.carreras?.[0]?.idCarrera ??
+          0,
+      ) || null,
+      confirmarCambioCarrera: false,
     });
   }, [estudiante]);
 
@@ -492,6 +524,75 @@ export default function EstudianteEditModal({
   const promocionActual = obtenerPromocionActual(estudiante);
   const matriculaActual = obtenerMatricula(estudiante);
   const fechaInscripcionActual = obtenerFechaInscripcion(estudiante);
+
+  const carreraActual = useMemo<CarreraEstudiante | null>(() => {
+    if (!estudiante) return null;
+
+    return (
+      estudiante.carreraActual ??
+      estudiante.carreras?.find(
+        (carrera) =>
+          Number(carrera.idCarrera) === Number(estudiante.idCarrera),
+      ) ??
+      estudiante.carreras?.[0] ??
+      null
+    );
+  }, [
+    estudiante?.id,
+    estudiante?.idCarrera,
+    estudiante?.carreraActual,
+    estudiante?.carreras,
+  ]);
+
+  const carrerasDisponibles = useMemo<CarreraEstudiante[]>(() => {
+    const source =
+      estudiante?.carrerasDisponibles &&
+      estudiante.carrerasDisponibles.length > 0
+        ? estudiante.carrerasDisponibles
+        : estudiante?.carreras ?? [];
+
+    const map = new Map<string, CarreraEstudiante>();
+
+    source.forEach((carrera) => {
+      const id = String(carrera.idCarrera);
+
+      if (id && !map.has(id)) {
+        map.set(id, carrera);
+      }
+    });
+
+    if (carreraActual) {
+      map.set(String(carreraActual.idCarrera), carreraActual);
+    }
+
+    return Array.from(map.values()).sort((a, b) =>
+      String(a.nombreCarrera).localeCompare(String(b.nombreCarrera), "es", {
+        numeric: true,
+        sensitivity: "base",
+      }),
+    );
+  }, [
+    estudiante?.id,
+    estudiante?.carrerasDisponibles,
+    estudiante?.carreras,
+    carreraActual,
+  ]);
+
+  const carreraSeleccionada = useMemo<CarreraEstudiante | null>(
+    () =>
+      carrerasDisponibles.find(
+        (carrera) =>
+          Number(carrera.idCarrera) === Number(form.idCarrera),
+      ) ?? null,
+    [carrerasDisponibles, form.idCarrera],
+  );
+
+  const carreraFueCambiada =
+    Boolean(carreraActual?.idCarrera) &&
+    Boolean(form.idCarrera) &&
+    Number(carreraActual?.idCarrera) !== Number(form.idCarrera);
+
+  const guardandoFormulario = guardando || verificandoCambioCarrera;
 
   const fotoServidorUrl = useMemo(
     () => resolverFotoEstudiante(estudiante),
@@ -632,6 +733,7 @@ export default function EstudianteEditModal({
       referenciaParentesco: true,
       referenciaNumero: true,
       observacionPromociones: true,
+      idCarrera: true,
     });
   };
 
@@ -667,8 +769,27 @@ export default function EstudianteEditModal({
     );
   };
 
+  const construirPayload = (): EstudianteForm => ({
+    ...form,
+    usuario: form.ci.trim(),
+    ci: form.ci.trim(),
+    nombres: form.nombres.trim(),
+    apellidoPaterno: form.apellidoPaterno.trim(),
+    apellidoMaterno: form.apellidoMaterno.trim(),
+    email: form.email.trim(),
+    telefono: form.telefono.trim(),
+    celular: form.celular.trim(),
+    direccion: form.direccion.trim(),
+    referenciaNombre: form.referenciaNombre.trim(),
+    referenciaParentesco: form.referenciaParentesco.trim(),
+    referenciaNumero: form.referenciaNumero.trim(),
+    observacionPromociones: form.observacionPromociones.trim(),
+    idCarrera: form.idCarrera ? Number(form.idCarrera) : null,
+    confirmarCambioCarrera: false,
+  });
+
   const validateAndSave = async () => {
-    if (!estudiante || guardando) return;
+    if (!estudiante || guardandoFormulario) return;
 
     setSubmitted(true);
     markAllTouched();
@@ -685,24 +806,65 @@ export default function EstudianteEditModal({
       return;
     }
 
-    const payload: EstudianteForm = {
-      ...form,
-      usuario: form.ci.trim(),
-      ci: form.ci.trim(),
-      nombres: form.nombres.trim(),
-      apellidoPaterno: form.apellidoPaterno.trim(),
-      apellidoMaterno: form.apellidoMaterno.trim(),
-      email: form.email.trim(),
-      telefono: form.telefono.trim(),
-      celular: form.celular.trim(),
-      direccion: form.direccion.trim(),
-      referenciaNombre: form.referenciaNombre.trim(),
-      referenciaParentesco: form.referenciaParentesco.trim(),
-      referenciaNumero: form.referenciaNumero.trim(),
-      observacionPromociones: form.observacionPromociones.trim(),
-    };
+    const payload = construirPayload();
 
-    await onSave(estudiante.id, payload);
+    if (!carreraFueCambiada) {
+      await onSave(estudiante.id, payload);
+      return;
+    }
+
+    try {
+      setVerificandoCambioCarrera(true);
+
+      /*
+       * Se vuelve a consultar el detalle justo antes de guardar para evitar
+       * usar una advertencia desactualizada si el estudiante fue inscrito en
+       * materias después de abrir este modal.
+       */
+      const detalleActual = await httpClient.getAuth<EstudianteDetalleResponse>(
+        `/api/estudiantes-usuarios/${estudiante.id}`,
+        "No se pudo verificar el cambio de carrera",
+      );
+
+      const impacto =
+        detalleActual.estudiante?.cambioCarreraImpacto ??
+        estudiante.cambioCarreraImpacto ??
+        null;
+
+      if (impacto?.tieneInscripcionGestionActiva) {
+        setImpactoCambioConfirmacion(impacto);
+        setPayloadCambioPendiente(payload);
+        setCambioCarreraVisible(true);
+        return;
+      }
+
+      await onSave(estudiante.id, payload);
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: "No se pudo verificar la carrera",
+        text2:
+          error?.message ||
+          "No se pudo comprobar la inscripción académica actual.",
+      });
+    } finally {
+      setVerificandoCambioCarrera(false);
+    }
+  };
+
+  const confirmarCambioCarrera = async () => {
+    if (!estudiante || !payloadCambioPendiente || guardando) return;
+
+    const actualizado = await onSave(estudiante.id, {
+      ...payloadCambioPendiente,
+      confirmarCambioCarrera: true,
+    });
+
+    if (actualizado) {
+      setCambioCarreraVisible(false);
+      setPayloadCambioPendiente(null);
+      setImpactoCambioConfirmacion(null);
+    }
   };
 
   const elegirFoto = async () => {
@@ -1044,7 +1206,119 @@ export default function EstudianteEditModal({
               </ThemedText>
             </View>
           </View>
+
+          <Pressable
+            disabled={guardandoFormulario || carrerasDisponibles.length === 0}
+            onPress={() => setCarreraSelectVisible(true)}
+            style={({ pressed }) => [
+              styles.careerSelectCard,
+              {
+                backgroundColor: carreraFueCambiada
+                  ? `${warning}10`
+                  : colors.card,
+                borderColor: shouldShowFieldError("idCarrera")
+                  ? destructive
+                  : carreraFueCambiada
+                    ? warning
+                    : colors.border,
+                opacity:
+                  guardandoFormulario || carrerasDisponibles.length === 0
+                    ? 0.55
+                    : pressed
+                      ? 0.78
+                      : 1,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.careerSelectIcon,
+                {
+                  backgroundColor: carreraFueCambiada
+                    ? `${warning}16`
+                    : `${colors.primary}14`,
+                  borderColor: carreraFueCambiada
+                    ? `${warning}66`
+                    : `${colors.primary}55`,
+                },
+              ]}
+            >
+              <Ionicons
+                name="school-outline"
+                size={21}
+                color={carreraFueCambiada ? warning : colors.primary}
+              />
+            </View>
+
+            <View style={styles.careerSelectText}>
+              <ThemedText
+                style={[
+                  styles.careerSelectLabel,
+                  {
+                    color: carreraFueCambiada
+                      ? warning
+                      : colors.textSecondary,
+                  },
+                ]}
+              >
+                Carrera del estudiante
+              </ThemedText>
+
+              <ThemedText
+                numberOfLines={2}
+                style={[styles.careerSelectValue, { color: colors.text }]}
+              >
+                {carreraSeleccionada?.nombreCarrera ||
+                  "Seleccionar carrera"}
+              </ThemedText>
+
+              <ThemedText
+                numberOfLines={1}
+                style={[
+                  styles.careerSelectMeta,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                {carreraSeleccionada
+                  ? `${carreraSeleccionada.codigo || "Sin código"} · ${
+                      carreraSeleccionada.regimen || "Sin régimen"
+                    }`
+                  : "Pulsa para elegir una carrera activa"}
+              </ThemedText>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={21}
+              color={carreraFueCambiada ? warning : colors.primary}
+            />
+          </Pressable>
         </View>
+
+        {renderError("idCarrera")}
+
+        {carreraFueCambiada && (
+          <View
+            style={[
+              styles.careerChangeNotice,
+              {
+                backgroundColor: `${warning}10`,
+                borderColor: `${warning}70`,
+              },
+            ]}
+          >
+            <Ionicons name="information-circle-outline" size={20} color={warning} />
+            <ThemedText
+              style={[styles.careerChangeNoticeText, { color: colors.text }]}
+            >
+              Cambiarás de {carreraActual?.nombreCarrera || "la carrera actual"} a{" "}
+              {carreraSeleccionada?.nombreCarrera || "la nueva carrera"}. La
+              información académica de la carrera anterior será depurada. Si
+              existen materias en una gestión activa, se mostrará una
+              confirmación antes de guardar.
+            </ThemedText>
+          </View>
+        )}
       </View>
 
       <View style={styles.block}>
@@ -1697,7 +1971,7 @@ export default function EstudianteEditModal({
         visible={visible}
         transparent
         animationType="fade"
-        onRequestClose={onClose}
+        onRequestClose={guardandoFormulario ? undefined : onClose}
       >
         <View style={styles.overlay}>
           <View style={styles.modal}>
@@ -1732,17 +2006,42 @@ export default function EstudianteEditModal({
                 )}
 
                 <View style={styles.headerTextBox}>
-                  <ThemedText style={styles.title}>
-                    {nombreCompleto(estudiante)}
-                  </ThemedText>
+                  <View style={styles.headerTitleRow}>
+                    <ThemedText style={styles.title} numberOfLines={2}>
+                      {nombreCompleto(estudiante)}
+                    </ThemedText>
+
+                    {!!carreraActual?.nombreCarrera && (
+                      <View style={styles.headerCareerBadge}>
+                        <Ionicons
+                          name="school-outline"
+                          size={16}
+                          color={colors.primary}
+                        />
+                        <ThemedText
+                          numberOfLines={1}
+                          style={styles.headerCareerBadgeText}
+                        >
+                          {carreraActual.nombreCarrera}
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
 
                   <ThemedText style={styles.subtitle}>
-                    Editar datos, documentos, foto y QR del estudiante
+                    Editar datos, documentos, foto, QR y carrera del estudiante
                   </ThemedText>
                 </View>
               </View>
 
-              <Pressable style={styles.closeBtn} onPress={onClose}>
+              <Pressable
+                disabled={guardandoFormulario}
+                style={[
+                  styles.closeBtn,
+                  guardandoFormulario && styles.disabled,
+                ]}
+                onPress={onClose}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </Pressable>
             </View>
@@ -1832,10 +2131,10 @@ export default function EstudianteEditModal({
                 <Pressable
                   style={[
                     styles.cancelBtn,
-                    guardando && styles.disabled,
+                    guardandoFormulario && styles.disabled,
                     { width: isMobile ? "100%" : 145 },
                   ]}
-                  disabled={guardando}
+                  disabled={guardandoFormulario}
                   onPress={onClose}
                 >
                   <ThemedText style={styles.cancelText}>Cancelar</ThemedText>
@@ -1844,20 +2143,20 @@ export default function EstudianteEditModal({
                 <Pressable
                   style={[
                     styles.saveBtn,
-                    guardando && styles.disabled,
+                    guardandoFormulario && styles.disabled,
                     {
                       width: isMobile ? "100%" : 280,
-                      backgroundColor: guardando
+                      backgroundColor: guardandoFormulario
                         ? colors.disabled || colors.border
                         : isValid
                           ? colors.primary
                           : destructive,
                     },
                   ]}
-                  disabled={guardando}
+                  disabled={guardandoFormulario}
                   onPress={validateAndSave}
                 >
-                  {guardando ? (
+                  {guardandoFormulario ? (
                     <ActivityIndicator color={colors.primaryForeground} />
                   ) : (
                     <>
@@ -1868,7 +2167,11 @@ export default function EstudianteEditModal({
                       />
 
                       <ThemedText style={styles.saveText}>
-                        {isValid ? "Guardar cambios" : "Ver errores"}
+                        {verificandoCambioCarrera
+                          ? "Verificando carrera..."
+                          : isValid
+                            ? "Guardar cambios"
+                            : "Ver errores"}
                       </ThemedText>
                     </>
                   )}
@@ -1878,6 +2181,42 @@ export default function EstudianteEditModal({
           </View>
         </View>
       </Modal>
+
+      <EstudianteCarreraSelectModal
+        visible={carreraSelectVisible}
+        carreras={carrerasDisponibles}
+        value={form.idCarrera}
+        idCarreraActual={
+          carreraActual?.idCarrera
+            ? Number(carreraActual.idCarrera)
+            : null
+        }
+        onClose={() => setCarreraSelectVisible(false)}
+        onChange={(idCarrera) => {
+          touchField("idCarrera");
+          setForm((previous) => ({
+            ...previous,
+            idCarrera,
+            confirmarCambioCarrera: false,
+          }));
+        }}
+      />
+
+      <EstudianteCambioCarreraModal
+        visible={cambioCarreraVisible}
+        carreraActual={carreraActual}
+        carreraNueva={carreraSeleccionada}
+        impacto={impactoCambioConfirmacion}
+        guardando={guardando}
+        onClose={() => {
+          if (!guardando) {
+            setCambioCarreraVisible(false);
+            setPayloadCambioPendiente(null);
+            setImpactoCambioConfirmacion(null);
+          }
+        }}
+        onConfirm={confirmarCambioCarrera}
+      />
 
       <EstudianteDatePickerModal
         visible={datePickerVisible}

@@ -40,6 +40,15 @@ export type Estudiante = {
   created_at?: string | null;
   updated_at?: string | null;
 
+  /** Turno guardado en CarreraUsuario para la carrera seleccionada. */
+  turnoPreferido?: TurnoInscripcion | null;
+
+  /**
+   * Turno efectivo del estudiante en la gestión activa.
+   * Prioriza el turno de su inscripción y usa turnoPreferido como respaldo.
+   */
+  turnoEstudiante?: TurnoInscripcion | null;
+
   /** Estado del plan de cuotas para la carrera y gestión activas. */
   tieneCuotasGestion?: boolean | number | string | null;
   requiereCuotasGestion?: boolean | number | string | null;
@@ -75,8 +84,6 @@ export type GrupoDisponible = {
   codigoGrupo: string;
   paralelo: string;
   turno: TurnoInscripcion;
-  fechaInicio?: string | null;
-  fechaFin?: string | null;
   gestion: string | number;
   anioGestion?: string | number | null;
   periodoGestion?: string | null;
@@ -120,6 +127,10 @@ export type MateriaSemestreUno = {
   nombreCarrera: string;
   notaAprobacion?: number | null;
 
+  /** Fechas propias de la materia, no del grupo. */
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+
   yaInscrito: boolean;
   seleccionable?: boolean;
   motivoNoSeleccionable?: string | null;
@@ -153,6 +164,8 @@ export type SeleccionMateriaInscripcion = {
   codigoGrupo: string;
   paralelo: string;
   cupos: number;
+
+  /** Fechas de la materia seleccionada. */
   fechaInicio?: string | null;
   fechaFin?: string | null;
 };

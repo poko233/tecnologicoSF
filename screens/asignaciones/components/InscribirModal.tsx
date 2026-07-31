@@ -54,7 +54,7 @@ type MateriaVisual = MateriaSemestreUno & {
   inscripcionActual: SeleccionMateriaInscripcion | null;
   adicion: SeleccionMateriaInscripcion | null;
   retiro: SeleccionMateriaInscripcion | null;
-  grupoDisponible: GrupoDisponible | null;
+  grupoDisponible: GrupoDisponible;
   seleccionFinal: SeleccionMateriaInscripcion | null;
   marcada: boolean;
   puedeAlternar: boolean;
@@ -112,7 +112,7 @@ function esTurno(value: unknown): value is TurnoInscripcion {
   return TURNOS.includes(value as TurnoInscripcion);
 }
 
-function formatearFechaGrupo(value?: string | null): string {
+function formatearFechaMateria(value?: string | null): string {
   if (!value) return "Sin fecha";
 
   const limpia = String(value).split("T")[0].split(" ")[0];
@@ -123,12 +123,18 @@ function formatearFechaGrupo(value?: string | null): string {
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
+function normalizarParalelo(value: unknown): string {
+  return String(value ?? "").trim().toUpperCase();
+}
+
 function elegirGrupo(
   materia: MateriaSemestreUno,
   turno: TurnoInscripcion | null,
+  paralelo: string | null,
 ): GrupoDisponible | null {
-  if (!turno) return null;
+  if (!turno || !paralelo) return null;
 
+  const paraleloNormalizado = normalizarParalelo(paralelo);
   const grupos = Array.isArray(materia.gruposDisponibles)
     ? materia.gruposDisponibles
     : [];
@@ -138,13 +144,10 @@ function elegirGrupo(
       .filter(
         (grupo) =>
           grupo.turno === turno &&
+          normalizarParalelo(grupo.paralelo) === paraleloNormalizado &&
           (toNumber(grupo.cupos) > 0 || Boolean(grupo.estudianteYaEnGrupo)),
       )
       .sort((a, b) => {
-        /*
-         * Si el estudiante ya está inscrito en un grupo, se mantiene
-         * ese mismo grupo aunque sus cupos hayan llegado a cero.
-         */
         if (
           Boolean(a.estudianteYaEnGrupo) !==
           Boolean(b.estudianteYaEnGrupo)
@@ -152,26 +155,6 @@ function elegirGrupo(
           return a.estudianteYaEnGrupo ? -1 : 1;
         }
 
-        /*
-         * Orden secuencial de paralelos:
-         * A primero, después B, C, D...
-         */
-        const comparacionParalelo = String(a.paralelo ?? "").localeCompare(
-          String(b.paralelo ?? ""),
-          "es",
-          {
-            numeric: true,
-            sensitivity: "base",
-          },
-        );
-
-        if (comparacionParalelo !== 0) {
-          return comparacionParalelo;
-        }
-
-        /*
-         * Desempate estable cuando dos grupos tienen el mismo paralelo.
-         */
         return toNumber(a.idGrupo) - toNumber(b.idGrupo);
       })[0] ?? null
   );
@@ -232,8 +215,8 @@ function crearSeleccion(
     codigoGrupo: grupo.codigoGrupo,
     paralelo: grupo.paralelo,
     cupos: Number(grupo.cupos),
-    fechaInicio: grupo.fechaInicio ?? null,
-    fechaFin: grupo.fechaFin ?? null,
+    fechaInicio: materia.fechaInicio ?? null,
+    fechaFin: materia.fechaFin ?? null,
   };
 }
 
@@ -286,6 +269,9 @@ export default function InscribirModal({
   );
   const [turnoSeleccionado, setTurnoSeleccionado] =
     useState<TurnoInscripcion | null>(null);
+  const [paraleloSeleccionado, setParaleloSeleccionado] = useState<
+    string | null
+  >(null);
   const [agregar, setAgregar] = useState<SeleccionMateriaInscripcion[]>([]);
   const [quitar, setQuitar] = useState<SeleccionMateriaInscripcion[]>([]);
   const [confirmacionVisible, setConfirmacionVisible] = useState(false);
@@ -296,6 +282,7 @@ export default function InscribirModal({
       setCarreraSeleccionadaId(null);
       setNivelSeleccionado(null);
       setTurnoSeleccionado(null);
+      setParaleloSeleccionado(null);
       setAgregar([]);
       setQuitar([]);
       setConfirmacionVisible(false);
@@ -332,6 +319,7 @@ export default function InscribirModal({
     setCarreraSeleccionadaId(Number(carreraInicial.idCarrera));
     setNivelSeleccionado(primerNivel);
     setTurnoSeleccionado(turnoPreferido);
+    setParaleloSeleccionado(null);
     setAgregar([]);
     setQuitar([]);
 
@@ -405,6 +393,52 @@ export default function InscribirModal({
     [],
   );
 
+  const paralelosDisponibles = useMemo<string[]>(() => {
+    if (!turnoSeleccionado) return [];
+
+    const paralelos = materias.flatMap((materia) =>
+      (Array.isArray(materia.gruposDisponibles)
+        ? materia.gruposDisponibles
+        : []
+      )
+        .filter(
+          (grupo) =>
+            grupo.turno === turnoSeleccionado &&
+            (toNumber(grupo.cupos) > 0 ||
+              Boolean(grupo.estudianteYaEnGrupo)),
+        )
+        .map((grupo) => normalizarParalelo(grupo.paralelo))
+        .filter(Boolean),
+    );
+
+    return Array.from(new Set(paralelos)).sort((a, b) =>
+      a.localeCompare(b, "es", {
+        numeric: true,
+        sensitivity: "base",
+      }),
+    );
+  }, [materias, turnoSeleccionado]);
+
+  const paraleloOptions = useMemo<SelectOption<string>[]>(
+    () =>
+      paralelosDisponibles.map((paralelo) => ({
+        label: `Paralelo ${paralelo}`,
+        value: paralelo,
+        description: `Mostrar materias disponibles del paralelo ${paralelo}`,
+        icon: "git-branch-outline",
+      })),
+    [paralelosDisponibles],
+  );
+
+  useEffect(() => {
+    if (
+      paraleloSeleccionado &&
+      !paralelosDisponibles.includes(paraleloSeleccionado)
+    ) {
+      setParaleloSeleccionado(null);
+    }
+  }, [paraleloSeleccionado, paralelosDisponibles]);
+
   const actualesPorMateria = useMemo(() => {
     const map = new Map<number, SeleccionMateriaInscripcion>();
 
@@ -438,40 +472,59 @@ export default function InscribirModal({
   );
 
   const materiasVisuales = useMemo<MateriaVisual[]>(() => {
-    return materias.map((materia) => {
+    if (!turnoSeleccionado || !paraleloSeleccionado) {
+      return [];
+    }
+
+    const resultado: MateriaVisual[] = [];
+
+    materias.forEach((materia) => {
       const idMateria = Number(materia.idMateria);
       const inscripcionActual = actualesPorMateria.get(idMateria) ?? null;
       const adicion = agregarPorMateria.get(idMateria) ?? null;
       const retiro = quitarPorMateria.get(idMateria) ?? null;
-      const grupoDisponible = elegirGrupo(materia, turnoSeleccionado);
-      const seleccionFinal = adicion ?? (inscripcionActual && !retiro
-        ? inscripcionActual
-        : null);
-      const marcada = Boolean(seleccionFinal);
+      const grupoDisponible = elegirGrupo(
+        materia,
+        turnoSeleccionado,
+        paraleloSeleccionado,
+      );
 
-      return {
+      /*
+       * Solo se agregan materias que tienen un grupo real para el turno y
+       * paralelo seleccionados. Al llegar a resultado.push(), TypeScript ya
+       * sabe que grupoDisponible no es null.
+       */
+      if (!grupoDisponible) {
+        return;
+      }
+
+      const seleccionFinal =
+        adicion ?? (inscripcionActual && !retiro ? inscripcionActual : null);
+
+      resultado.push({
         ...materia,
         inscripcionActual,
         adicion,
         retiro,
         grupoDisponible,
         seleccionFinal,
-        marcada,
+        marcada: Boolean(seleccionFinal),
         puedeAlternar:
           Boolean(inscripcionActual) ||
           Boolean(adicion) ||
           Boolean(retiro) ||
-          (Boolean(materia.seleccionable ?? true) &&
-            Boolean(turnoSeleccionado) &&
-            Boolean(grupoDisponible)),
-      };
+          Boolean(materia.seleccionable ?? true),
+      });
     });
+
+    return resultado;
   }, [
     materias,
     actualesPorMateria,
     agregarPorMateria,
     quitarPorMateria,
     turnoSeleccionado,
+    paraleloSeleccionado,
   ]);
 
   const pendientes = Array.isArray(materiasPendientesAnteriores)
@@ -496,6 +549,7 @@ export default function InscribirModal({
     setCarreraSeleccionadaId(Number(idCarrera));
     setNivelSeleccionado(nuevoNivel);
     setTurnoSeleccionado(turnoPreferido);
+    setParaleloSeleccionado(null);
     setAgregar([]);
     setQuitar([]);
 
@@ -513,7 +567,27 @@ export default function InscribirModal({
     }
 
     setNivelSeleccionado(Number(nivel));
+    setParaleloSeleccionado(null);
+    setAgregar([]);
+    setQuitar([]);
     await onLoadMaterias(carreraSeleccionadaId, Number(nivel));
+  };
+
+  const cambiarTurno = (turno: TurnoInscripcion) => {
+    if (guardando || loadingMaterias) return;
+
+    setTurnoSeleccionado(turno);
+    setParaleloSeleccionado(null);
+    setAgregar([]);
+    setQuitar([]);
+  };
+
+  const cambiarParalelo = (paralelo: string) => {
+    if (guardando || loadingMaterias) return;
+
+    setParaleloSeleccionado(normalizarParalelo(paralelo));
+    setAgregar([]);
+    setQuitar([]);
   };
 
   const alternarMateria = (materia: MateriaVisual) => {
@@ -704,7 +778,7 @@ export default function InscribirModal({
                       <ThemedText
                         style={[styles.sectionTitle, { color: strongText }]}
                       >
-                        Carrera, nivel y turno
+                        Carrera, nivel, turno y paralelo
                       </ThemedText>
                       <ThemedText
                         style={[styles.sectionDescription, { color: mutedText }]}
@@ -761,9 +835,26 @@ export default function InscribirModal({
                       placeholder="Selecciona un turno"
                       disabled={loadingMaterias || guardando}
                       icon="time-outline"
-                      onChange={(value: TurnoInscripcion) =>
-                        setTurnoSeleccionado(value)
+                      onChange={cambiarTurno}
+                    />
+
+                    <SelectDropdown<string>
+                      label="Paralelo"
+                      value={paraleloSeleccionado}
+                      options={paraleloOptions}
+                      placeholder={
+                        turnoSeleccionado
+                          ? "Selecciona un paralelo"
+                          : "Primero selecciona un turno"
                       }
+                      disabled={
+                        !turnoSeleccionado ||
+                        paraleloOptions.length === 0 ||
+                        loadingMaterias ||
+                        guardando
+                      }
+                      icon="git-branch-outline"
+                      onChange={cambiarParalelo}
                     />
                   </View>
                 </View>
@@ -895,8 +986,9 @@ export default function InscribirModal({
                     <ThemedText
                       style={[styles.sectionDescription, { color: mutedText }]}
                     >
-                      Las inscritas pueden desmarcarse en cualquier momento.
-                      Para agregar una nueva, selecciona primero su turno.
+                      Selecciona turno y paralelo para mostrar únicamente las
+                      materias disponibles de ese paralelo. Las inscritas pueden
+                      retirarse o cambiarse de grupo.
                     </ThemedText>
                   </View>
 
@@ -933,12 +1025,38 @@ export default function InscribirModal({
                     mutedText={mutedText}
                     loading
                   />
+                ) : !turnoSeleccionado ? (
+                  <StateCard
+                    icon="time-outline"
+                    color={theme.colors.primary}
+                    title="Selecciona un turno"
+                    description="Elige Mañana, Tarde o Noche para consultar sus paralelos disponibles."
+                    backgroundColor={panelBackground}
+                    borderColor={borderColor}
+                    strongText={strongText}
+                    mutedText={mutedText}
+                  />
+                ) : !paraleloSeleccionado ? (
+                  <StateCard
+                    icon="git-branch-outline"
+                    color={theme.colors.primary}
+                    title="Selecciona un paralelo"
+                    description={
+                      paraleloOptions.length > 0
+                        ? "Elige el paralelo al que se inscribirá el estudiante."
+                        : "No existen paralelos con cupos para el turno seleccionado."
+                    }
+                    backgroundColor={panelBackground}
+                    borderColor={borderColor}
+                    strongText={strongText}
+                    mutedText={mutedText}
+                  />
                 ) : materiasVisuales.length === 0 ? (
                   <StateCard
                     icon="file-tray-outline"
                     color={mutedText}
-                    title="No hay materias para mostrar"
-                    description="No existen materias activas para este nivel y gestión."
+                    title="No hay materias en este paralelo"
+                    description={`No existen materias disponibles para el turno ${turnoSeleccionado} y paralelo ${paraleloSeleccionado}.`}
                     backgroundColor={panelBackground}
                     borderColor={borderColor}
                     strongText={strongText}
@@ -1115,14 +1233,14 @@ export default function InscribirModal({
                               />
                               <MetaItem
                                 icon="calendar-outline"
-                                text={`Inicio: ${formatearFechaGrupo(
+                                text={`Inicio materia: ${formatearFechaMateria(
                                   seleccionMostrada.fechaInicio,
                                 )}`}
                                 color={mutedText}
                               />
                               <MetaItem
                                 icon="calendar-number-outline"
-                                text={`Fin: ${formatearFechaGrupo(
+                                text={`Fin materia: ${formatearFechaMateria(
                                   seleccionMostrada.fechaFin,
                                 )}`}
                                 color={mutedText}
@@ -1132,10 +1250,10 @@ export default function InscribirModal({
                             <ThemedText
                               style={[styles.noGroupText, { color: mutedText }]}
                             >
-                              {turnoSeleccionado
+                              {turnoSeleccionado && paraleloSeleccionado
                                 ? materia.motivoNoSeleccionable ??
-                                  "No existe un grupo utilizable para este turno."
-                                : "Selecciona un turno para agregar esta materia."}
+                                  "No existe un grupo utilizable para este turno y paralelo."
+                                : "Selecciona turno y paralelo para agregar esta materia."}
                             </ThemedText>
                           )}
                         </Pressable>

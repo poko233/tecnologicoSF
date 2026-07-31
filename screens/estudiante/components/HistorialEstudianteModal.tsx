@@ -46,6 +46,7 @@ type EstadoAcademicoFiltro =
   | "PENDIENTE";
 
 type EstadoCatalogoFiltro = "ACTIVAS" | "TODAS";
+type TipoHistorialFiltro = "HISTORICO" | "GESTION_ACTUAL";
 
 type MateriaHistorialUI = MateriaHistorialEstudiante & {
   estadoRegistro?: string | null;
@@ -141,7 +142,7 @@ function getEstadoColors(estado: string, colors: any) {
 
 function calcularResumenVisible(materias: MateriaHistorialUI[]) {
   const notas = materias
-    .map((materia) => materia.notaFinal)
+    .map((materia) => materia.notaActual ?? materia.notaFinal)
     .filter((nota): nota is number => nota !== null && nota !== undefined)
     .map(Number)
     .filter(Number.isFinite);
@@ -160,6 +161,8 @@ function calcularResumenVisible(materias: MateriaHistorialUI[]) {
     pendientes: materias.filter(
       (materia) => materia.estadoMateria === "PENDIENTE",
     ).length,
+    conNota: notas.length,
+    sinNota: Math.max(0, materias.length - notas.length),
     promedio:
       notas.length > 0
         ? notas.reduce((total, nota) => total + nota, 0) / notas.length
@@ -188,6 +191,8 @@ export default function HistorialEstudianteModal({
     useState<EstadoAcademicoFiltro>("TODOS");
   const [estadoCatalogo, setEstadoCatalogo] =
     useState<EstadoCatalogoFiltro>("ACTIVAS");
+  const [tipoHistorial, setTipoHistorial] =
+    useState<TipoHistorialFiltro>("HISTORICO");
   const [fotoError, setFotoError] = useState(false);
 
   const estudianteInfo = historial?.estudiante || estudiante;
@@ -197,16 +202,37 @@ export default function HistorialEstudianteModal({
     [estudianteInfo?.id, estudianteInfo?.fotoUrl, estudianteInfo?.foto],
   );
 
+  const materiasHistoricas = useMemo<MateriaHistorialUI[]>(
+    () =>
+      (historial?.materiasHistoricas ??
+        historial?.materias ??
+        []) as MateriaHistorialUI[],
+    [historial?.materiasHistoricas, historial?.materias],
+  );
+
+  const materiasGestionActual = useMemo<MateriaHistorialUI[]>(
+    () =>
+      (historial?.materiasGestionActual ?? []) as MateriaHistorialUI[],
+    [historial?.materiasGestionActual],
+  );
+
   const materiasBase = useMemo<MateriaHistorialUI[]>(
-    () => (historial?.materias ?? []) as MateriaHistorialUI[],
-    [historial?.materias],
+    () =>
+      tipoHistorial === "GESTION_ACTUAL"
+        ? materiasGestionActual
+        : materiasHistoricas,
+    [tipoHistorial, materiasGestionActual, materiasHistoricas],
   );
 
   const materiasFiltradas = useMemo(() => {
     const texto = normalizarTexto(busqueda);
 
     return materiasBase.filter((materia) => {
-      if (estadoCatalogo === "ACTIVAS" && !materiaActiva(materia)) {
+      if (
+        tipoHistorial === "HISTORICO" &&
+        estadoCatalogo === "ACTIVAS" &&
+        !materiaActiva(materia)
+      ) {
         return false;
       }
 
@@ -231,12 +257,20 @@ export default function HistorialEstudianteModal({
           materia.turno,
           materia.nivel,
           materia.estadoMateria,
+          materia.notaActual,
+          materia.notaFinal,
         ].join(" "),
       );
 
       return contenido.includes(texto);
     });
-  }, [busqueda, estadoAcademico, estadoCatalogo, materiasBase]);
+  }, [
+    busqueda,
+    estadoAcademico,
+    estadoCatalogo,
+    materiasBase,
+    tipoHistorial,
+  ]);
 
   const carrerasAgrupadas = useMemo(
     () => agruparHistorialEstudiantePorCarreraNivel(materiasFiltradas),
@@ -253,6 +287,17 @@ export default function HistorialEstudianteModal({
     [materiasBase],
   );
 
+  const filtrosAcademicosVisibles = useMemo(
+    () =>
+      tipoHistorial === "GESTION_ACTUAL"
+        ? FILTROS_ACADEMICOS.filter(
+            (filtro) =>
+              filtro.key === "TODOS" || filtro.key === "INSCRITO",
+          )
+        : FILTROS_ACADEMICOS,
+    [tipoHistorial],
+  );
+
   useEffect(() => {
     setFotoError(false);
   }, [fotoUrl, visible]);
@@ -263,6 +308,7 @@ export default function HistorialEstudianteModal({
       setBusqueda("");
       setEstadoAcademico("TODOS");
       setEstadoCatalogo("ACTIVAS");
+      setTipoHistorial("HISTORICO");
     }
   }, [visible]);
 
@@ -312,7 +358,9 @@ export default function HistorialEstudianteModal({
                   {obtenerMatricula(estudianteInfo)} ·{" "}
                   {loading
                     ? "Cargando materias..."
-                    : `Materias activas: ${totalActivas}`}
+                    : tipoHistorial === "GESTION_ACTUAL"
+                      ? `Materias de gestión activa: ${materiasGestionActual.length}`
+                      : `Materias históricas activas: ${totalActivas}`}
                 </ThemedText>
               </View>
 
@@ -367,34 +415,48 @@ export default function HistorialEstudianteModal({
                       {resumenVisible.total}
                     </ThemedText>
                     <ThemedText style={styles.summaryLabel}>
-                      Materias mostradas
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? "Materias de esta gestión"
+                        : "Materias históricas"}
                     </ThemedText>
                   </View>
 
                   <View style={styles.summaryCard}>
                     <ThemedText style={styles.summaryValue}>
-                      {resumenVisible.inscritas}
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? resumenVisible.conNota
+                        : resumenVisible.inscritas}
                     </ThemedText>
                     <ThemedText style={styles.summaryLabel}>
-                      Inscritas
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? "Con nota actual"
+                        : "Inscritas"}
                     </ThemedText>
                   </View>
 
                   <View style={styles.summaryCard}>
                     <ThemedText style={styles.summaryValue}>
-                      {resumenVisible.aprobadas}
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? resumenVisible.sinNota
+                        : resumenVisible.aprobadas}
                     </ThemedText>
                     <ThemedText style={styles.summaryLabel}>
-                      Aprobadas
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? "Todavía sin nota"
+                        : "Aprobadas"}
                     </ThemedText>
                   </View>
 
                   <View style={styles.summaryCard}>
                     <ThemedText style={styles.summaryValue}>
-                      {resumenVisible.reprobadas}
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? resumenVisible.inscritas
+                        : resumenVisible.reprobadas}
                     </ThemedText>
                     <ThemedText style={styles.summaryLabel}>
-                      Reprobadas
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? "Inscritas activas"
+                        : "Reprobadas"}
                     </ThemedText>
                   </View>
 
@@ -403,7 +465,9 @@ export default function HistorialEstudianteModal({
                       {formatearNotaFinal(resumenVisible.promedio)}
                     </ThemedText>
                     <ThemedText style={styles.summaryLabel}>
-                      Promedio visible
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? "Promedio actual"
+                        : "Promedio histórico"}
                     </ThemedText>
                   </View>
                 </View>
@@ -412,13 +476,15 @@ export default function HistorialEstudianteModal({
                   <View style={styles.controlsTop}>
                     <View style={styles.controlsTitleBox}>
                       <ThemedText style={styles.controlsTitle}>
-                        Explorar materias
+                        {tipoHistorial === "GESTION_ACTUAL"
+                          ? "Notas de esta gestión"
+                          : "Historial académico histórico"}
                       </ThemedText>
 
                       <ThemedText style={styles.controlsSubtitle}>
-                        Por defecto se muestran solamente materias activas.
-                        Usa los controles para buscar o cambiar el estado
-                        académico.
+                        {tipoHistorial === "GESTION_ACTUAL"
+                          ? "Muestra las notas que el estudiante tiene ahora en las materias inscritas de una gestión activa. No usa notas cerradas de gestiones anteriores."
+                          : "Muestra las notas finales guardadas al cerrar gestiones anteriores. Mantiene el comportamiento histórico de esta vista."}
                       </ThemedText>
                     </View>
 
@@ -427,6 +493,86 @@ export default function HistorialEstudianteModal({
                         {materiasFiltradas.length} resultado(s)
                       </ThemedText>
                     </View>
+                  </View>
+
+                  <View style={styles.filtersBlock}>
+                    <ThemedText style={styles.filtersLabel}>
+                      Tipo de historial
+                    </ThemedText>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.chipsScroll}
+                      contentContainerStyle={styles.chipsContent}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          setTipoHistorial("HISTORICO");
+                          setMateriaSeleccionada(null);
+                          setBusqueda("");
+                          setEstadoAcademico("TODOS");
+                        }}
+                        style={[
+                          styles.filterChip,
+                          tipoHistorial === "HISTORICO" &&
+                            styles.filterChipActive,
+                        ]}
+                      >
+                        <Ionicons
+                          name="archive-outline"
+                          size={17}
+                          color={
+                            tipoHistorial === "HISTORICO"
+                              ? colors.primaryForeground
+                              : colors.textSecondary
+                          }
+                        />
+                        <ThemedText
+                          style={[
+                            styles.filterChipText,
+                            tipoHistorial === "HISTORICO" &&
+                              styles.filterChipTextActive,
+                          ]}
+                        >
+                          Historial histórico
+                        </ThemedText>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => {
+                          setTipoHistorial("GESTION_ACTUAL");
+                          setMateriaSeleccionada(null);
+                          setBusqueda("");
+                          setEstadoAcademico("TODOS");
+                          setEstadoCatalogo("ACTIVAS");
+                        }}
+                        style={[
+                          styles.filterChip,
+                          tipoHistorial === "GESTION_ACTUAL" &&
+                            styles.filterChipActive,
+                        ]}
+                      >
+                        <Ionicons
+                          name="pulse-outline"
+                          size={17}
+                          color={
+                            tipoHistorial === "GESTION_ACTUAL"
+                              ? colors.primaryForeground
+                              : colors.textSecondary
+                          }
+                        />
+                        <ThemedText
+                          style={[
+                            styles.filterChipText,
+                            tipoHistorial === "GESTION_ACTUAL" &&
+                              styles.filterChipTextActive,
+                          ]}
+                        >
+                          Historial de esta gestión
+                        </ThemedText>
+                      </Pressable>
+                    </ScrollView>
                   </View>
 
                   <View style={styles.searchBox}>
@@ -439,7 +585,11 @@ export default function HistorialEstudianteModal({
                     <TextInput
                       value={busqueda}
                       onChangeText={setBusqueda}
-                      placeholder="Buscar por materia, código, carrera, gestión o grupo..."
+                      placeholder={
+                        tipoHistorial === "GESTION_ACTUAL"
+                          ? "Buscar en las materias de la gestión actual..."
+                          : "Buscar por materia, código, carrera, gestión o grupo..."
+                      }
                       placeholderTextColor={
                         colors.textMuted || colors.mutedForeground
                       }
@@ -457,7 +607,8 @@ export default function HistorialEstudianteModal({
                     )}
                   </View>
 
-                  <View style={styles.filtersBlock}>
+                  {tipoHistorial === "HISTORICO" && (
+                    <View style={styles.filtersBlock}>
                     <ThemedText style={styles.filtersLabel}>
                       Estado del catálogo
                     </ThemedText>
@@ -525,7 +676,8 @@ export default function HistorialEstudianteModal({
                         </ThemedText>
                       </Pressable>
                     </ScrollView>
-                  </View>
+                    </View>
+                  )}
 
                   <View style={styles.filtersBlock}>
                     <ThemedText style={styles.filtersLabel}>
@@ -539,7 +691,7 @@ export default function HistorialEstudianteModal({
                       style={styles.chipsScroll}
                       contentContainerStyle={styles.chipsContent}
                     >
-                      {FILTROS_ACADEMICOS.map((filtro) => {
+                      {filtrosAcademicosVisibles.map((filtro) => {
                         const active = estadoAcademico === filtro.key;
 
                         return (
@@ -577,26 +729,42 @@ export default function HistorialEstudianteModal({
                 </View>
 
                 <View style={styles.legend}>
-                  <LegendItem
-                    label="Aprobada"
-                    color={colors.success || "#16A34A"}
-                    styles={styles}
-                  />
-                  <LegendItem
-                    label="Reprobada"
-                    color={colors.destructive || "#DC2626"}
-                    styles={styles}
-                  />
-                  <LegendItem
-                    label="Inscrita"
-                    color={colors.primary || "#2563EB"}
-                    styles={styles}
-                  />
-                  <LegendItem
-                    label="Pendiente"
-                    color={colors.mutedForeground || "#64748B"}
-                    styles={styles}
-                  />
+                  {tipoHistorial === "GESTION_ACTUAL" ? (
+                    <>
+                      <LegendItem
+                        label="Materia inscrita en la gestión activa"
+                        color={colors.primary || "#2563EB"}
+                        styles={styles}
+                      />
+                      <ThemedText style={styles.legendText}>
+                        La nota mostrada es provisional y puede cambiar hasta
+                        que la gestión sea cerrada.
+                      </ThemedText>
+                    </>
+                  ) : (
+                    <>
+                      <LegendItem
+                        label="Aprobada"
+                        color={colors.success || "#16A34A"}
+                        styles={styles}
+                      />
+                      <LegendItem
+                        label="Reprobada"
+                        color={colors.destructive || "#DC2626"}
+                        styles={styles}
+                      />
+                      <LegendItem
+                        label="Inscrita"
+                        color={colors.primary || "#2563EB"}
+                        styles={styles}
+                      />
+                      <LegendItem
+                        label="Pendiente"
+                        color={colors.mutedForeground || "#64748B"}
+                        styles={styles}
+                      />
+                    </>
+                  )}
                 </View>
 
                 {carrerasAgrupadas.length === 0 ? (
@@ -608,12 +776,15 @@ export default function HistorialEstudianteModal({
                     />
 
                     <ThemedText style={styles.emptyTitle}>
-                      No hay materias para mostrar
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? "No hay materias en una gestión activa"
+                        : "No hay materias para mostrar"}
                     </ThemedText>
 
                     <ThemedText style={styles.emptyText}>
-                      Cambia los filtros o limpia la búsqueda. Recuerda que la
-                      vista inicia mostrando únicamente materias activas.
+                      {tipoHistorial === "GESTION_ACTUAL"
+                        ? "El estudiante no tiene materias inscritas en una gestión activa o todavía no se registraron sus inscripciones por materia."
+                        : "Cambia los filtros o limpia la búsqueda. Esta vista usa las notas finales guardadas al cerrar cada gestión."}
                     </ThemedText>
                   </View>
                 ) : (
@@ -840,9 +1011,11 @@ function CarreraHistorialBlock({
                     <View style={styles.materiaMetaRow}>
                       <View style={styles.activePill}>
                         <ThemedText style={styles.activePillText}>
-                          {materiaActiva(materiaUi)
-                            ? "Materia activa"
-                            : "Materia inactiva"}
+                          {materiaUi.tipoHistorial === "GESTION_ACTUAL"
+                            ? "Gestión actual"
+                            : materiaActiva(materiaUi)
+                              ? "Materia activa"
+                              : "Materia inactiva"}
                         </ThemedText>
                       </View>
                     </View>
@@ -859,7 +1032,9 @@ function CarreraHistorialBlock({
                     </ThemedText>
 
                     <ThemedText style={styles.materiaNota}>
-                      {formatearNotaFinal(materiaUi.notaFinal)}
+                      {formatearNotaFinal(
+                        materiaUi.notaActual ?? materiaUi.notaFinal,
+                      )}
                     </ThemedText>
                   </View>
                 </Pressable>
