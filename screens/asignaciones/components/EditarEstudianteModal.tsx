@@ -23,6 +23,7 @@ import {
   Estudiante,
   EstudianteForm,
 } from "../types/asignaciones.types";
+import { ordenarMateriasAsignacionPorPlan } from "../utils/ordenPlanEstudios";
 
 type Props = {
   visible: boolean;
@@ -144,6 +145,14 @@ export default function EditarEstudianteModal({
 
   const e = detalle?.estudiante ?? estudiante;
   const idUsuario = (e as any)?.idUsuario ?? (e as any)?.id ?? null;
+
+  const inscripcionesOrdenadas = useMemo(
+    () =>
+      ordenarMateriasAsignacionPorPlan(
+        Array.isArray(detalle?.inscripciones) ? detalle.inscripciones : [],
+      ),
+    [detalle?.inscripciones],
+  );
 
   useEffect(() => {
     if (visible && e) {
@@ -438,7 +447,7 @@ export default function EditarEstudianteModal({
                     </ThemedText>
                   </View>
                 ) : (
-                  detalle.inscripciones.map((i, index) => (
+                  inscripcionesOrdenadas.map((i, index) => (
                     <View
                       key={`inscripcion-edit-${i.idInscripcion}-${i.idGrupo}-${i.idMateria}-${index}`}
                       style={[styles.itemCard, { borderColor: border, backgroundColor: softBg }]}

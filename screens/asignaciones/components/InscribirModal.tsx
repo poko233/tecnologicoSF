@@ -22,6 +22,7 @@ import {
   SeleccionMateriaInscripcion,
   TurnoInscripcion,
 } from "../types/asignaciones.types";
+import { ordenarMateriasAsignacionPorPlan } from "../utils/ordenPlanEstudios";
 import ConfirmarInscripcionModal from "./ConfirmarInscripcionModal";
 import SelectDropdown, { SelectOption } from "./SelectDropdown";
 
@@ -517,7 +518,10 @@ export default function InscribirModal({
       });
     });
 
-    return resultado;
+    return ordenarMateriasAsignacionPorPlan(resultado, {
+      nombreCarrera: carreraSeleccionada?.nombreCarrera,
+      codigoCarrera: carreraSeleccionada?.codigo,
+    });
   }, [
     materias,
     actualesPorMateria,
@@ -525,11 +529,27 @@ export default function InscribirModal({
     quitarPorMateria,
     turnoSeleccionado,
     paraleloSeleccionado,
+    carreraSeleccionada?.nombreCarrera,
+    carreraSeleccionada?.codigo,
   ]);
 
-  const pendientes = Array.isArray(materiasPendientesAnteriores)
-    ? materiasPendientesAnteriores
-    : [];
+  const pendientes = useMemo(
+    () =>
+      ordenarMateriasAsignacionPorPlan(
+        Array.isArray(materiasPendientesAnteriores)
+          ? materiasPendientesAnteriores
+          : [],
+        {
+          nombreCarrera: carreraSeleccionada?.nombreCarrera,
+          codigoCarrera: carreraSeleccionada?.codigo,
+        },
+      ),
+    [
+      materiasPendientesAnteriores,
+      carreraSeleccionada?.nombreCarrera,
+      carreraSeleccionada?.codigo,
+    ],
+  );
 
   const cambiarCarrera = async (idCarrera: number) => {
     if (loadingMaterias || guardando) return;

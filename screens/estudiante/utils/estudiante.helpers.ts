@@ -1,4 +1,9 @@
 import {
+  ORDEN_PLAN_NO_CONFIGURADO,
+  PLANES_ESTUDIO_CONFIG,
+  PlanEstudiosConfigurado,
+} from "../config/planesEstudio.config";
+import {
   EstadoMateriaHistorialEstudiante,
   EstudianteUsuario,
   MateriaHistorialEstudiante,
@@ -324,6 +329,156 @@ export function obtenerLabelNivelHistorialEstudiante(
   return `${prefijo} ${tipoNivel}`;
 }
 
+
+/**
+ * Normaliza nombres y códigos para que el orden funcione aunque el backend
+ * devuelva tildes, espacios, guiones o mayúsculas diferentes.
+ */
+function normalizarClavePlan(value?: string | number | null): string {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function extraerNumeroCodigoMateria(
+  value?: string | number | null,
+): string | null {
+  const normalizado = normalizarClavePlan(value);
+  const coincidencia = normalizado.match(/(\d{2,4})$/);
+
+  return coincidencia?.[1] ?? null;
+}
+
+function carreraCoincideConPlan(
+  plan: PlanEstudiosConfigurado,
+  nombreCarrera?: string | null,
+  codigoCarrera?: string | null,
+): boolean {
+  const identificadores = [nombreCarrera, codigoCarrera]
+    .map(normalizarClavePlan)
+    .filter(Boolean);
+
+  if (identificadores.length === 0) return false;
+
+  return plan.aliases.some((alias) => {
+    const aliasNormalizado = normalizarClavePlan(alias);
+
+    if (!aliasNormalizado) return false;
+
+    return identificadores.some((identificador) => {
+      return (
+        identificador === aliasNormalizado ||
+        identificador.includes(aliasNormalizado) ||
+        aliasNormalizado.includes(identificador)
+      );
+    });
+  });
+}
+
+function obtenerPlanMateria(
+  materia: MateriaHistorialEstudiante,
+): PlanEstudiosConfigurado | null {
+  return (
+    PLANES_ESTUDIO_CONFIG.find((plan) =>
+      carreraCoincideConPlan(
+        plan,
+        materia.nombreCarrera,
+        materia.codigoCarrera,
+      ),
+    ) ?? null
+  );
+}
+
+/**
+ * Devuelve la posición visual de la materia en el plan configurado.
+ *
+ * 1. Intenta coincidir por el código completo.
+ * 2. Como respaldo, utiliza el número final del código cuando es único dentro
+ *    del nivel. Esto soporta pequeñas diferencias históricas de prefijo.
+ * 3. Si no existe configuración, devuelve 9999 y la materia permanece visible
+ *    al final del nivel.
+ */
+export function obtenerOrdenMateriaPlan(
+  materia: MateriaHistorialEstudiante,
+): number {
+  const plan = obtenerPlanMateria(materia);
+
+  if (!plan) return ORDEN_PLAN_NO_CONFIGURADO;
+
+  const nivel = Number(materia.nivel || 0);
+  const codigosNivel = plan.niveles[nivel] ?? [];
+
+  if (codigosNivel.length === 0) {
+    return ORDEN_PLAN_NO_CONFIGURADO;
+  }
+
+  const codigoMateria = normalizarClavePlan(materia.codigoMateria);
+
+  if (codigoMateria) {
+    const indiceExacto = codigosNivel.findIndex(
+      (codigo) => normalizarClavePlan(codigo) === codigoMateria,
+    );
+
+    if (indiceExacto >= 0) {
+      return indiceExacto + 1;
+    }
+  }
+
+  const numeroMateria = extraerNumeroCodigoMateria(materia.codigoMateria);
+
+  if (numeroMateria) {
+    const coincidenciasPorNumero = codigosNivel
+      .map((codigo, index) => ({
+        index,
+        numero: extraerNumeroCodigoMateria(codigo),
+      }))
+      .filter((item) => item.numero === numeroMateria);
+
+    if (coincidenciasPorNumero.length === 1) {
+      return coincidenciasPorNumero[0].index + 1;
+    }
+  }
+
+  return ORDEN_PLAN_NO_CONFIGURADO;
+}
+
+function compararMateriasPorPlan(
+  a: MateriaHistorialEstudiante,
+  b: MateriaHistorialEstudiante,
+): number {
+  const ordenA = obtenerOrdenMateriaPlan(a);
+  const ordenB = obtenerOrdenMateriaPlan(b);
+
+  if (ordenA !== ordenB) {
+    return ordenA - ordenB;
+  }
+
+  const comparacionCodigo = String(a.codigoMateria ?? "").localeCompare(
+    String(b.codigoMateria ?? ""),
+    "es",
+    {
+      numeric: true,
+      sensitivity: "base",
+    },
+  );
+
+  if (comparacionCodigo !== 0) {
+    return comparacionCodigo;
+  }
+
+  return String(a.nombreMateria ?? "").localeCompare(
+    String(b.nombreMateria ?? ""),
+    "es",
+    {
+      numeric: true,
+      sensitivity: "base",
+    },
+  );
+}
+
 export type HistorialEstudianteNivelAgrupado = {
   nivel: number;
   label: string;
@@ -381,13 +536,15 @@ export function agruparHistorialEstudiantePorCarreraNivel(
 
   return Array.from(carrerasMap.values()).map((carrera) => ({
     ...carrera,
-    niveles: carrera.niveles
+    niveles: [...carrera.niveles]
       .sort((a, b) => a.nivel - b.nivel)
       .map((nivel) => ({
         ...nivel,
-        materias: nivel.materias.sort((a, b) =>
-          a.nombreMateria.localeCompare(b.nombreMateria),
-        ),
+        /*
+         * Se ordena una copia para no modificar los arreglos originales que
+         * también utilizan los filtros, resúmenes y detalles del historial.
+         */
+        materias: [...nivel.materias].sort(compararMateriasPorPlan),
       })),
   }));
 }

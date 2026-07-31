@@ -15,6 +15,7 @@ import {
   Estudiante,
   SeleccionMateriaInscripcion,
 } from "../types/asignaciones.types";
+import { ordenarMateriasAsignacionPorPlan } from "../utils/ordenPlanEstudios";
 
 type Props = {
   visible: boolean;
@@ -39,12 +40,10 @@ function nombreCompleto(estudiante: Estudiante | null): string {
 
 function ordenar(
   selecciones: SeleccionMateriaInscripcion[],
+  nombreCarrera: string,
 ): SeleccionMateriaInscripcion[] {
-  return [...selecciones].sort((a, b) => {
-    if (a.nivel !== b.nivel) return a.nivel - b.nivel;
-    return a.nombreMateria.localeCompare(b.nombreMateria, "es", {
-      sensitivity: "base",
-    });
+  return ordenarMateriasAsignacionPorPlan(selecciones, {
+    nombreCarrera,
   });
 }
 
@@ -84,8 +83,8 @@ export default function ConfirmarInscripcionModal({
     ? "rgba(255,255,255,0.12)"
     : "rgba(15,23,42,0.12)";
 
-  const agregarOrdenadas = ordenar(agregar);
-  const quitarOrdenadas = ordenar(quitar);
+  const agregarOrdenadas = ordenar(agregar, nombreCarrera);
+  const quitarOrdenadas = ordenar(quitar, nombreCarrera);
   const total = agregar.length + quitar.length;
 
   return (

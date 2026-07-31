@@ -19,6 +19,7 @@ import {
   DetalleEstudianteResponse,
   Estudiante,
 } from "../types/asignaciones.types";
+import { ordenarMateriasAsignacionPorPlan } from "../utils/ordenPlanEstudios";
 
 type Props = {
   visible: boolean;
@@ -126,6 +127,14 @@ export default function RevisarModal({
   const nombre = e
     ? `${e.nombres} ${e.apellidoPaterno} ${e.apellidoMaterno ?? ""}`.trim()
     : "";
+
+  const inscripcionesOrdenadas = useMemo(
+    () =>
+      ordenarMateriasAsignacionPorPlan(
+        Array.isArray(detalle?.inscripciones) ? detalle.inscripciones : [],
+      ),
+    [detalle?.inscripciones],
+  );
 
   useEffect(() => {
     if (visible && idUsuario) {
@@ -472,7 +481,7 @@ export default function RevisarModal({
                   mutedText={mutedText}
                 />
               ) : (
-                detalle.inscripciones.map((i, index) => (
+                inscripcionesOrdenadas.map((i, index) => (
                   <View
                     key={`inscripcion-${i.idInscripcion}-${i.idGrupo}-${i.idMateria}-${index}`}
                     style={[
