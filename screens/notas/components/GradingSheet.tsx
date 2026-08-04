@@ -1,10 +1,12 @@
 import { useTheme } from "@/theme/useTheme";
 import { Tooltip } from "@components/Tooltip";
+import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { MotiView } from "moti";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +30,7 @@ const COL_FINAL = 130;
 const COL_SEGUNDA = 110;
 const COL_STATUS = 150;
 const COL_OBS = 220;
+const COL_SUMA_EV = 80;
 
 interface Props {
   idGrupo: number;
@@ -86,7 +89,7 @@ export function GradingSheet({
   const [noEVWarning, setNoEVWarning] = useState(false);
   const [selectedECName, setSelectedECName] = useState<string>("");
   const [lastDetailECId, setLastDetailECId] = useState<number | null>(null); // nuevo estado
-
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   // ─── Cargar planilla ────────────────────────────────────────────────
   React.useEffect(() => {
     initializedRef.current = false; // reset para nueva planilla
@@ -339,7 +342,16 @@ export function GradingSheet({
       Toast.show({ type: "error", text1: "Error", text2: err.message });
     }
   };
-
+  const sortedStudents = useMemo(() => {
+    if (!planilla) return [];
+    return [...planilla.estudiantes].sort((a, b) => {
+      const aKey = `${a.apellidoPaterno.toLowerCase()} ${a.apellidoMaterno.toLowerCase()} ${a.nombres.toLowerCase()}`;
+      const bKey = `${b.apellidoPaterno.toLowerCase()} ${b.apellidoMaterno.toLowerCase()} ${b.nombres.toLowerCase()}`;
+      if (aKey < bKey) return sortOrder === "asc" ? -1 : 1;
+      if (aKey > bKey) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [planilla, sortOrder]);
   // ─── Estados de carga / error ──────────────────────────────────────
   if (!loaded && loading) {
     return (
@@ -427,20 +439,32 @@ export function GradingSheet({
                   },
                 ]}
               >
-                <View
+                <Pressable
+                  onPress={() =>
+                    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
                   style={[
                     styles.headerCell,
                     {
                       width: COL_STUDENT,
                       borderRightWidth: 1,
                       borderRightColor: c.border + "100",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
                     },
                   ]}
                 >
                   <Text style={[styles.headerText, { color: c.textSecondary }]}>
                     Estudiante
                   </Text>
-                </View>
+                  {sortOrder === "asc" ? (
+                    <ArrowUp size={12} color={c.textSecondary} />
+                  ) : (
+                    <ArrowDown size={12} color={c.textSecondary} />
+                  )}
+                </Pressable>
                 {evs.map((ev) => (
                   <View
                     key={ev.id}
@@ -464,6 +488,32 @@ export function GradingSheet({
                     </Text>
                   </View>
                 ))}
+                {/* Suma 90% */}
+                <View
+                  style={[
+                    styles.headerCell,
+                    {
+                      width: COL_SUMA_EV,
+                      borderRightWidth: 1,
+                      borderRightColor: c.border + "100",
+                      backgroundColor: c.backgroundSecondary + "40",
+                    },
+                  ]}
+                >
+                  <View style={styles.tooltipContainer}>
+                    <Text
+                      style={[styles.headerText, { color: c.textSecondary }]}
+                    >
+                      Suma 90%
+                    </Text>
+                    <Tooltip
+                      message="Suma de todos los elementos evaluativos multiplicada por 0.9. Representa el aporte ponderado de las evaluaciones antes de sumar la asistencia."
+                      position="bottom"
+                    />
+                  </View>
+                </View>
+
+                {/* Asist. */}
                 <View
                   style={[
                     styles.headerCell,
@@ -475,10 +525,20 @@ export function GradingSheet({
                     },
                   ]}
                 >
-                  <Text style={[styles.headerText, { color: c.textSecondary }]}>
-                    Asist.
-                  </Text>
+                  <View style={styles.tooltipContainer}>
+                    <Text
+                      style={[styles.headerText, { color: c.textSecondary }]}
+                    >
+                      Asist.
+                    </Text>
+                    <Tooltip
+                      message="Nota de asistencia (0-10). Se suma directamente al 90% de los elementos evaluativos para calcular la Nota EC."
+                      position="bottom"
+                    />
+                  </View>
                 </View>
+
+                {/* Nota EC */}
                 <View
                   style={[
                     styles.headerCell,
@@ -490,10 +550,20 @@ export function GradingSheet({
                     },
                   ]}
                 >
-                  <Text style={[styles.headerText, { color: c.textSecondary }]}>
-                    Nota EC
-                  </Text>
+                  <View style={styles.tooltipContainer}>
+                    <Text
+                      style={[styles.headerText, { color: c.textSecondary }]}
+                    >
+                      Nota EC
+                    </Text>
+                    <Tooltip
+                      message="Nota final del Elemento de Competencia = Suma(90%) + Asistencia (máximo 100). Puede editarse manualmente si es necesario en la pantalla anterior."
+                      position="bottom"
+                    />
+                  </View>
                 </View>
+
+                {/* Estado EC */}
                 <View
                   style={[
                     styles.headerCell,
@@ -505,27 +575,34 @@ export function GradingSheet({
                     },
                   ]}
                 >
-                  <Text style={[styles.headerText, { color: c.textSecondary }]}>
-                    Estado EC
-                  </Text>
+                  <View style={styles.tooltipContainer}>
+                    <Text
+                      style={[styles.headerText, { color: c.textSecondary }]}
+                    >
+                      Estado EC
+                    </Text>
+                    <Tooltip
+                      message={`Indica si el estudiante alcanza la nota de aprobación (Aprobado ≥ ${notaAprobacionState}) en este Elemento de Competencia.`}
+                      position="bottom-left"
+                    />
+                  </View>
                 </View>
               </View>
               <FlatList
-                data={planilla.estudiantes}
+                data={sortedStudents}
                 keyExtractor={(item) => item.id_inscripcion.toString()}
                 renderItem={({ item }) => {
                   const currentEvScores =
                     evScores?.[item.id_inscripcion]?.[ecActual.id] ?? {};
                   const evValues = evs.map((ev) => currentEvScores[ev.id] ?? 0);
                   const sumaEV = evValues.reduce((a, b) => a + b, 0);
-                  const notaEcCalculada = Math.min(
-                    Math.round(
-                      (sumaEV * 0.9 +
+                  const notaEcCalculada = Math.round(
+                    Math.min(
+                      sumaEV * 0.9 +
                         (asistencias[item.id_inscripcion] ??
-                          item.nota_asistencia)) *
-                        100,
-                    ) / 100,
-                    100,
+                          item.nota_asistencia),
+                      100,
+                    ),
                   );
                   const notaEcOk = notaEcCalculada >= notaAprobacionState;
                   const asistencia =
@@ -545,16 +622,16 @@ export function GradingSheet({
                     >
                       <View
                         style={[
-                          styles.cell,
+                          styles.studentCell,
                           {
                             width: COL_STUDENT,
-                            borderRightWidth: 1,
                             borderRightColor: c.border + "100",
+                            borderRightWidth: 1,
                           },
                         ]}
                       >
-                        <Text style={{ color: c.text }}>
-                          {item.nombre_completo}
+                        <Text style={styles.studentName}>
+                          {`${item.apellidoPaterno} ${item.apellidoMaterno} ${item.nombres}`.trim()}
                         </Text>
                       </View>
                       {evs.map((ev) => {
@@ -604,6 +681,35 @@ export function GradingSheet({
                           </View>
                         );
                       })}
+                      <View
+                        style={[
+                          styles.cell,
+                          {
+                            width: COL_SUMA_EV,
+                            borderRightWidth: 1,
+                            borderRightColor: c.border + "100",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            backgroundColor:
+                              Math.round(sumaEV * 0.9) >= notaAprobacionState
+                                ? c.success + "20"
+                                : c.destructive + "20",
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color:
+                              Math.round(sumaEV * 0.9) >= notaAprobacionState
+                                ? c.success
+                                : c.destructive,
+                            fontWeight: "700",
+                            fontSize: 14,
+                          }}
+                        >
+                          {Math.round(sumaEV * 0.9)}
+                        </Text>
+                      </View>
                       <View
                         style={[
                           styles.cell,
@@ -778,20 +884,32 @@ export function GradingSheet({
                 },
               ]}
             >
-              <View
+              <Pressable
+                onPress={() =>
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                }
                 style={[
                   styles.headerCell,
                   {
                     width: COL_STUDENT,
                     borderRightWidth: 1,
                     borderRightColor: c.border + "100",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
                   },
                 ]}
               >
                 <Text style={[styles.headerText, { color: c.textSecondary }]}>
                   Estudiante
                 </Text>
-              </View>
+                {sortOrder === "asc" ? (
+                  <ArrowUp size={12} color={c.textSecondary} />
+                ) : (
+                  <ArrowDown size={12} color={c.textSecondary} />
+                )}
+              </Pressable>
               {ecs.map((ec) => (
                 <TouchableOpacity
                   key={ec.id}
@@ -839,7 +957,7 @@ export function GradingSheet({
                     Nota Final
                   </Text>
                   <Tooltip
-                    message="Cálculo automático basado en el promedio de los Elementos de Competencia."
+                    message="Cálculo automático basado en la suma de los Elementos de Competencia."
                     position="bottom"
                   />
                 </View>
@@ -854,9 +972,15 @@ export function GradingSheet({
                   },
                 ]}
               >
-                <Text style={[styles.headerText, { color: c.textSecondary }]}>
-                  2da Instancia
-                </Text>
+                <View style={styles.tooltipContainer}>
+                  <Text style={[styles.headerText, { color: c.textSecondary }]}>
+                    2da Instancia
+                  </Text>
+                  <Tooltip
+                    message="Nota de recuperación. Si el estudiante alcanza o supera la nota de aprobación aquí, se considera Aprobado aunque la Nota Final sea inferior."
+                    position="bottom"
+                  />
+                </View>
               </View>
               <View
                 style={[
@@ -873,7 +997,7 @@ export function GradingSheet({
                     Estado
                   </Text>
                   <Tooltip
-                    message={`Indicador automático de Aprobado/Reprobado basado en la Nota Final (Aprobado ≥ ${notaAprobacionState}).`}
+                    message={`Indicador automático de Aprobado/Reprobado basado en la Nota Final o Segunda Instancia (Aprobado ≥ ${notaAprobacionState}).`}
                     position="bottom"
                   />
                 </View>
@@ -903,7 +1027,7 @@ export function GradingSheet({
 
             <FlatList
               ref={flatListRef}
-              data={planilla.estudiantes}
+              data={sortedStudents}
               keyExtractor={(item) => item.id_inscripcion.toString()}
               renderItem={({ item }) => {
                 const finalNota = calcularNotaFinal(item.id_inscripcion);
@@ -934,7 +1058,7 @@ export function GradingSheet({
                       ]}
                     >
                       <Text style={styles.studentName}>
-                        {item.nombre_completo}
+                        {`${item.apellidoPaterno} ${item.apellidoMaterno} ${item.nombres}`.trim()}
                       </Text>
                     </View>
                     {ecs.map((ec) => {

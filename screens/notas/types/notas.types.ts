@@ -56,7 +56,9 @@ export interface EstudianteECNotas {
 export interface EstudiantePlanilla {
   id_inscripcion: number;
   id_usuario: number;
-  nombre_completo: string;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
   nota_asistencia: number;
   nota_final: number | null;
   segunda_instancia_nota?: number | null;

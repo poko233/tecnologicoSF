@@ -1,4 +1,3 @@
-// screens/asistencia/components/ListModeView.tsx
 import { useTheme } from "@/theme/useTheme";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import React, { useCallback, useMemo, useRef } from "react";
@@ -36,31 +35,29 @@ export function ListModeView({
   const c = theme.colors;
   const listRef = useRef<FlatList>(null);
 
-  const getApellido = (nombreCompleto: string) => {
-    const partes = nombreCompleto.trim().split(/\s+/);
-    if (partes.length === 0) return "";
-    return partes[partes.length - 1].toLowerCase();
-  };
-
   const sortedAndFiltered = useMemo(() => {
     const filtered = searchQuery.trim()
-      ? estudiantesData.estudiantes.filter((e) =>
-          e.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase()),
-        )
+      ? estudiantesData.estudiantes.filter((e) => {
+          const q = searchQuery.toLowerCase();
+          return (
+            e.nombres.toLowerCase().includes(q) ||
+            e.apellidoPaterno.toLowerCase().includes(q) ||
+            e.apellidoMaterno.toLowerCase().includes(q)
+          );
+        })
       : estudiantesData.estudiantes;
 
     const sorted = [...filtered].sort((a, b) => {
-      const apellidoA = getApellido(a.nombre_completo);
-      const apellidoB = getApellido(b.nombre_completo);
-      if (apellidoA < apellidoB) return sortOrder === "asc" ? -1 : 1;
-      if (apellidoA > apellidoB) return sortOrder === "asc" ? 1 : -1;
+      const aKey = `${a.apellidoPaterno.toLowerCase()} ${a.apellidoMaterno.toLowerCase()} ${a.nombres.toLowerCase()}`;
+      const bKey = `${b.apellidoPaterno.toLowerCase()} ${b.apellidoMaterno.toLowerCase()} ${b.nombres.toLowerCase()}`;
+      if (aKey < bKey) return sortOrder === "asc" ? -1 : 1;
+      if (aKey > bKey) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
 
     return sorted;
   }, [estudiantesData.estudiantes, searchQuery, sortOrder]);
 
-  // LA CABECERA AHORA VIVE AQUÍ ADENTRO
   const renderHeader = useCallback(
     () => (
       <View
@@ -131,8 +128,6 @@ export function ListModeView({
         local?.observacion ?? asistenciaHoy?.asistencia?.observacion ?? "";
 
       return (
-        /* AQUÍ ESTÁ LA MAGIA: Solo al primer elemento (index === 0) le damos 
-           un margen superior para que el tooltip tenga espacio de respirar */
         <View style={{ marginTop: index === 0 ? 7 : 0 }}>
           <StudentRow
             estudiante={item}
@@ -174,7 +169,6 @@ export function ListModeView({
             shadowOpacity: 0.06,
             shadowRadius: 6,
             elevation: 3,
-            // Quitamos el overflow: visible de aquí para que reviva el scroll
           },
         ]}
       >
@@ -182,7 +176,6 @@ export function ListModeView({
           ref={listRef}
           data={sortedAndFiltered}
           keyExtractor={(item) => item.id_inscripcion.toString()}
-          /* EL TRUCO MAESTRO: La cabecera adentro de la lista y pegajosa */
           ListHeaderComponent={renderHeader}
           stickyHeaderIndices={[0]}
           renderItem={renderItem}
@@ -190,7 +183,7 @@ export function ListModeView({
           showsVerticalScrollIndicator={true}
           initialNumToRender={20}
           windowSize={10}
-          removeClippedSubviews={false} // Mantener en false para que los tooltips no desaparezcan raramente
+          removeClippedSubviews={false}
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
         />

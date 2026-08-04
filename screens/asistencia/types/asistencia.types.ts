@@ -36,7 +36,9 @@ export interface AsistenciaHoyItem {
 export interface EstudianteAsistencia {
   id_inscripcion: number;
   id_usuario: number;
-  nombre_completo: string;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
   foto: string | null;
   carrera: string | null;
   asistencias_hoy: AsistenciaHoyItem[];

@@ -41,18 +41,20 @@ export function StudentRow({
 
   const initials = useMemo(
     () =>
-      estudiante.nombre_completo
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [estudiante.nombre_completo],
+      (
+        estudiante.nombres.charAt(0) + estudiante.apellidoPaterno.charAt(0)
+      ).toUpperCase(),
+    [estudiante.nombres, estudiante.apellidoPaterno],
   );
 
   const displayName = useMemo(
-    () => formatNombreApellido(estudiante.nombre_completo),
-    [estudiante.nombre_completo],
+    () =>
+      `${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.nombres}`.trim(),
+    [
+      estudiante.apellidoPaterno,
+      estudiante.apellidoMaterno,
+      estudiante.nombres,
+    ],
   );
 
   return (

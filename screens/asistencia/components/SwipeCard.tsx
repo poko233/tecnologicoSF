@@ -53,14 +53,14 @@ const SwipeCard = ({
 
   const initials = useMemo(
     () =>
-      estudiante.nombre_completo
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [estudiante.nombre_completo],
+      (
+        estudiante.nombres.charAt(0) + estudiante.apellidoPaterno.charAt(0)
+      ).toUpperCase(),
+    [estudiante.nombres, estudiante.apellidoPaterno],
   );
+
+  const fullName =
+    `${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.nombres}`.trim();
 
   useEffect(() => {
     if (triggerSwipeOut && !isAnimatingRef.current) {
@@ -249,7 +249,7 @@ const SwipeCard = ({
             </View>
           )}
           <Text style={[styles.name, { color: c.text }]} numberOfLines={1}>
-            {estudiante.nombre_completo}
+            {fullName}
           </Text>
           <Text
             style={[styles.carrera, { color: c.textSecondary }]}
