@@ -223,9 +223,6 @@ export default function ArqueoCloseModal({
     totalesPorMetodo.qr +
     totalesPorMetodo.transferencia;
 
-  // CORRECCIÓN: Caja esperada en EFECTIVO solamente
-  // Fórmula: saldo_anterior + total_efectivo_del_turno
-  // donde total_efectivo_del_turno = pagos + ingresos + ventas - egresos (solo EFECTIVO)
   const expectedEfectivo = useMemo(() => {
     return saldoAnterior + totalesPorMetodo.efectivo;
   }, [saldoAnterior, totalesPorMetodo.efectivo]);
@@ -796,7 +793,6 @@ export default function ArqueoCloseModal({
                   </View>
 
                   <View style={styles.section}>
-                    {/* Ventas de productos */}
                     <ThemedText
                       style={[
                         styles.sectionTitle,

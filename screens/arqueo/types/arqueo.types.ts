@@ -87,4 +87,5 @@ export interface Arqueo {
   pagos?: Pago[];
   ingresos?: Ingreso[];
   egresos?: Egreso[];
+  ventasInventario?: any[];
 }
