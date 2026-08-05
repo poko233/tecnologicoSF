@@ -26,6 +26,99 @@ import {
   HistorialEstudianteResponse,
 } from "./types/estudiante.types";
 
+function valorTextoPreferido(
+  nuevo?: string | null,
+  anterior?: string | null,
+): string | null | undefined {
+  const valorNuevo = String(nuevo ?? "").trim();
+
+  if (
+    nuevo === undefined ||
+    nuevo === null ||
+    valorNuevo === "" ||
+    valorNuevo === "0" ||
+    valorNuevo.toLowerCase() === "null" ||
+    valorNuevo.toLowerCase() === "undefined"
+  ) {
+    return anterior;
+  }
+
+  return nuevo;
+}
+
+/**
+ * El endpoint del historial puede devolver un estudiante resumido.
+ * Esta función lo combina con el estudiante completo sin perder la foto,
+ * fotoUrl, documentos, carreras, QR ni otras relaciones ya cargadas.
+ */
+function fusionarEstudianteParaHistorial(
+  base: EstudianteUsuario | null | undefined,
+  detalle: EstudianteUsuario | null | undefined,
+  resumen: EstudianteUsuario | null | undefined,
+): EstudianteUsuario | null {
+  const primero = base ?? detalle ?? resumen;
+
+  if (!primero) return null;
+
+  const combinado: EstudianteUsuario = {
+    ...base,
+    ...detalle,
+    ...resumen,
+  } as EstudianteUsuario;
+
+  combinado.foto = valorTextoPreferido(
+    resumen?.foto,
+    valorTextoPreferido(detalle?.foto, base?.foto),
+  );
+
+  combinado.fotoUrl = valorTextoPreferido(
+    resumen?.fotoUrl,
+    valorTextoPreferido(detalle?.fotoUrl, base?.fotoUrl),
+  );
+
+  combinado.codigo_qr = valorTextoPreferido(
+    resumen?.codigo_qr,
+    valorTextoPreferido(detalle?.codigo_qr, base?.codigo_qr),
+  );
+
+  combinado.qrUrl = valorTextoPreferido(
+    resumen?.qrUrl,
+    valorTextoPreferido(detalle?.qrUrl, base?.qrUrl),
+  );
+
+  combinado.documentos =
+    resumen?.documentos ??
+    detalle?.documentos ??
+    base?.documentos;
+
+  combinado.carreras =
+    resumen?.carreras ??
+    detalle?.carreras ??
+    base?.carreras;
+
+  combinado.roles =
+    resumen?.roles ??
+    detalle?.roles ??
+    base?.roles;
+
+  combinado.promociones =
+    resumen?.promociones ??
+    detalle?.promociones ??
+    base?.promociones;
+
+  combinado.numeroReferencias =
+    resumen?.numeroReferencias ??
+    detalle?.numeroReferencias ??
+    base?.numeroReferencias;
+
+  combinado.numero_referencias =
+    resumen?.numero_referencias ??
+    detalle?.numero_referencias ??
+    base?.numero_referencias;
+
+  return combinado;
+}
+
 export default function EstudianteScreen() {
   const { theme } = useTheme();
   const colors = theme.colors;
@@ -144,7 +237,15 @@ export default function EstudianteScreen() {
     setCargandoHistorialModal(true);
 
     try {
-      const data = await cargarHistorialEstudiante(estudiante.id, true);
+      /*
+       * El historial y el detalle se cargan en paralelo.
+       * El detalle contiene fotoUrl usando FOTOS_PUBLIC_URL, mientras que el
+       * historial puede devolver solamente un resumen del estudiante.
+       */
+      const [data, detalle] = await Promise.all([
+        cargarHistorialEstudiante(estudiante.id, true),
+        cargarDetalleEstudiante(estudiante.id, true),
+      ]);
 
       const solicitudSigueActiva =
         historialRequestRef.current === requestId &&
@@ -155,8 +256,24 @@ export default function EstudianteScreen() {
       }
 
       if (data) {
-        setHistorialEstudiante(data);
-        setEstudianteHistorial(data.estudiante ?? estudiante);
+        const estudianteCompleto = fusionarEstudianteParaHistorial(
+          estudiante,
+          detalle,
+          data.estudiante,
+        );
+
+        const historialCompleto: HistorialEstudianteResponse = {
+          ...data,
+          estudiante: estudianteCompleto ?? data.estudiante,
+        };
+
+        setHistorialEstudiante(historialCompleto);
+        setEstudianteHistorial(estudianteCompleto ?? estudiante);
+      } else if (detalle) {
+        setEstudianteHistorial(
+          fusionarEstudianteParaHistorial(estudiante, detalle, null) ??
+            estudiante,
+        );
       }
     } finally {
       const solicitudSigueActiva =
