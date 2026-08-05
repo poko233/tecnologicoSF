@@ -24,6 +24,7 @@ import { useArqueoTransacciones } from "../hooks/useArqueoTransacciones";
 import { arqueoService } from "../services/arqueo.service";
 import { Conteo, Egreso, Ingreso, Pago } from "../types/arqueo.types";
 import { ArqueoTransaccionTable } from "./ArqueoTransaccionTable";
+import { InventarioVenta } from "../../ventas/types/venta.types";
 
 interface ArqueoCloseModalProps {
   visible: boolean;
@@ -61,6 +62,7 @@ export default function ArqueoCloseModal({
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [egresos, setEgresos] = useState<Egreso[]>([]);
+  const [ventas, setVentas] = useState<InventarioVenta[]>([]);
   const [pagosLoading, setPagosLoading] = useState(false);
   const [conteo, setConteo] = useState<Conteo>({
     billete_200: 0,
@@ -97,6 +99,7 @@ export default function ArqueoCloseModal({
       setPagos(arqueoData.pagos || []);
       setIngresos(arqueoData.ingresos || []);
       setEgresos(arqueoData.egresos || []);
+      setVentas(arqueoData.ventasInventario || []);
     } catch (err: any) {
       Toast.show({
         type: "error",
@@ -126,9 +129,14 @@ export default function ArqueoCloseModal({
         .reduce((s, e) => s + e.monto, 0),
     [egresos],
   );
+  const totalVentas = useMemo(
+    () =>
+      ventas
+        .filter((v) => v.estado === "PAGADO")
+        .reduce((s, v) => s + parseFloat(v.total.toString()), 0),
+    [ventas],
+  );
   const saldoAnterior = arqueo?.saldo_anterior || 0;
-  const cajaEsperadaGeneral =
-    saldoAnterior + totalPagos + totalIngresosManual - totalEgresos;
 
   const totalesPorMetodo = useMemo(() => {
     let efectivo = 0,
@@ -188,8 +196,26 @@ export default function ArqueoCloseModal({
           break;
       }
     });
+    ventas.forEach((v) => {
+      if (v.estado !== "PAGADO") return;
+      const monto = parseFloat(v.total.toString()) || 0;
+      switch (v.metodo_pago) {
+        case "EFECTIVO":
+          efectivo += monto;
+          break;
+        case "TARJETA":
+          tarjeta += monto;
+          break;
+        case "QR":
+          qr += monto;
+          break;
+        case "TRANSFERENCIA":
+          transferencia += monto;
+          break;
+      }
+    });
     return { efectivo, tarjeta, qr, transferencia };
-  }, [pagos, ingresos, egresos]);
+  }, [pagos, ingresos, egresos, ventas]);
 
   const totalMovimientos =
     totalesPorMetodo.efectivo +
@@ -198,20 +224,8 @@ export default function ArqueoCloseModal({
     totalesPorMetodo.transferencia;
 
   const expectedEfectivo = useMemo(() => {
-    let efectivo = 0;
-    pagos.forEach((p) => {
-      if (p.metodo === "EFECTIVO") efectivo += p.monto;
-    });
-    ingresos.forEach((i) => {
-      if (i.metodo === "EFECTIVO" && i.estado !== "ANULADO")
-        efectivo += i.monto;
-    });
-    egresos.forEach((e) => {
-      if (e.metodo === "EFECTIVO" && e.estado !== "ANULADO")
-        efectivo -= e.monto;
-    });
-    return efectivo;
-  }, [pagos, ingresos, egresos]);
+    return saldoAnterior + totalesPorMetodo.efectivo;
+  }, [saldoAnterior, totalesPorMetodo.efectivo]);
 
   const totalContado = useMemo(() => {
     let total = 0;
@@ -386,8 +400,8 @@ export default function ArqueoCloseModal({
                         theme={theme}
                       />
                       <ResumenItem
-                        label="Caja esperada"
-                        value={cajaEsperadaGeneral}
+                        label="Caja esperada (efectivo)"
+                        value={expectedEfectivo}
                         theme={theme}
                         highlight
                       />
@@ -779,6 +793,148 @@ export default function ArqueoCloseModal({
                   </View>
 
                   <View style={styles.section}>
+                    <ThemedText
+                      style={[
+                        styles.sectionTitle,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      Ventas de productos
+                    </ThemedText>
+                    {pagosLoading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.primary}
+                      />
+                    ) : ventas.length === 0 ? (
+                      <ThemedText style={{ color: theme.colors.textSecondary, marginBottom: 16 }}>
+                        No hay ventas de productos
+                      </ThemedText>
+                    ) : (
+                      <View style={[styles.tableWrapper, { marginBottom: 16 }]}>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ minWidth: "100%" }}
+                        >
+                          <View style={[styles.table, { flex: 1 }]}>
+                            <View
+                              style={[
+                                styles.tableRow,
+                                styles.tableHeader,
+                                {
+                                  backgroundColor:
+                                    theme.colors.backgroundSecondary,
+                                },
+                              ]}
+                            >
+                              <ThemedText
+                                style={[
+                                  styles.tableCellHeader,
+                                  { color: theme.colors.text },
+                                ]}
+                              >
+                                #
+                              </ThemedText>
+                              <ThemedText
+                                style={[
+                                  styles.tableCellHeader,
+                                  { color: theme.colors.text },
+                                ]}
+                              >
+                                Fecha
+                              </ThemedText>
+                              <ThemedText
+                                style={[
+                                  styles.tableCellHeader,
+                                  { color: theme.colors.text },
+                                ]}
+                              >
+                                Productos
+                              </ThemedText>
+                              <ThemedText
+                                style={[
+                                  styles.tableCellHeader,
+                                  { color: theme.colors.text },
+                                ]}
+                              >
+                                Método
+                              </ThemedText>
+                              <ThemedText
+                                style={[
+                                  styles.tableCellHeader,
+                                  { color: theme.colors.text },
+                                ]}
+                              >
+                                Total
+                              </ThemedText>
+                            </View>
+                            {ventas
+                              .filter((v) => v.estado === "PAGADO")
+                              .map((venta, idx) => (
+                                <View
+                                  key={venta.idVenta || idx}
+                                  style={[
+                                    styles.tableRow,
+                                    {
+                                      borderBottomColor: theme.colors.border,
+                                    },
+                                  ]}
+                                >
+                                  <ThemedText
+                                    style={[
+                                      styles.tableCell,
+                                      { color: theme.colors.text },
+                                    ]}
+                                  >
+                                    #{venta.idVenta}
+                                  </ThemedText>
+                                  <ThemedText
+                                    style={[
+                                      styles.tableCell,
+                                      { color: theme.colors.text },
+                                    ]}
+                                  >
+                                    {venta.fechaVenta
+                                      ? new Date(venta.fechaVenta).toLocaleDateString()
+                                      : "-"}
+                                  </ThemedText>
+                                  <ThemedText
+                                    style={[
+                                      styles.tableCell,
+                                      { color: theme.colors.text },
+                                    ]}
+                                  >
+                                    {venta.detalles
+                                      ?.map(
+                                        (d) =>
+                                          `${d.cantidad}x ${d.producto?.nombre || "Producto"}`
+                                      )
+                                      .join(", ") || "-"}
+                                  </ThemedText>
+                                  <ThemedText
+                                    style={[
+                                      styles.tableCell,
+                                      { color: theme.colors.text },
+                                    ]}
+                                  >
+                                    {venta.metodo_pago}
+                                  </ThemedText>
+                                  <ThemedText
+                                    style={[
+                                      styles.tableCell,
+                                      { color: theme.colors.text, fontWeight: "600" },
+                                    ]}
+                                  >
+                                    {parseFloat(venta.total.toString()).toFixed(2)} Bs
+                                  </ThemedText>
+                                </View>
+                              ))}
+                          </View>
+                        </ScrollView>
+                      </View>
+                    )}
+
                     <ThemedText
                       style={[
                         styles.sectionTitle,
