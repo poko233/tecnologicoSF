@@ -6,6 +6,7 @@ export type RolRRHH = {
   idRol?: number;
   id?: number;
   rol: string;
+  descripcion?: string | null;
 };
 
 export type NumeroReferenciaRRHH = {
@@ -72,6 +73,8 @@ export type UsuarioFormRRHH = {
   expedido: string;
   estado: EstadoUsuarioRRHH;
 
+  rolesIds: number[];
+
   referenciaNombre: string;
   referenciaParentesco: string;
   referenciaNumero: string;
@@ -91,5 +94,16 @@ export type UsuariosRRHHResponse = {
 
 export type UsuarioRRHHResponse = {
   message?: string;
+  usuario: UsuarioRRHH;
+};
+
+export type RolesRRHHResponse = {
+  roles: RolRRHH[];
+};
+
+export type RegenerarQrRRHHResponse = {
+  message?: string;
+  codigo_qr?: string | null;
+  qrUrl?: string | null;
   usuario: UsuarioRRHH;
 };

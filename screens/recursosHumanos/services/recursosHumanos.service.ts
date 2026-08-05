@@ -1,7 +1,10 @@
 import { Platform } from "react-native";
+
 import { httpClient } from "../../../http/httpClient";
 import {
   FotoUsuarioArchivo,
+  RegenerarQrRRHHResponse,
+  RolRRHH,
   UsuarioFormRRHH,
   UsuarioRRHH,
 } from "../types/recursosHumanos.types";
@@ -10,6 +13,12 @@ export async function getUsuariosRRHH(): Promise<{
   usuarios: UsuarioRRHH[];
 }> {
   return httpClient.getAuth("/api/recursos-humanos/usuarios");
+}
+
+export async function getRolesRRHH(): Promise<{
+  roles: RolRRHH[];
+}> {
+  return httpClient.getAuth("/api/recursos-humanos/roles");
 }
 
 export async function getUsuarioDetalleRRHH(
@@ -23,6 +32,15 @@ export async function actualizarUsuarioRRHH(
   form: UsuarioFormRRHH,
 ): Promise<{ message: string; usuario: UsuarioRRHH }> {
   return httpClient.putAuth(`/api/recursos-humanos/usuarios/${id}`, form);
+}
+
+export async function regenerarQrUsuarioRRHH(
+  id: number,
+): Promise<RegenerarQrRRHHResponse> {
+  return httpClient.postAuth(
+    `/api/recursos-humanos/usuarios/${id}/qr/regenerar`,
+    {},
+  );
 }
 
 export async function actualizarFotoRRHH(

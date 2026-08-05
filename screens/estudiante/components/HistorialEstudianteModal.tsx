@@ -74,6 +74,70 @@ function normalizarTexto(value?: string | number | null) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function valorTextoValido(value?: string | null): boolean {
+  const texto = String(value ?? "").trim().toLowerCase();
+
+  return !["", "0", "null", "undefined"].includes(texto);
+}
+
+/**
+ * Combina el estudiante del listado/detalle con el resumen que devuelve el
+ * historial. El resumen no debe borrar fotoUrl ni foto cuando esos campos no
+ * vienen o vienen vacíos.
+ */
+function fusionarEstudianteHistorial(
+  estudiante: EstudianteUsuario | null,
+  resumen: EstudianteUsuario | null | undefined,
+): EstudianteUsuario | null {
+  if (!estudiante && !resumen) return null;
+  if (!estudiante) return resumen ?? null;
+  if (!resumen) return estudiante;
+
+  return {
+    ...estudiante,
+    ...resumen,
+    foto: valorTextoValido(resumen.foto)
+      ? resumen.foto
+      : estudiante.foto,
+    fotoUrl: valorTextoValido(resumen.fotoUrl)
+      ? resumen.fotoUrl
+      : estudiante.fotoUrl,
+    codigo_qr: valorTextoValido(resumen.codigo_qr)
+      ? resumen.codigo_qr
+      : estudiante.codigo_qr,
+    qrUrl: valorTextoValido(resumen.qrUrl)
+      ? resumen.qrUrl
+      : estudiante.qrUrl,
+    documentos: resumen.documentos ?? estudiante.documentos,
+    carreras: resumen.carreras ?? estudiante.carreras,
+    roles: resumen.roles ?? estudiante.roles,
+    promociones: resumen.promociones ?? estudiante.promociones,
+    numeroReferencias:
+      resumen.numeroReferencias ?? estudiante.numeroReferencias,
+    numero_referencias:
+      resumen.numero_referencias ?? estudiante.numero_referencias,
+  };
+}
+
+function formatearPromedioEntero(
+  promedio?: number | string | null,
+): string {
+  if (
+    promedio === null ||
+    promedio === undefined ||
+    promedio === ""
+  ) {
+    return "Sin nota";
+  }
+
+  const numero = Number(promedio);
+
+  if (!Number.isFinite(numero)) {
+    return String(promedio);
+  }
+
+  return String(Math.round(numero));
+}
 
 function resolverUrlPublica(ruta?: string | null): string | null {
   const value = String(ruta ?? "").trim();
@@ -93,10 +157,22 @@ function resolverUrlPublica(ruta?: string | null): string | null {
     value.startsWith("blob:") ||
     value.startsWith("data:image")
   ) {
-    return value;
+    return encodeURI(value);
   }
 
-  return `${BASE_URL}/${value.replace(/^\/+/, "")}`;
+  /*
+   * Las fotos se guardan dentro de public/fotos-usuarios. La base de datos
+   * debe guardar una ruta relativa como fotos-usuarios/archivo.jpg.
+   * También se toleran rutas antiguas que empiezan con public/.
+   */
+  const rutaRelativa = value
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/^public\//i, "");
+
+  return encodeURI(
+    `${String(BASE_URL).replace(/\/+$/, "")}/${rutaRelativa}`,
+  );
 }
 
 function materiaActiva(materia: MateriaHistorialUI) {
@@ -195,7 +271,10 @@ export default function HistorialEstudianteModal({
     useState<TipoHistorialFiltro>("HISTORICO");
   const [fotoError, setFotoError] = useState(false);
 
-  const estudianteInfo = historial?.estudiante || estudiante;
+  const estudianteInfo = useMemo(
+    () => fusionarEstudianteHistorial(estudiante, historial?.estudiante),
+    [estudiante, historial?.estudiante],
+  );
 
   const fotoUrl = useMemo(
     () => resolverUrlPublica(estudianteInfo?.fotoUrl || estudianteInfo?.foto),
@@ -335,7 +414,14 @@ export default function HistorialEstudianteModal({
                     source={{ uri: fotoUrl }}
                     style={styles.avatarImage}
                     resizeMode="cover"
-                    onError={() => setFotoError(true)}
+                    onError={(event) => {
+                      console.warn(
+                        "No se pudo cargar la foto del historial:",
+                        fotoUrl,
+                        event.nativeEvent,
+                      );
+                      setFotoError(true);
+                    }}
                   />
                 ) : (
                   <ThemedText style={styles.avatarText}>
@@ -462,7 +548,9 @@ export default function HistorialEstudianteModal({
 
                   <View style={styles.summaryCard}>
                     <ThemedText style={styles.summaryValue}>
-                      {formatearNotaFinal(resumenVisible.promedio)}
+                      {formatearPromedioEntero(
+                        resumenVisible.promedio,
+                      )}
                     </ThemedText>
                     <ThemedText style={styles.summaryLabel}>
                       {tipoHistorial === "GESTION_ACTUAL"
