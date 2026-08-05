@@ -20,7 +20,7 @@ const EXPEDIDO_OPTIONS = [
   { label: "Beni (BN)", value: "BN" },
   { label: "Pando (PD)", value: "PD" },
   { label: "Chuquisaca (CH)", value: "CH" },
-  { label: "Quillacollo (QR)", value: "QR" },
+  { label: "QR (QR)", value: "QR" },
   { label: "Extranjero (EXT)", value: "EXT" },
 ];
 

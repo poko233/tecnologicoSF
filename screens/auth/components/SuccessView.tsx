@@ -89,7 +89,14 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
       style={styles.container}
     >
       <CheckCircle size={64} color={c.primary} style={{ marginBottom: 16 }} />
-      <ThemedText style={{ fontSize: 24, fontWeight: "700", marginBottom: 8 }}>
+      <ThemedText
+        style={{
+          color: c.textSecondary,
+          fontSize: 24,
+          fontWeight: "700",
+          marginBottom: 8,
+        }}
+      >
         ¡Usuario Registrado Exitosamente!
       </ThemedText>
       <ThemedText
@@ -256,15 +263,12 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
 
       {/* Acciones */}
       <View style={styles.actions}>
-        {/* Botón Descargar (Ahora descarga el QR) */}
         <MotiPressable
-          style={[styles.actionBtn, { backgroundColor: c.text }]}
+          style={[styles.actionBtn, { backgroundColor: c.backgroundTertiary }]}
           onPress={handleDownloadQR}
         >
           <Download size={16} color={c.primaryForeground} />
-          <Text style={{ color: c.primaryForeground, marginLeft: 6 }}>
-            Descargar
-          </Text>
+          <Text style={{ color: c.text, marginLeft: 6 }}>Descargar</Text>
         </MotiPressable>
 
         {/* Botón Registrar Otro */}
