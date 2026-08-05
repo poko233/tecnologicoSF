@@ -1,282 +1,321 @@
-// screens/auth/RegisterScreen.tsx
-import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { AnimatePresence } from "moti";
+import { MotiPressable } from "moti/interactions";
 import React from "react";
-import { Platform, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import { useAuth } from "../../contexts/AuthContext";
+import { ThemedText } from "../../components/ThemedText";
 import { useResponsive } from "../../hooks/useResponsive";
 import { useTheme } from "../../theme/useTheme";
-import { AuthInput } from "./components/AuthInput";
-import { DatePickerField } from "./components/DatePickerField";
-import { GenderSelector } from "./components/GenderSelector";
-import { RoleSelector } from "./components/RoleSelector";
-import { SubmitButton } from "./components/SubmitButton";
-import { useRegisterForm } from "./hooks/useRegisterForm";
-import type { RegisterRequest } from "./types/auth.types";
+import { Step1CuentaRoles } from "./components/Step1CuentaRoles";
+import { Step2DatosPersonales } from "./components/Step2DatosPersonales";
+import { Step3Contacto } from "./components/Step3Contacto";
+import { StepIndicator } from "./components/StepIndicator";
+import { SuccessView } from "./components/SuccessView";
+import { useRegisterWizard } from "./hooks/useRegisterWizard";
+import { useRoles } from "./hooks/useRoles";
 
-const textFields: {
-  field: Exclude<keyof RegisterRequest, "roles" | "fecha_nac">;
-  label: string;
-  autoCapitalize?: "none" | "sentences" | "words";
-  maxLength?: number;
-  keyboardType?: "default" | "email-address" | "numeric";
-  secureTextEntry?: boolean;
-}[] = [
-  { field: "usuario", label: "Usuario", autoCapitalize: "none", maxLength: 40 },
-  { field: "password", label: "Contraseña", secureTextEntry: true },
-  { field: "ci", label: "CI", autoCapitalize: "none", maxLength: 12 },
-  {
-    field: "nombres",
-    label: "Nombres",
-    autoCapitalize: "words",
-    maxLength: 40,
-  },
-  {
-    field: "apellidos",
-    label: "Apellidos",
-    autoCapitalize: "words",
-    maxLength: 40,
-  },
-  {
-    field: "email",
-    label: "Email (opcional)",
-    autoCapitalize: "none",
-    maxLength: 80,
-    keyboardType: "email-address",
-  },
-  {
-    field: "telefono",
-    label: "Teléfono (opcional)",
-    keyboardType: "numeric",
-    maxLength: 10,
-  },
-  {
-    field: "celular",
-    label: "Celular (opcional)",
-    keyboardType: "numeric",
-    maxLength: 10,
-  },
+const STEP_LABELS = ["Cuenta & Roles", "Datos Personales", "Contacto"];
+const STEP_DESCRIPTIONS = [
+  "Configure las credenciales de acceso y los roles del usuario.",
+  "Complete los datos personales y de identificación.",
+  "Añada la información de contacto y dirección.",
 ];
 
 export default function RegisterScreen() {
   const { theme } = useTheme();
-  const { hasAnyRole } = useAuth();
-  const { isDesktop } = useResponsive();
-  const isTwoColumns = isDesktop;
+  const { isDesktop, isMobile } = useResponsive();
+  const wizard = useRegisterWizard();
+  const { roles, loading: rolesLoading } = useRoles();
 
   const {
+    step,
+    direction,
     form,
     errors,
-    handleChange,
-    handleBlur,
+    updateField,
+    goNext,
+    goPrev,
     handleSubmit,
     submitting,
     serverError,
-    canSubmit,
-  } = useRegisterForm();
-  /*
-  // Verificación de permisos: solo quienes pueden asignar roles
-  if (
-    !hasAnyRole([
-      "Administrador",
-      "Rector",
-      "Director Academico",
-      "Director Administrativo",
-      "Fundador",
-    ])
-  ) {
+    successData,
+    resetForm,
+    isLastStep,
+    isFirstStep,
+  } = wizard;
+
+  const renderStepContent = () => {
+    if (successData) {
+      return (
+        <SuccessView userData={successData} onRegisterAnother={resetForm} />
+      );
+    }
+
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: theme.colors.background,
-        }}
-      >
-        <Text
-          style={{ color: theme.colors.text, fontSize: 18, fontWeight: "600" }}
-        >
-          No tienes permiso para registrar usuarios.
-        </Text>
-      </View>
+      <AnimatePresence exitBeforeEnter={true}>
+        {step === 0 && (
+          <Step1CuentaRoles
+            key="step0"
+            form={form}
+            errors={errors}
+            onFieldChange={updateField}
+            roles={roles}
+            rolesLoading={rolesLoading}
+            direction={direction}
+          />
+        )}
+        {step === 1 && (
+          <Step2DatosPersonales
+            key="step1"
+            form={form}
+            errors={errors}
+            onFieldChange={updateField}
+            direction={direction}
+          />
+        )}
+        {step === 2 && (
+          <Step3Contacto
+            key="step2"
+            form={form}
+            errors={errors}
+            onFieldChange={updateField}
+            direction={direction}
+          />
+        )}
+      </AnimatePresence>
     );
-  }
-*/
-  const handleGenderSelect = (val: "MASCULINO" | "FEMENINO") => {
-    handleChange("genero")(val);
   };
 
-  // Separar campos para columnas
-  const leftFields = isTwoColumns
-    ? textFields.slice(0, Math.ceil(textFields.length / 2))
-    : textFields;
-  const rightFields = isTwoColumns
-    ? textFields.slice(Math.ceil(textFields.length / 2))
-    : [];
-
-  const renderTextField = (
-    item: (typeof textFields)[number],
-    index: number,
-    columnOffset = 0,
-  ) => (
-    <Animated.View
-      key={item.field}
-      entering={FadeInUp.delay(150 + (index + columnOffset) * 50)
-        .duration(400)
-        .springify()}
-    >
-      <AuthInput
-        label={item.label}
-        value={form[item.field] as string}
-        onChangeText={handleChange(item.field) as (text: string) => void}
-        onBlur={handleBlur(item.field)}
-        error={errors[item.field] as string | undefined}
-        secureTextEntry={item.secureTextEntry}
-        keyboardType={item.keyboardType ?? "default"}
-        autoCapitalize={item.autoCapitalize ?? "sentences"}
-        maxLength={item.maxLength}
-      />
-    </Animated.View>
-  );
+  // ✅ Maneja clics hacia adelante y hacia atrás
+  const handleStepPress = (targetStep: number) => {
+    if (targetStep === step) return;
+    if (targetStep < step) {
+      let current = step;
+      while (current > targetStep) {
+        goPrev();
+        current--;
+      }
+    } else {
+      let current = step;
+      while (current < targetStep) {
+        goNext();
+        current++;
+      }
+    }
+  };
 
   return (
     <KeyboardAwareScrollView
       contentContainerStyle={{ flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
-      enableOnAndroid={true}
+      enableOnAndroid
       extraScrollHeight={Platform.OS === "ios" ? 40 : 60}
     >
-      <View
-        style={{ backgroundColor: theme.colors.background }}
-        className="flex-1 justify-center items-center px-6 py-10"
+      <LinearGradient
+        colors={[theme.colors.background, theme.colors.backgroundSecondary]}
+        style={styles.gradient}
       >
-        <View
-          className={`w-full ${isTwoColumns ? "max-w-3xl" : "max-w-md"} bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700`}
-          style={{
-            backgroundColor: theme.dark
-              ? "rgba(31,41,55,0.9)"
-              : "rgba(255,255,255,0.9)",
-          }}
-        >
-          <Animated.View entering={FadeInDown.duration(400).springify()}>
-            <Text
-              style={{ color: theme.colors.text }}
-              className="text-3xl font-extrabold mb-2 text-center"
-            >
-              Crear cuenta
-            </Text>
-            <Text
-              style={{ color: theme.colors.muted }}
-              className="text-sm mb-8 text-center"
-            >
-              Completa todos los campos para registrar un nuevo usuario.
-            </Text>
-          </Animated.View>
-
-          {/* Campos de texto */}
-          {isTwoColumns ? (
-            <View className="flex-row gap-4">
-              <View className="flex-1">
-                {leftFields.map((item, i) => renderTextField(item, i, 0))}
-              </View>
-              <View className="flex-1">
-                {rightFields.map((item, i) =>
-                  renderTextField(item, i, leftFields.length),
-                )}
-              </View>
-            </View>
-          ) : (
-            leftFields.map((item, i) => renderTextField(item, i, 0))
-          )}
-
-          {/* Fecha de nacimiento */}
-          <Animated.View
-            entering={FadeInUp.delay(150 + textFields.length * 50)
-              .duration(400)
-              .springify()}
+        <View style={[styles.mainContainer, isDesktop && styles.desktopRow]}>
+          {/* Panel izquierdo */}
+          <View
+            style={[
+              styles.leftPanel,
+              { backgroundColor: theme.colors.card },
+              isDesktop && { width: "33%", maxWidth: 360 },
+            ]}
           >
-            <DatePickerField
-              label="Fecha de nacimiento"
-              value={form.fecha_nac || null}
-              onChange={(isoDate) => handleChange("fecha_nac")(isoDate)}
-              error={errors.fecha_nac as string | undefined}
-            />
-          </Animated.View>
-
-          {/* Género */}
-          <Animated.View
-            entering={FadeInUp.delay(200 + textFields.length * 50)
-              .duration(400)
-              .springify()}
-          >
-            <GenderSelector
-              value={form.genero}
-              onSelect={handleGenderSelect}
-              error={errors.genero as string | undefined}
-            />
-          </Animated.View>
-
-          {/* Roles */}
-          <Animated.View
-            entering={FadeInUp.delay(250 + textFields.length * 50)
-              .duration(400)
-              .springify()}
-          >
-            <RoleSelector
-              selected={form.roles}
-              onChange={(roles) => handleChange("roles")(roles as any)}
-              error={errors.roles as string | undefined}
-            />
-          </Animated.View>
-
-          {serverError && (
-            <Animated.View entering={FadeInUp.duration(200)}>
-              <Text
-                style={{ color: theme.colors.destructive }}
-                className="text-sm mb-4 text-center"
+            <View style={styles.header}>
+              <ThemedText
+                style={{ fontSize: 24, fontWeight: "700", marginBottom: 4 }}
               >
-                {serverError}
-              </Text>
-            </Animated.View>
-          )}
+                Alta de Usuario
+              </ThemedText>
+              <ThemedText
+                style={{ color: theme.colors.textSecondary, fontSize: 14 }}
+              >
+                Complete el formulario en 3 pasos.
+              </ThemedText>
+            </View>
 
-          <Animated.View
-            entering={FadeInUp.delay(300 + textFields.length * 50)
-              .duration(400)
-              .springify()}
-          >
-            <SubmitButton
-              title="Registrar usuario"
-              onPress={handleSubmit}
-              loading={submitting}
-              disabled={!canSubmit}
+            <StepIndicator
+              currentStep={step}
+              totalSteps={3}
+              labels={STEP_LABELS}
+              descriptions={STEP_DESCRIPTIONS}
+              horizontal={isMobile}
+              onStepPress={handleStepPress}
             />
-          </Animated.View>
+          </View>
 
-          <Animated.View
-            entering={FadeInUp.delay(350 + textFields.length * 50)
-              .duration(400)
-              .springify()}
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              marginTop: 24,
-            }}
+          {/* Panel derecho */}
+          <View
+            style={[
+              styles.rightPanel,
+              {
+                backgroundColor: theme.colors.card,
+                overflow: "hidden",
+                borderTopColor: theme.colors.border,
+              },
+              isDesktop && { flex: 1, marginLeft: 16 },
+            ]}
           >
-            <Text style={{ color: theme.colors.muted }}>
-              ¿Ya tienes cuenta?{" "}
-            </Text>
-            <Text
-              style={{ color: theme.colors.primary, fontWeight: "bold" }}
-              onPress={() => router.back()}
-            >
-              Inicia sesión
-            </Text>
-          </Animated.View>
+            <View style={{ flex: 1, position: "relative" }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ flex: 1 }}>{renderStepContent()}</View>
+              </ScrollView>
+
+              {!successData && (
+                <View
+                  style={[
+                    styles.navigation,
+                    { borderTopColor: theme.colors.border },
+                  ]}
+                >
+                  {!isFirstStep && (
+                    <MotiPressable
+                      onPress={goPrev}
+                      style={[
+                        styles.navButton,
+                        { backgroundColor: theme.colors.backgroundSecondary },
+                      ]}
+                    >
+                      <ChevronLeft size={18} color={theme.colors.text} />
+                      <ThemedText>Anterior</ThemedText>
+                    </MotiPressable>
+                  )}
+                  <View style={{ flex: 1 }} />
+                  <View style={{ flex: 1, alignItems: "flex-end" }}>
+                    {!isLastStep ? (
+                      <MotiPressable
+                        key="next"
+                        onPress={goNext}
+                        style={[
+                          styles.navButton,
+                          { backgroundColor: theme.colors.text, minWidth: 120 },
+                        ]}
+                      >
+                        <ThemedText
+                          style={{ color: theme.colors.primaryForeground }}
+                        >
+                          Siguiente
+                        </ThemedText>
+                        <ChevronRight
+                          size={18}
+                          color={theme.colors.primaryForeground}
+                        />
+                      </MotiPressable>
+                    ) : (
+                      <MotiPressable
+                        key="finish"
+                        onPress={handleSubmit}
+                        style={[
+                          styles.navButton,
+                          {
+                            backgroundColor: theme.colors.primary,
+                            opacity: submitting ? 0.7 : 1,
+                            minWidth: 120,
+                          },
+                        ]}
+                        disabled={submitting}
+                      >
+                        {submitting ? (
+                          <ThemedText
+                            style={{ color: theme.colors.primaryForeground }}
+                          >
+                            Registrando...
+                          </ThemedText>
+                        ) : (
+                          <>
+                            <ThemedText
+                              style={{ color: theme.colors.primaryForeground }}
+                            >
+                              Finalizar
+                            </ThemedText>
+                            <Check
+                              size={18}
+                              color={theme.colors.primaryForeground}
+                            />
+                          </>
+                        )}
+                      </MotiPressable>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {serverError && (
+                <ThemedText
+                  style={{
+                    color: theme.colors.destructive,
+                    textAlign: "center",
+                    marginTop: 12,
+                  }}
+                >
+                  {serverError}
+                </ThemedText>
+              )}
+            </View>
+          </View>
         </View>
-      </View>
+      </LinearGradient>
     </KeyboardAwareScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  gradient: { flex: 1 },
+  mainContainer: {
+    flex: 1,
+    padding: 24,
+  },
+  desktopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  leftPanel: {
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  rightPanel: {
+    borderRadius: 18,
+    padding: 16,
+    flex: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderTopWidth: 1,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  navigation: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 16,
+    borderTopWidth: 1,
+    marginTop: "auto",
+  },
+  navButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    gap: 6,
+    minWidth: 100,
+  },
+});
