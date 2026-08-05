@@ -267,7 +267,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           style={[styles.actionBtn, { backgroundColor: c.backgroundTertiary }]}
           onPress={handleDownloadQR}
         >
-          <Download size={16} color={c.primaryForeground} />
+          <Download size={16} color={c.text} />
           <Text style={{ color: c.text, marginLeft: 6 }}>Descargar</Text>
         </MotiPressable>
 
