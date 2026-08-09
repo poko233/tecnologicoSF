@@ -20,7 +20,7 @@ interface ArqueoTransaccionTableProps {
   showReceipt?: boolean;
   onPrintReceipt?: (
     idOriginal: number,
-    origen: "pago" | "ingreso" | "egreso",
+    origen: "pago" | "ingreso" | "egreso" | "venta",
   ) => void;
   showMenu?: boolean;
 }
@@ -328,7 +328,7 @@ export function ArqueoTransaccionTable({
         ListHeaderComponent={HeaderRow}
         ListFooterComponent={ListFooter}
         renderItem={({ item, index }) => {
-          let origen: "pago" | "ingreso" | "egreso" =
+          let origen: "pago" | "ingreso" | "egreso" | "venta" =
             (item as any).origen || (tipo === "EGRESO" ? "egreso" : "ingreso");
           if (tipo === "EGRESO") origen = "egreso";
 
@@ -336,7 +336,10 @@ export function ArqueoTransaccionTable({
           const idOriginal = (item as any).idOriginal || item.id;
 
           let showMenuForItem = showMenu;
-          if ((item as any).origen === "pago") {
+          if (
+            (item as any).origen === "pago" ||
+            (item as any).origen === "venta"
+          ) {
             showMenuForItem = false;
           }
 

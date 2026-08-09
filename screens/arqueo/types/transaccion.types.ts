@@ -28,7 +28,7 @@ export interface IngresoCombinado {
   monto: number;
   estado: "VALIDO" | "ANULADO";
   tipo: string;
-  origen: "pago" | "ingreso";
+  origen: "pago" | "ingreso" | "egreso" | "venta";
   idOriginal: number;
   usuario: string;
   comprobante: string | null;

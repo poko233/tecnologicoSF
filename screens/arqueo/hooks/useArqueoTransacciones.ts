@@ -1,3 +1,4 @@
+import { InventarioVenta } from "@/screens/ventas/types/venta.types";
 import { useCallback, useMemo, useRef, useState } from "react";
 import Toast from "react-native-toast-message";
 import { transaccionService } from "../services/transaccion.service";
@@ -13,6 +14,8 @@ const tipoMap: Record<string, string> = {
 export const useArqueoTransacciones = (
   arqueoId: number | null | undefined,
   pagos: Pago[] = [],
+  ventas: InventarioVenta[] = [],
+  cajeroUsername?: string | null,
 ) => {
   const [ingresos, setIngresos] = useState<Transaccion[]>([]);
   const [egresos, setEgresos] = useState<Transaccion[]>([]);
@@ -161,9 +164,7 @@ export const useArqueoTransacciones = (
         tipo: "Pago Estudiante",
         origen: "pago",
         idOriginal: pago.id,
-        usuario: pago.estudiante?.nombres
-          ? `${pago.estudiante.nombres} ${pago.estudiante.apellidoPaterno}`
-          : "Estudiante",
+        usuario: cajeroUsername || "Cajero",
         comprobante: pago.comprobante,
         detalle: pago.observacion || null,
         tipo_transaccion: concepto,
@@ -190,10 +191,34 @@ export const useArqueoTransacciones = (
       });
     });
 
+    ventas.forEach((venta) => {
+      if (venta.estado !== "PAGADO") return;
+      const monto = parseFloat(venta.total.toString()) || 0;
+      const concepto = "VENTA";
+      const realId = venta.idVenta || venta.id || 0;
+
+      list.push({
+        id: `venta-${realId}`,
+        fecha: venta.fechaVenta || venta.created_at || "",
+        fecha_registro: venta.fechaVenta || venta.created_at || "",
+        concepto,
+        metodo: venta.metodo_pago,
+        monto,
+        estado: "VALIDO",
+        tipo: "Venta",
+        origen: "venta",
+        idOriginal: realId,
+        usuario: cajeroUsername || "Cajero",
+        comprobante: null,
+        detalle: venta.observacion || null,
+        tipo_transaccion: concepto,
+      });
+    });
+
     return list.sort(
       (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
     );
-  }, [pagos, ingresos]);
+  }, [pagos, ingresos, ventas, cajeroUsername]);
 
   return {
     ingresos,

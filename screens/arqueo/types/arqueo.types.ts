@@ -1,4 +1,6 @@
 // types/arqueo.types.ts
+import { InventarioVenta } from "../../ventas/types/venta.types";
+
 export interface Conteo {
   billete_200: number;
   billete_100: number;
@@ -87,5 +89,5 @@ export interface Arqueo {
   pagos?: Pago[];
   ingresos?: Ingreso[];
   egresos?: Egreso[];
-  ventasInventario?: any[];
+  ventasInventario?: InventarioVenta[];
 }

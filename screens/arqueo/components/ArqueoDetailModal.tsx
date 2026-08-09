@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/ThemedText";
+import { InventarioVenta } from "@/screens/ventas/types/venta.types";
 import { getToken } from "@/storage/secureStorage";
 import { useTheme } from "@/theme/useTheme";
 import { formatDateTimeNatural } from "@/utils/dateHelpers";
@@ -19,7 +20,6 @@ import { useArqueoTransacciones } from "../hooks/useArqueoTransacciones";
 import { arqueoService } from "../services/arqueo.service";
 import { Arqueo, Egreso, Ingreso, Pago } from "../types/arqueo.types";
 import { ArqueoTransaccionTable } from "./ArqueoTransaccionTable";
-
 interface ArqueoDetailModalProps {
   visible: boolean;
   arqueoId: number;
@@ -43,13 +43,21 @@ export function ArqueoDetailModal({
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [egresos, setEgresos] = useState<Egreso[]>([]);
+  const [ventas, setVentas] = useState<InventarioVenta[]>([]);
+
+  const cajeroUsername =
+    arqueo && typeof arqueo.usuario === "string"
+      ? arqueo.usuario
+      : arqueo?.usuario && typeof arqueo.usuario !== "string"
+        ? arqueo.usuario.usuario
+        : "";
 
   const {
     ingresosCombinados,
     updateTransaccionEstado,
     updatingId,
     loadTransacciones,
-  } = useArqueoTransacciones(arqueoId, pagos);
+  } = useArqueoTransacciones(arqueoId, pagos, ventas, cajeroUsername);
 
   useEffect(() => {
     if (visible && arqueoId) {
@@ -67,6 +75,7 @@ export function ArqueoDetailModal({
       setPagos(data.pagos || []);
       setIngresos(data.ingresos || []);
       setEgresos(data.egresos || []);
+      setVentas(data.ventasInventario || []);
     } catch (err: any) {
       Toast.show({
         type: "error",
@@ -80,7 +89,7 @@ export function ArqueoDetailModal({
 
   const handlePrintReceipt = async (
     idOriginal: number,
-    origen: "pago" | "ingreso" | "egreso",
+    origen: "pago" | "ingreso" | "egreso" | "venta",
   ) => {
     try {
       const token = await getToken();
@@ -91,6 +100,8 @@ export function ArqueoDetailModal({
         url = `/api/ingresos/${idOriginal}/recibo?token=${token}`;
       else if (origen === "egreso")
         url = `/api/egresos/${idOriginal}/recibo?token=${token}`;
+      else if (origen === "venta")
+        url = `/api/ventas/${idOriginal}/recibo?token=${token}`;
       const fullUrl = `${process.env.EXPO_PUBLIC_API_URL}${url}`;
       window.open(fullUrl, "_blank");
     } catch (error) {

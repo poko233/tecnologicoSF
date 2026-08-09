@@ -165,7 +165,7 @@ export default function ArqueoScreen() {
 
   const handlePrintReceipt = async (
     idOriginal: number,
-    origen: "pago" | "ingreso" | "egreso",
+    origen: "pago" | "ingreso" | "egreso" | "venta",
   ) => {
     try {
       const token = await getToken();
@@ -176,6 +176,8 @@ export default function ArqueoScreen() {
         url = `/api/ingresos/${idOriginal}/recibo?token=${token}`;
       } else if (origen === "egreso") {
         url = `/api/egresos/${idOriginal}/recibo?token=${token}`;
+      } else if (origen === "venta") {
+        url = `/api/ventas/${idOriginal}/recibo?token=${token}`;
       }
       const fullUrl = `${process.env.EXPO_PUBLIC_API_URL}${url}`;
       window.open(fullUrl, "_blank");

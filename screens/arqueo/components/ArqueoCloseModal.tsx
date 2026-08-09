@@ -19,12 +19,12 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
+import { InventarioVenta } from "../../ventas/types/venta.types";
 import { useArqueo } from "../hooks/useArqueo";
 import { useArqueoTransacciones } from "../hooks/useArqueoTransacciones";
 import { arqueoService } from "../services/arqueo.service";
 import { Conteo, Egreso, Ingreso, Pago } from "../types/arqueo.types";
 import { ArqueoTransaccionTable } from "./ArqueoTransaccionTable";
-import { InventarioVenta } from "../../ventas/types/venta.types";
 
 interface ArqueoCloseModalProps {
   visible: boolean;
@@ -76,13 +76,18 @@ export default function ArqueoCloseModal({
   });
 
   const arqueo = activeArqueo?.id === arqueoId ? activeArqueo : null;
-
+  const cajeroUsername =
+    arqueo && typeof arqueo.usuario === "string"
+      ? arqueo.usuario
+      : arqueo?.usuario && typeof arqueo.usuario !== "string"
+        ? arqueo.usuario.usuario
+        : "";
   const {
     ingresosCombinados,
     updateTransaccionEstado,
     updatingId,
     loadTransacciones,
-  } = useArqueoTransacciones(arqueoId, pagos);
+  } = useArqueoTransacciones(arqueoId, pagos, ventas, cajeroUsername);
 
   useEffect(() => {
     if (visible && arqueoId) {
@@ -268,7 +273,7 @@ export default function ArqueoCloseModal({
 
   const handlePrintReceipt = async (
     idOriginal: number,
-    origen: "pago" | "ingreso" | "egreso",
+    origen: "pago" | "ingreso" | "egreso" | "venta",
   ) => {
     try {
       const token = await getToken();
@@ -279,6 +284,8 @@ export default function ArqueoCloseModal({
         url = `/api/ingresos/${idOriginal}/recibo?token=${token}`;
       else if (origen === "egreso")
         url = `/api/egresos/${idOriginal}/recibo?token=${token}`;
+      else if (origen === "venta")
+        url = `/api/ventas/${idOriginal}/recibo?token=${token}`;
       const fullUrl = `${process.env.EXPO_PUBLIC_API_URL}${url}`;
       window.open(fullUrl, "_blank");
     } catch (error) {
@@ -807,7 +814,12 @@ export default function ArqueoCloseModal({
                         color={theme.colors.primary}
                       />
                     ) : ventas.length === 0 ? (
-                      <ThemedText style={{ color: theme.colors.textSecondary, marginBottom: 16 }}>
+                      <ThemedText
+                        style={{
+                          color: theme.colors.textSecondary,
+                          marginBottom: 16,
+                        }}
+                      >
                         No hay ventas de productos
                       </ThemedText>
                     ) : (
@@ -896,7 +908,9 @@ export default function ArqueoCloseModal({
                                     ]}
                                   >
                                     {venta.fechaVenta
-                                      ? new Date(venta.fechaVenta).toLocaleDateString()
+                                      ? new Date(
+                                          venta.fechaVenta,
+                                        ).toLocaleDateString()
                                       : "-"}
                                   </ThemedText>
                                   <ThemedText
@@ -908,7 +922,7 @@ export default function ArqueoCloseModal({
                                     {venta.detalles
                                       ?.map(
                                         (d) =>
-                                          `${d.cantidad}x ${d.producto?.nombre || "Producto"}`
+                                          `${d.cantidad}x ${d.producto?.nombre || "Producto"}`,
                                       )
                                       .join(", ") || "-"}
                                   </ThemedText>
@@ -923,10 +937,16 @@ export default function ArqueoCloseModal({
                                   <ThemedText
                                     style={[
                                       styles.tableCell,
-                                      { color: theme.colors.text, fontWeight: "600" },
+                                      {
+                                        color: theme.colors.text,
+                                        fontWeight: "600",
+                                      },
                                     ]}
                                   >
-                                    {parseFloat(venta.total.toString()).toFixed(2)} Bs
+                                    {parseFloat(venta.total.toString()).toFixed(
+                                      2,
+                                    )}{" "}
+                                    Bs
                                   </ThemedText>
                                 </View>
                               ))}

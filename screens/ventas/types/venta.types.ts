@@ -1,6 +1,6 @@
-export type MetodoPago = 'EFECTIVO' | 'TARJETA' | 'QR' | 'TRANSFERENCIA';
+export type MetodoPago = "EFECTIVO" | "TARJETA" | "QR" | "TRANSFERENCIA";
 
-export type EstadoVenta = 'PENDIENTE' | 'PAGADO' | 'CANCELADO' | 'ENTREGADO';
+export type EstadoVenta = "PENDIENTE" | "PAGADO" | "CANCELADO" | "ENTREGADO";
 
 export interface InventarioVentaDetalle {
   idDetalleVenta?: number;
@@ -22,11 +22,11 @@ export interface InventarioVentaDetalle {
       idCategoria: number;
       nombre: string;
     };
-    imagenes?: Array<{
+    imagenes?: {
       idImagen: number;
       urlFoto: string;
       esPrincipal: boolean;
-    }>;
+    }[];
   };
 }
 
@@ -77,11 +77,11 @@ export interface VentaFormData {
   idUsuario?: number;
   metodo_pago: MetodoPago;
   observacion?: string;
-  detalles: Array<{
+  detalles: {
     idProducto: number;
     cantidad: number;
     precioUnitario?: number;
-  }>;
+  }[];
 }
 
 export interface VentaResumen {
