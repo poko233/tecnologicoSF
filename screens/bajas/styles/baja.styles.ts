@@ -1,0 +1,440 @@
+import { StyleSheet } from "react-native";
+
+function color(colors: any, key: string, fallback: string) {
+  return colors?.[key] ?? fallback;
+}
+
+export function createBajaStyles(
+  colors: any,
+  isMobile = false,
+  isCompact = false,
+) {
+  const background = color(colors, "background", "#F8FAFC");
+  const backgroundSecondary = color(colors, "backgroundSecondary", "#F1F5F9");
+  const card = color(colors, "card", "#FFFFFF");
+  const input = color(colors, "input", background);
+  const inputBorder = color(colors, "inputBorder", color(colors, "border", "#CBD5E1"));
+  const border = color(colors, "border", "#E2E8F0");
+  const text = color(colors, "text", "#0F172A");
+  const textSecondary = color(colors, "textSecondary", "#475569");
+  const textMuted = color(colors, "textMuted", color(colors, "mutedForeground", "#64748B"));
+  const primary = color(colors, "primary", "#7C3AED");
+  const primaryForeground = color(colors, "primaryForeground", "#FFFFFF");
+  const destructive = color(colors, "destructive", "#DC2626");
+  const success = color(colors, "success", "#16A34A");
+  const warning = color(colors, "warning", "#D97706");
+
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: background,
+    },
+    content: {
+      flexGrow: 1,
+      padding: isMobile ? 12 : 20,
+      gap: 16,
+      backgroundColor: background,
+    },
+    hero: {
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: card,
+      padding: isMobile ? 16 : 22,
+      gap: 16,
+      shadowColor: "#000000",
+      shadowOpacity: 0.08,
+      shadowRadius: 16,
+      elevation: 3,
+    },
+    heroTop: {
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: isMobile ? "stretch" : "center",
+      justifyContent: "space-between",
+      gap: 16,
+    },
+    heroTitleRow: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+    },
+    heroIcon: {
+      width: 58,
+      height: 58,
+      borderRadius: 19,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${destructive}18`,
+      borderWidth: 1,
+      borderColor: `${destructive}44`,
+    },
+    heroTextBox: {
+      flex: 1,
+      minWidth: 0,
+    },
+    kicker: {
+      color: destructive,
+      fontSize: 11,
+      fontWeight: "900",
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+    },
+    heroTitle: {
+      marginTop: 4,
+      color: text,
+      fontSize: isMobile ? 23 : 30,
+      lineHeight: isMobile ? 29 : 37,
+      fontWeight: "900",
+    },
+    heroSubtitle: {
+      marginTop: 5,
+      color: textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+      fontWeight: "700",
+      maxWidth: 850,
+    },
+    heroActions: {
+      width: isMobile ? "100%" : undefined,
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: isMobile ? "stretch" : "center",
+      gap: 10,
+    },
+    tabs: {
+      flexDirection: "row",
+      backgroundColor: backgroundSecondary,
+      borderRadius: 17,
+      padding: 4,
+      gap: 4,
+    },
+    tab: {
+      flex: 1,
+      minHeight: 46,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 9,
+    },
+    tabActive: {
+      backgroundColor: card,
+      borderWidth: 1,
+      borderColor: border,
+    },
+    tabText: {
+      fontSize: 13,
+      fontWeight: "900",
+      color: textMuted,
+    },
+    tabTextActive: {
+      color: text,
+    },
+    panelContainer: {
+      flex: 1,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: card,
+      overflow: "hidden",
+    },
+    dosColumnasContainer: {
+      flex: 1,
+      flexDirection: isMobile ? "column" : "row",
+    },
+    productosColumn: {
+      flex: isMobile ? undefined : 1,
+      borderRightWidth: isMobile ? 0 : 1,
+      borderBottomWidth: isMobile ? 1 : 0,
+      borderColor: border,
+      backgroundColor: card,
+      minHeight: isMobile ? 300 : undefined,
+    },
+    detalleColumn: {
+      width: isMobile ? "100%" : isCompact ? 380 : 450,
+      backgroundColor: backgroundSecondary,
+    },
+    columnTitle: {
+      fontSize: 16,
+      fontWeight: "900",
+      color: text,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderColor: border,
+      backgroundColor: card,
+    },
+    filtros: {
+      padding: 16,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderColor: border,
+    },
+    buscadorContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: input,
+      borderWidth: 1,
+      borderColor: inputBorder,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      gap: 10,
+      minHeight: 46,
+    },
+    buscadorInput: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: "600",
+      paddingVertical: 10,
+    },
+    pickerContainer: {
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: inputBorder,
+      overflow: "hidden",
+    },
+    picker: {
+      minHeight: 46,
+    },
+    productosLista: {
+      padding: 16,
+      gap: 12,
+    },
+    productoCard: {
+      flexDirection: "row",
+      backgroundColor: card,
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: 14,
+      padding: isMobile ? 10 : 12,
+      gap: isMobile ? 10 : 12,
+      alignItems: "center",
+    },
+    productoImagen: {
+      width: isMobile ? 56 : 60,
+      height: isMobile ? 56 : 60,
+      borderRadius: 10,
+      backgroundColor: backgroundSecondary,
+    },
+    productoImagenPlaceholder: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    productoInfo: {
+      flex: 1,
+      gap: 4,
+    },
+    productoNombre: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: text,
+    },
+    productoCodigo: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: textMuted,
+    },
+    productoFooter: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 4,
+    },
+    productoPrecio: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: primary,
+    },
+    productoStock: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: textSecondary,
+    },
+    addButton: {
+      width: isMobile ? 40 : 44,
+      height: isMobile ? 40 : 44,
+      borderRadius: 12,
+      backgroundColor: primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    tablaContainer: {
+      flex: 1,
+      backgroundColor: card,
+    },
+    tablaScroll: {
+      padding: 16,
+    },
+    tablaHeader: {
+      flexDirection: "row",
+      borderBottomWidth: 2,
+      borderColor: border,
+      paddingBottom: 10,
+      gap: 8,
+    },
+    tablaHeaderCell: {
+      fontSize: 11,
+      fontWeight: "900",
+      color: textMuted,
+      textTransform: "uppercase",
+    },
+    tablaFila: {
+      flexDirection: isMobile ? "column" : "row",
+      borderBottomWidth: 1,
+      borderColor: border,
+      paddingVertical: isMobile ? 14 : 12,
+      paddingHorizontal: isMobile ? 12 : 0,
+      gap: isMobile ? 12 : 8,
+      alignItems: isMobile ? "stretch" : "center",
+    },
+    tablaCell: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: text,
+    },
+    detallePanel: {
+      padding: 20,
+      gap: 20,
+    },
+    detalleTitulo: {
+      fontSize: 18,
+      fontWeight: "900",
+      color: text,
+    },
+    detalleSeccion: {
+      gap: 12,
+    },
+    detalleLabel: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: textMuted,
+      textTransform: "uppercase",
+      marginBottom: 6,
+    },
+    detalleInput: {
+      backgroundColor: input,
+      borderWidth: 1,
+      borderColor: inputBorder,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      fontWeight: "600",
+      color: text,
+      minHeight: 46,
+    },
+    detalleTextArea: {
+      minHeight: 100,
+      textAlignVertical: "top",
+    },
+    detalleInfoRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 8,
+    },
+    detalleInfoLabel: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: textSecondary,
+    },
+    detalleInfoValue: {
+      fontSize: 15,
+      fontWeight: "900",
+      color: text,
+    },
+    detalleTotalRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingTop: 16,
+      borderTopWidth: 2,
+      borderColor: border,
+    },
+    detalleTotalLabel: {
+      fontSize: 16,
+      fontWeight: "900",
+      color: text,
+    },
+    detalleTotalValue: {
+      fontSize: 24,
+      fontWeight: "900",
+      color: destructive,
+    },
+    primaryButton: {
+      minHeight: 52,
+      borderRadius: 14,
+      backgroundColor: destructive,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 8,
+    },
+    primaryButtonDisabled: {
+      opacity: 0.5,
+    },
+    primaryButtonText: {
+      fontSize: 15,
+      fontWeight: "900",
+      color: primaryForeground,
+    },
+    loadingContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 40,
+    },
+    emptyContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 40,
+      gap: 12,
+    },
+    emptyText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: textMuted,
+      textAlign: "center",
+    },
+    cantidadInput: {
+      backgroundColor: input,
+      borderWidth: 1,
+      borderColor: inputBorder,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      fontSize: 14,
+      fontWeight: "700",
+      color: text,
+      textAlign: "center",
+      minWidth: 60,
+    },
+    deleteButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: `${destructive}15`,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    productoCategoria: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: textMuted,
+      marginTop: 2,
+    },
+    productosFooter: {
+      padding: 12,
+      borderTopWidth: 1,
+      borderColor: border,
+      backgroundColor: backgroundSecondary,
+    },
+    productosCount: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: textSecondary,
+      textAlign: "center",
+    },
+  });
+}

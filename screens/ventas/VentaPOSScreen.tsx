@@ -54,7 +54,7 @@ export default function VentaPOSScreen() {
         p.codigoBarras?.toLowerCase().includes(busqueda.toLowerCase());
 
       const matchCategoria =
-        !categoriaFiltro || p.idCategoria === categoriaFiltro;
+        categoriaFiltro === null || p.idCategoria === categoriaFiltro;
 
       const activo = p.estado === 'ACTIVO';
       const conStock = p.stock > 0;

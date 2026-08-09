@@ -101,26 +101,31 @@ export const ProductosDisponibles: React.FC<ProductosDisponiblesProps> = ({
           ]}
         >
           <Picker
-            selectedValue={categoriaFiltro}
-            onValueChange={(value) => setCategoriaFiltro(value)}
+            selectedValue={categoriaFiltro === null ? 0 : categoriaFiltro}
+            onValueChange={(value: number | string | null) => {
+              // Convertir 0 a null para "Todas las categorías"
+              const valorNumerico = typeof value === 'string' ? parseInt(value) : value;
+              const valorFiltro = valorNumerico === 0 || valorNumerico === null ? null : Number(valorNumerico);
+              setCategoriaFiltro(valorFiltro);
+            }}
             style={[
               styles.picker,
-              { color: colors.text, backgroundColor: colors.input },  
+              { color: colors.text, backgroundColor: colors.input },
             ]}
             dropdownIconColor={colors.text}
-            mode="dropdown" 
+            mode="dropdown"
           >
             <Picker.Item
               label="Todas las categorías"
-              value={null}
-              color={colors.text} 
+              value={0}
+              color={colors.text}
             />
             {categorias.map((cat) => (
               <Picker.Item
                 key={cat.idCategoria}
                 label={cat.nombre}
                 value={cat.idCategoria}
-                color={colors.text} 
+                color={colors.text}
               />
             ))}
           </Picker>
