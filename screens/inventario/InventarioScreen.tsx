@@ -1,42 +1,46 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    View,
-    useWindowDimensions,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 import { ThemedText } from "../../components/ThemedText";
 import { useTheme } from "../../theme/useTheme";
+
 import CategoriaFormModal from "./components/CategoriaFormModal";
 import CategoriasPanel from "./components/CategoriasPanel";
-import ConfirmarAccionModal from "./components/ConfirmarAccionModal";
 import InventarioResumen from "./components/InventarioResumen";
 import InventarioTabs from "./components/InventarioTabs";
 import ProductoFormModal from "./components/ProductoFormModal";
 import ProductoImagenesModal from "./components/ProductoImagenesModal";
 import ProductosPanel from "./components/ProductosPanel";
+
 import { useInventario } from "./hooks/useInventario";
 import { createInventarioStyles } from "./styles/inventario.styles";
-import {
-    InventarioCategoria,
-    InventarioProducto,
-    TabInventario,
-} from "./types/inventario.types";
 
-type Confirmacion =
-  | { tipo: "producto"; producto: InventarioProducto }
-  | { tipo: "categoria"; categoria: InventarioCategoria }
-  | null;
+import {
+  InventarioCategoria,
+  InventarioProducto,
+  TabInventario,
+} from "./types/inventario.types";
 
 export default function InventarioScreen() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
+
   const isMobile = width < 760;
+
   const styles = useMemo(
-    () => createInventarioStyles(theme.colors, isMobile, width < 1120),
+    () =>
+      createInventarioStyles(
+        theme.colors,
+        isMobile,
+        width < 1120,
+      ),
     [theme.colors, isMobile, width],
   );
 
@@ -44,33 +48,52 @@ export default function InventarioScreen() {
     productos,
     categorias,
     resumen,
+
     loading,
     guardandoProducto,
     guardandoCategoria,
     procesandoAccion,
     procesandoImagen,
+
     cargarInventario,
     guardarProducto,
     cambiarEstadoProducto,
-    eliminarProducto,
+
     guardarCategoria,
     cambiarEstadoCategoria,
-    eliminarCategoria,
+
     subirImagen,
     marcarImagenPrincipal,
     eliminarImagen,
   } = useInventario();
 
-  const [tab, setTab] = useState<TabInventario>("productos");
-  const [productoFormVisible, setProductoFormVisible] = useState(false);
-  const [productoEditando, setProductoEditando] =
-    useState<InventarioProducto | null>(null);
-  const [productoImagenes, setProductoImagenes] =
-    useState<InventarioProducto | null>(null);
-  const [categoriaFormVisible, setCategoriaFormVisible] = useState(false);
-  const [categoriaEditando, setCategoriaEditando] =
-    useState<InventarioCategoria | null>(null);
-  const [confirmacion, setConfirmacion] = useState<Confirmacion>(null);
+  const [tab, setTab] =
+    useState<TabInventario>("productos");
+
+  const [
+    productoFormVisible,
+    setProductoFormVisible,
+  ] = useState(false);
+
+  const [
+    productoEditando,
+    setProductoEditando,
+  ] = useState<InventarioProducto | null>(null);
+
+  const [
+    productoImagenes,
+    setProductoImagenes,
+  ] = useState<InventarioProducto | null>(null);
+
+  const [
+    categoriaFormVisible,
+    setCategoriaFormVisible,
+  ] = useState(false);
+
+  const [
+    categoriaEditando,
+    setCategoriaEditando,
+  ] = useState<InventarioCategoria | null>(null);
 
   const abrirNuevo = () => {
     if (tab === "productos") {
@@ -78,29 +101,10 @@ export default function InventarioScreen() {
       setProductoFormVisible(true);
       return;
     }
+
     setCategoriaEditando(null);
     setCategoriaFormVisible(true);
   };
-
-  const confirmarEliminacion = async () => {
-    if (!confirmacion) return;
-    const ok =
-      confirmacion.tipo === "producto"
-        ? await eliminarProducto(confirmacion.producto)
-        : await eliminarCategoria(confirmacion.categoria);
-    if (ok) setConfirmacion(null);
-  };
-
-  const confirmTitle =
-    confirmacion?.tipo === "producto"
-      ? "¿Eliminar este producto?"
-      : "¿Eliminar esta categoría?";
-  const confirmMessage =
-    confirmacion?.tipo === "producto"
-      ? `Se eliminará “${confirmacion.producto.nombre}” y sus imágenes. Si ya tiene ventas registradas, el servidor impedirá la eliminación para proteger el historial.`
-      : confirmacion?.tipo === "categoria"
-        ? `Se eliminará “${confirmacion.categoria.nombre}”. No podrá eliminarse mientras tenga productos asociados.`
-        : "";
 
   return (
     <View style={styles.screen}>
@@ -110,7 +114,9 @@ export default function InventarioScreen() {
         refreshControl={
           <RefreshControl
             refreshing={loading}
-            onRefresh={() => void cargarInventario(true)}
+            onRefresh={() =>
+              void cargarInventario(true)
+            }
             tintColor={theme.colors.primary}
           />
         }
@@ -119,13 +125,27 @@ export default function InventarioScreen() {
           <View style={styles.heroTop}>
             <View style={styles.heroTitleRow}>
               <View style={styles.heroIcon}>
-                <Ionicons name="cube-outline" size={29} color={theme.colors.primary} />
+                <Ionicons
+                  name="cube-outline"
+                  size={29}
+                  color={theme.colors.primary}
+                />
               </View>
+
               <View style={styles.heroTextBox}>
-                <ThemedText style={styles.kicker}>Administración</ThemedText>
-                <ThemedText style={styles.heroTitle}>Inventario de productos</ThemedText>
+                <ThemedText style={styles.kicker}>
+                  Administración
+                </ThemedText>
+
+                <ThemedText style={styles.heroTitle}>
+                  Registro de productos
+                </ThemedText>
+
                 <ThemedText style={styles.heroSubtitle}>
-                  Administra productos, categorías, precios, imágenes, stock actual y stock mínimo. La estructura queda preparada para enlazar futuras compras con estudiantes.
+                  Registra y organiza los productos,
+                  sus categorías, precios e imágenes
+                  para mantener actualizado el catálogo
+                  institucional.
                 </ThemedText>
               </View>
             </View>
@@ -133,20 +153,49 @@ export default function InventarioScreen() {
             <View style={styles.heroActions}>
               <Pressable
                 disabled={loading}
-                onPress={() => void cargarInventario(true)}
-                style={[styles.secondaryButton, loading && styles.disabled]}
+                onPress={() =>
+                  void cargarInventario(true)
+                }
+                style={[
+                  styles.secondaryButton,
+                  loading && styles.disabled,
+                ]}
               >
-                <Ionicons name="refresh-outline" size={18} color={theme.colors.text} />
-                <ThemedText style={styles.secondaryButtonText}>Actualizar</ThemedText>
-              </Pressable>
-              <Pressable onPress={abrirNuevo} style={styles.primaryButton}>
                 <Ionicons
-                  name={tab === "productos" ? "add-circle-outline" : "pricetag-outline"}
-                  size={19}
-                  color={theme.colors.primaryForeground}
+                  name="refresh-outline"
+                  size={18}
+                  color={theme.colors.text}
                 />
-                <ThemedText style={styles.primaryButtonText}>
-                  {tab === "productos" ? "Nuevo producto" : "Nueva categoría"}
+
+                <ThemedText
+                  style={styles.secondaryButtonText}
+                >
+                  Actualizar
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                onPress={abrirNuevo}
+                style={styles.primaryButton}
+              >
+                <Ionicons
+                  name={
+                    tab === "productos"
+                      ? "add-circle-outline"
+                      : "pricetag-outline"
+                  }
+                  size={19}
+                  color={
+                    theme.colors.primaryForeground
+                  }
+                />
+
+                <ThemedText
+                  style={styles.primaryButtonText}
+                >
+                  {tab === "productos"
+                    ? "Nuevo producto"
+                    : "Nueva categoría"}
                 </ThemedText>
               </Pressable>
             </View>
@@ -159,7 +208,12 @@ export default function InventarioScreen() {
           styles={styles}
           colors={theme.colors}
         />
-        <InventarioResumen resumen={resumen} styles={styles} colors={theme.colors} />
+
+        <InventarioResumen
+          resumen={resumen}
+          styles={styles}
+          colors={theme.colors}
+        />
 
         {tab === "productos" ? (
           <ProductosPanel
@@ -174,8 +228,9 @@ export default function InventarioScreen() {
               setProductoFormVisible(true);
             }}
             onImagenes={setProductoImagenes}
-            onCambiarEstado={(producto) => void cambiarEstadoProducto(producto)}
-            onEliminar={(producto) => setConfirmacion({ tipo: "producto", producto })}
+            onCambiarEstado={(producto) =>
+              void cambiarEstadoProducto(producto)
+            }
           />
         ) : (
           <CategoriasPanel
@@ -188,9 +243,8 @@ export default function InventarioScreen() {
               setCategoriaEditando(categoria);
               setCategoriaFormVisible(true);
             }}
-            onCambiarEstado={(categoria) => void cambiarEstadoCategoria(categoria)}
-            onEliminar={(categoria) =>
-              setConfirmacion({ tipo: "categoria", categoria })
+            onCambiarEstado={(categoria) =>
+              void cambiarEstadoCategoria(categoria)
             }
           />
         )}
@@ -203,6 +257,7 @@ export default function InventarioScreen() {
         guardando={guardandoProducto}
         onClose={() => {
           if (guardandoProducto) return;
+
           setProductoFormVisible(false);
           setProductoEditando(null);
         }}
@@ -214,7 +269,9 @@ export default function InventarioScreen() {
         producto={productoImagenes}
         procesando={procesandoImagen}
         onClose={() => {
-          if (!procesandoImagen) setProductoImagenes(null);
+          if (!procesandoImagen) {
+            setProductoImagenes(null);
+          }
         }}
         onSubir={subirImagen}
         onPrincipal={marcarImagenPrincipal}
@@ -227,22 +284,11 @@ export default function InventarioScreen() {
         guardando={guardandoCategoria}
         onClose={() => {
           if (guardandoCategoria) return;
+
           setCategoriaFormVisible(false);
           setCategoriaEditando(null);
         }}
         onSave={guardarCategoria}
-      />
-
-      <ConfirmarAccionModal
-        visible={!!confirmacion}
-        title={confirmTitle}
-        message={confirmMessage}
-        confirmLabel="Sí, eliminar"
-        procesando={procesandoAccion}
-        onClose={() => {
-          if (!procesandoAccion) setConfirmacion(null);
-        }}
-        onConfirm={confirmarEliminacion}
       />
     </View>
   );
