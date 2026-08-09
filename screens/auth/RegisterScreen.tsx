@@ -88,7 +88,6 @@ export default function RegisterScreen() {
     );
   };
 
-  // ✅ Maneja clics hacia adelante y hacia atrás
   const handleStepPress = (targetStep: number) => {
     if (targetStep === step) return;
     if (targetStep < step) {
@@ -128,7 +127,12 @@ export default function RegisterScreen() {
           >
             <View style={styles.header}>
               <ThemedText
-                style={{ fontSize: 24, fontWeight: "700", marginBottom: 4 }}
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: 24,
+                  fontWeight: "700",
+                  marginBottom: 4,
+                }}
               >
                 Alta de Usuario
               </ThemedText>
@@ -185,8 +189,13 @@ export default function RegisterScreen() {
                         { backgroundColor: theme.colors.backgroundSecondary },
                       ]}
                     >
-                      <ChevronLeft size={18} color={theme.colors.text} />
-                      <ThemedText>Anterior</ThemedText>
+                      <ChevronLeft
+                        size={18}
+                        color={theme.colors.textSecondary}
+                      />
+                      <ThemedText style={{ color: theme.colors.textSecondary }}>
+                        Anterior
+                      </ThemedText>
                     </MotiPressable>
                   )}
                   <View style={{ flex: 1 }} />
@@ -197,7 +206,10 @@ export default function RegisterScreen() {
                         onPress={goNext}
                         style={[
                           styles.navButton,
-                          { backgroundColor: theme.colors.text, minWidth: 120 },
+                          {
+                            backgroundColor: theme.colors.primary,
+                            minWidth: 120,
+                          },
                         ]}
                       >
                         <ThemedText

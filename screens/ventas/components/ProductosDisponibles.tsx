@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Picker } from "@react-native-picker/picker";
 import React from "react";
-import { View, TextInput, FlatList, Pressable, Image, ActivityIndicator } from "react-native";
+import { ActivityIndicator, FlatList, Image, Pressable, TextInput, View } from "react-native";
 import { ThemedText } from "../../../components/ThemedText";
 import { Colors } from "../../../theme/types";
-import { InventarioProducto, InventarioCategoria } from "../../inventario/types/inventario.types";
-import { Picker } from "@react-native-picker/picker";
+import { InventarioCategoria, InventarioProducto } from "../../inventario/types/inventario.types";
 
 interface ProductosDisponiblesProps {
   productos: InventarioProducto[];
@@ -94,19 +94,33 @@ export const ProductosDisponibles: React.FC<ProductosDisponiblesProps> = ({
           />
         </View>
 
-        <View style={[styles.pickerContainer, { borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.pickerContainer,
+            { borderColor: colors.border, backgroundColor: colors.input }, 
+          ]}
+        >
           <Picker
             selectedValue={categoriaFiltro}
             onValueChange={(value) => setCategoriaFiltro(value)}
-            style={[styles.picker, { color: colors.text }]}
+            style={[
+              styles.picker,
+              { color: colors.text, backgroundColor: colors.input },  
+            ]}
             dropdownIconColor={colors.text}
+            mode="dropdown" 
           >
-            <Picker.Item label="Todas las categorías" value={null} />
+            <Picker.Item
+              label="Todas las categorías"
+              value={null}
+              color={colors.text} 
+            />
             {categorias.map((cat) => (
               <Picker.Item
                 key={cat.idCategoria}
                 label={cat.nombre}
                 value={cat.idCategoria}
+                color={colors.text} 
               />
             ))}
           </Picker>

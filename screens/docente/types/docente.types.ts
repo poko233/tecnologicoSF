@@ -114,7 +114,7 @@ export const EXPEDIDOS: { label: string; value: Expedido }[] = [
   { label: "Beni", value: "BN" },
   { label: "Pando", value: "PD" },
   { label: "Chuquisaca", value: "CH" },
-  { label: "Quillacollo", value: "QR" },
+  { label: "QR", value: "QR" },
   { label: "Exterior", value: "EXT" },
 ];
 
