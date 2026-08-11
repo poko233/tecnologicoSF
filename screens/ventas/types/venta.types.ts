@@ -40,6 +40,15 @@ export interface InventarioVenta {
   estado: EstadoVenta;
   fechaVenta?: string;
   observacion?: string;
+  // Campos de anulación
+  motivoAnulacion?: string;
+  observacionAnulacion?: string;
+  fechaAnulacion?: string;
+  anuladoPor?: number;
+  // Accessors computados
+  estaAnulada?: boolean;
+  puedeAnularse?: boolean;
+  // Relaciones
   detalles: InventarioVentaDetalle[];
   usuario?: {
     id: number;
@@ -53,10 +62,17 @@ export interface InventarioVenta {
     apellidoPaterno?: string;
     apellidoMaterno?: string;
   };
+  anuladoPorUsuario?: {
+    id: number;
+    nombres: string;
+    apellidoPaterno?: string;
+    apellidoMaterno?: string;
+  };
   arqueo?: {
     id: number;
     turno: string;
     estado: string;
+    fecha_apertura?: string;
   };
   created_at?: string;
   updated_at?: string;
@@ -90,3 +106,40 @@ export interface VentaResumen {
   impuesto: number;
   total: number;
 }
+
+export interface FiltrosVenta {
+  search?: string;
+  estado?: EstadoVenta;
+  metodo_pago?: MetodoPago;
+  fecha_from?: string; // Formato YYYY-MM-DD (alias para fecha_inicio)
+  fecha_to?: string; // Formato YYYY-MM-DD (alias para fecha_fin)
+  arqueo_id?: number;
+  mes?: number; // Mes (1-12)
+  anio?: number; // Año (YYYY)
+}
+
+export interface AnularVentaRequest {
+  motivo: string;
+  observacion?: string;
+}
+
+export interface VentasListResponse {
+  data: {
+    data: InventarioVenta[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number;
+    to: number;
+  };
+  message: string;
+}
+
+export interface AnularVentaResponse {
+  success: boolean;
+  data?: InventarioVenta;
+  message: string;
+}
+
+export type TabVenta = "nueva" | "listado";

@@ -9,9 +9,11 @@ import { useArqueo } from "../arqueo/hooks/useArqueo";
 import ArqueoOpenModal from "../arqueo/components/ArqueoOpenModal";
 import { useInventario } from "../inventario/hooks/useInventario";
 import { useVentas } from "./hooks/useVentas";
-import { CarritoItem, MetodoPago } from "./types/venta.types";
+import { CarritoItem, MetodoPago, TabVenta } from "./types/venta.types";
 import { ProductosDisponibles } from "./components/ProductosDisponibles";
 import { VentaActual } from "./components/VentaActual";
+import { VentaTabs } from "./components/VentaTabs";
+import { ListadoVentasPanel } from "./components/ListadoVentasPanel";
 import { createVentaPOSStyles } from "./styles/ventapos.styles";
 
 export default function VentaPOSScreen() {
@@ -27,6 +29,7 @@ export default function VentaPOSScreen() {
   );
 
   const [arqueoModalVisible, setArqueoModalVisible] = useState(false);
+  const [tabActiva, setTabActiva] = useState<TabVenta>('nueva');
   const [carrito, setCarrito] = useState<CarritoItem[]>([]);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('EFECTIVO');
   const [observacion, setObservacion] = useState('');
@@ -220,41 +223,54 @@ export default function VentaPOSScreen() {
             )}
           </View>
         </View>
-        <Pressable onPress={limpiarCarrito} style={styles.clearButton}>
-          <Ionicons name="trash-outline" size={20} color={theme.colors.destructive} />
-          <ThemedText style={styles.clearButtonText}>Limpiar</ThemedText>
-        </Pressable>
+        {tabActiva === 'nueva' && (
+          <Pressable onPress={limpiarCarrito} style={styles.clearButton}>
+            <Ionicons name="trash-outline" size={20} color={theme.colors.destructive} />
+            <ThemedText style={styles.clearButtonText}>Limpiar</ThemedText>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Tabs */}
+      <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}>
+        <VentaTabs value={tabActiva} onChange={setTabActiva} colors={theme.colors} />
       </View>
 
       {/* Contenido principal */}
       <View style={styles.content}>
-        <ProductosDisponibles
-          productos={productosFiltrados}
-          categorias={categorias}
-          loading={loadingInventario}
-          busqueda={busqueda}
-          setBusqueda={setBusqueda}
-          categoriaFiltro={categoriaFiltro}
-          setCategoriaFiltro={setCategoriaFiltro}
-          onAgregarProducto={agregarAlCarrito}
-          styles={styles}
-          colors={theme.colors}
-        />
+        {tabActiva === 'nueva' ? (
+          <>
+            <ProductosDisponibles
+              productos={productosFiltrados}
+              categorias={categorias}
+              loading={loadingInventario}
+              busqueda={busqueda}
+              setBusqueda={setBusqueda}
+              categoriaFiltro={categoriaFiltro}
+              setCategoriaFiltro={setCategoriaFiltro}
+              onAgregarProducto={agregarAlCarrito}
+              styles={styles}
+              colors={theme.colors}
+            />
 
-        <VentaActual
-          carrito={carrito}
-          resumen={resumen}
-          metodoPago={metodoPago}
-          setMetodoPago={setMetodoPago}
-          observacion={observacion}
-          setObservacion={setObservacion}
-          onActualizarCantidad={actualizarCantidad}
-          onEliminarProducto={eliminarDelCarrito}
-          onFinalizarVenta={finalizarVenta}
-          guardando={guardando}
-          styles={styles}
-          colors={theme.colors}
-        />
+            <VentaActual
+              carrito={carrito}
+              resumen={resumen}
+              metodoPago={metodoPago}
+              setMetodoPago={setMetodoPago}
+              observacion={observacion}
+              setObservacion={setObservacion}
+              onActualizarCantidad={actualizarCantidad}
+              onEliminarProducto={eliminarDelCarrito}
+              onFinalizarVenta={finalizarVenta}
+              guardando={guardando}
+              styles={styles}
+              colors={theme.colors}
+            />
+          </>
+        ) : (
+          <ListadoVentasPanel colors={theme.colors} />
+        )}
       </View>
 
       {/* Modal para abrir arqueo */}
