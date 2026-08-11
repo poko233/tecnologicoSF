@@ -1,10 +1,21 @@
 import * as FileSystemNS from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { Platform } from "react-native";
 
-import { BASE_URL, httpClient } from "../../../http/httpClient";
-import { getToken } from "../../../storage/secureStorage";
 import {
+  Platform,
+} from "react-native";
+
+import {
+  BASE_URL,
+  httpClient,
+} from "../../../http/httpClient";
+
+import {
+  getToken,
+} from "../../../storage/secureStorage";
+
+import {
+  CategoriasIngresoResponse,
   GuardarIngresoProductoResponse,
   IngresoProductoPayload,
   IngresosProductoResponse,
@@ -25,13 +36,126 @@ export async function obtenerProductosParaIngreso() {
   );
 }
 
+export async function obtenerCategoriasParaIngreso() {
+  return httpClient.getAuth<CategoriasIngresoResponse>(
+    "/api/inventario/categorias?estado=ACTIVO",
+    "No se pudieron cargar las categorías del inventario",
+  );
+}
+
 export async function guardarIngresoProducto(
   payload: IngresoProductoPayload,
 ) {
-  return httpClient.postAuth<GuardarIngresoProductoResponse>(
+  return httpClient.postAuth<
+    GuardarIngresoProductoResponse
+  >(
     "/api/inventario/ingresos",
     payload,
   );
+}
+
+export type VentanaPrevisualizacionRecibo = {
+  closed: boolean;
+
+  opener: unknown;
+
+  document: {
+    title: string;
+
+    body: {
+      innerHTML: string;
+    };
+  };
+
+  location: {
+    replace: (url: string) => void;
+  };
+
+  close: () => void;
+} | null;
+
+/**
+ * Debe ejecutarse directamente desde el clic del usuario,
+ * antes de comenzar el POST.
+ *
+ * De esta forma Chrome no bloquea la vista previa como
+ * ventana emergente.
+ */
+export function prepararVentanaPrevisualizacionRecibo():
+  VentanaPrevisualizacionRecibo {
+  if (
+    Platform.OS !== "web" ||
+    typeof window === "undefined"
+  ) {
+    return null;
+  }
+
+  const ventanaPreview = window.open(
+    "about:blank",
+    "_blank",
+  );
+
+  if (!ventanaPreview) {
+    return null;
+  }
+
+  try {
+    ventanaPreview.opener = null;
+
+    ventanaPreview.document.title =
+      "Generando recibo de ingreso...";
+
+    ventanaPreview.document.body.innerHTML = `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          height: 100vh;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f8fafc;
+          color: #475569;
+        "
+      >
+        <div style="text-align: center;">
+          <div
+            style="
+              font-size: 18px;
+              font-weight: 700;
+              color: #0f172a;
+              margin-bottom: 8px;
+            "
+          >
+            Generando recibo
+          </div>
+
+          <div style="font-size: 14px;">
+            El ingreso fue enviado. Espere un momento...
+          </div>
+        </div>
+      </div>
+    `;
+  } catch {
+    /*
+     * La pestaña continúa siendo válida aunque el navegador
+     * limite la modificación de su contenido.
+     */
+  }
+
+  return ventanaPreview;
+}
+
+export function cerrarVentanaPrevisualizacionRecibo(
+  ventanaPreview?:
+    VentanaPrevisualizacionRecibo,
+): void {
+  if (
+    ventanaPreview &&
+    !ventanaPreview.closed
+  ) {
+    ventanaPreview.close();
+  }
 }
 
 async function mensajeRespuestaError(
@@ -41,7 +165,11 @@ async function mensajeRespuestaError(
     const contentType =
       response.headers.get("content-type") || "";
 
-    if (contentType.includes("application/json")) {
+    if (
+      contentType.includes(
+        "application/json",
+      )
+    ) {
       const body = await response.json();
 
       return (
@@ -50,10 +178,10 @@ async function mensajeRespuestaError(
       );
     }
 
-    const text = await response.text();
+    const mensaje = await response.text();
 
     return (
-      text ||
+      mensaje ||
       "No se pudo generar el recibo."
     );
   } catch {
@@ -61,84 +189,51 @@ async function mensajeRespuestaError(
   }
 }
 
-export async function descargarReciboIngresoProducto(
+export async function previsualizarReciboIngresoProducto(
   idIngresoProducto: number,
+  ventanaPreparada?:
+    VentanaPrevisualizacionRecibo,
 ): Promise<void> {
-  /*
-   * WEB:
-   * Abrimos primero una pestaña vacía.
-   * Esto evita que el navegador bloquee la ventana
-   * mientras esperamos el token y el PDF.
-   */
-  let ventanaPreview: any = null;
+  let ventanaPreview =
+    ventanaPreparada ?? null;
 
+  /*
+   * Cuando se abre desde el historial no existe una ventana
+   * preparada, por lo que se crea una nueva.
+   */
   if (
     Platform.OS === "web" &&
-    typeof window !== "undefined"
+    (!ventanaPreview ||
+      ventanaPreview.closed)
   ) {
-    ventanaPreview = window.open(
-      "about:blank",
-      "_blank",
-    );
-
-    if (ventanaPreview) {
-      try {
-        ventanaPreview.opener = null;
-        ventanaPreview.document.title =
-          "Cargando recibo...";
-
-        ventanaPreview.document.body.innerHTML = `
-          <div style="
-            font-family: Arial, sans-serif;
-            height: 100vh;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f8fafc;
-            color: #475569;
-          ">
-            <div style="text-align:center;">
-              <div style="
-                font-size:18px;
-                font-weight:700;
-                color:#0f172a;
-                margin-bottom:8px;
-              ">
-                Generando recibo
-              </div>
-              <div style="font-size:14px;">
-                Espere un momento...
-              </div>
-            </div>
-          </div>
-        `;
-      } catch {
-        // La pestaña igualmente puede utilizarse.
-      }
-    }
+    ventanaPreview =
+      prepararVentanaPrevisualizacionRecibo();
   }
 
   try {
     const token = await getToken();
 
     if (!token) {
-      if (ventanaPreview) {
-        ventanaPreview.close();
-      }
+      cerrarVentanaPrevisualizacionRecibo(
+        ventanaPreview,
+      );
 
       throw new Error(
         "Tu sesión expiró. Vuelve a iniciar sesión.",
       );
     }
 
+    const baseUrlLimpia =
+      String(BASE_URL).replace(/\/$/, "");
+
     const endpoint =
-      `${String(BASE_URL).replace(/\/$/, "")}` +
+      `${baseUrlLimpia}` +
       `/api/inventario/ingresos/` +
       `${idIngresoProducto}/recibo`;
 
     const nombreArchivo =
-      `recibo-ingreso-${idIngresoProducto}.pdf`;
+      `recibo-ingreso-` +
+      `${idIngresoProducto}.pdf`;
 
     const headers = {
       Accept: "application/pdf",
@@ -146,31 +241,29 @@ export async function descargarReciboIngresoProducto(
     };
 
     /*
-     * WEB
-     * Se obtiene el PDF autenticado y se muestra
-     * en el visor PDF del navegador.
+     * Vista previa para Expo Web.
      */
     if (Platform.OS === "web") {
-      const response = await fetch(endpoint, {
-        method: "GET",
-        headers,
-      });
+      const response = await fetch(
+        endpoint,
+        {
+          method: "GET",
+          headers,
+        },
+      );
 
       if (!response.ok) {
-        if (ventanaPreview) {
-          ventanaPreview.close();
-        }
+        cerrarVentanaPrevisualizacionRecibo(
+          ventanaPreview,
+        );
 
         throw new Error(
           await mensajeRespuestaError(response),
         );
       }
 
-      const blob = await response.blob();
-
-      const pdfBlob = new Blob([blob], {
-        type: "application/pdf",
-      });
+      const pdfBlob =
+        await response.blob();
 
       const objectUrl =
         URL.createObjectURL(pdfBlob);
@@ -182,17 +275,19 @@ export async function descargarReciboIngresoProducto(
         ventanaPreview.location.replace(
           objectUrl,
         );
-      } else {
+      } else if (
+        typeof window !== "undefined"
+      ) {
         /*
-         * Si el navegador bloqueó la nueva pestaña,
-         * mostramos el PDF en la pestaña actual.
+         * Si el navegador bloqueó la pestaña,
+         * se muestra el PDF en la pestaña actual.
          */
-        window.location.href = objectUrl;
+        window.location.assign(objectUrl);
       }
 
       /*
-       * Damos tiempo suficiente al visor para
-       * cargar completamente el documento.
+       * Se mantiene la URL durante diez minutos para que
+       * el visor del navegador pueda imprimir o descargar.
        */
       setTimeout(() => {
         URL.revokeObjectURL(objectUrl);
@@ -202,7 +297,7 @@ export async function descargarReciboIngresoProducto(
     }
 
     /*
-     * ANDROID / IOS
+     * Funcionamiento para Android e iOS.
      */
     const FileSystem =
       FileSystemNS as any;
@@ -216,13 +311,10 @@ export async function descargarReciboIngresoProducto(
       );
     }
 
-    const fileUri =
-      `${cacheDirectory}${nombreArchivo}`;
-
     const result =
       await FileSystem.downloadAsync(
         endpoint,
-        fileUri,
+        `${cacheDirectory}${nombreArchivo}`,
         {
           headers,
         },
@@ -236,27 +328,28 @@ export async function descargarReciboIngresoProducto(
       );
     }
 
-    if (
-      !(await Sharing.isAvailableAsync())
-    ) {
+    const sharingDisponible =
+      await Sharing.isAvailableAsync();
+
+    if (!sharingDisponible) {
       throw new Error(
         "El dispositivo no permite abrir o compartir el PDF.",
       );
     }
 
-    await Sharing.shareAsync(fileUri, {
-      mimeType: "application/pdf",
-      dialogTitle:
-        "Abrir recibo de ingreso",
-      UTI: "com.adobe.pdf",
-    });
+    await Sharing.shareAsync(
+      result.uri,
+      {
+        mimeType: "application/pdf",
+        dialogTitle:
+          "Abrir recibo de ingreso",
+        UTI: "com.adobe.pdf",
+      },
+    );
   } catch (error) {
-    if (
-      ventanaPreview &&
-      !ventanaPreview.closed
-    ) {
-      ventanaPreview.close();
-    }
+    cerrarVentanaPrevisualizacionRecibo(
+      ventanaPreview,
+    );
 
     throw error;
   }

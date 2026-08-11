@@ -1,12 +1,4 @@
-import {
-    IngresoProductoForm,
-    IngresoProductoPayload,
-    UsuarioIngresoProducto,
-} from "../types/ingresoProductos.types";
-
-export type IngresoProductoFormErrors = Partial<
-  Record<keyof IngresoProductoForm, string>
->;
+import { UsuarioIngresoProducto } from "../types/ingresoProductos.types";
 
 export function fechaLocalHoy(): string {
   const ahora = new Date();
@@ -17,59 +9,27 @@ export function fechaLocalHoy(): string {
   return `${year}-${month}-${day}`;
 }
 
-export function crearIngresoProductoForm(): IngresoProductoForm {
-  return {
-    idProducto: "",
-    cantidad: "",
-    fechaIngreso: fechaLocalHoy(),
-  };
-}
-
-export function validarIngresoProductoForm(
-  form: IngresoProductoForm,
-): IngresoProductoFormErrors {
-  const errors: IngresoProductoFormErrors = {};
-  const idProducto = Number(form.idProducto);
-  const cantidad = Number(form.cantidad);
-
-  if (!Number.isInteger(idProducto) || idProducto <= 0) {
-    errors.idProducto = "Selecciona un producto del inventario.";
+export function fechaIngresoEsValida(fechaIngreso: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaIngreso)) {
+    return "La fecha debe tener el formato AAAA-MM-DD.";
   }
 
-  if (!/^\d+$/.test(form.cantidad.trim()) || !Number.isInteger(cantidad)) {
-    errors.cantidad = "La cantidad debe ser un número entero.";
-  } else if (cantidad <= 0) {
-    errors.cantidad = "La cantidad debe ser mayor a cero.";
+  const [year, month, day] = fechaIngreso.split("-").map(Number);
+  const fecha = new Date(year, month - 1, day);
+
+  if (
+    fecha.getFullYear() !== year ||
+    fecha.getMonth() !== month - 1 ||
+    fecha.getDate() !== day
+  ) {
+    return "La fecha ingresada no es válida.";
   }
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(form.fechaIngreso)) {
-    errors.fechaIngreso = "La fecha debe tener el formato AAAA-MM-DD.";
-  } else {
-    const [year, month, day] = form.fechaIngreso.split("-").map(Number);
-    const fecha = new Date(year, month - 1, day);
-
-    if (
-      fecha.getFullYear() !== year ||
-      fecha.getMonth() !== month - 1 ||
-      fecha.getDate() !== day
-    ) {
-      errors.fechaIngreso = "La fecha ingresada no es válida.";
-    } else if (form.fechaIngreso > fechaLocalHoy()) {
-      errors.fechaIngreso = "La fecha de ingreso no puede ser futura.";
-    }
+  if (fechaIngreso > fechaLocalHoy()) {
+    return "La fecha de ingreso no puede ser futura.";
   }
 
-  return errors;
-}
-
-export function ingresoFormAPayload(
-  form: IngresoProductoForm,
-): IngresoProductoPayload {
-  return {
-    idProducto: Number(form.idProducto),
-    cantidad: Number(form.cantidad),
-    fechaIngreso: form.fechaIngreso,
-  };
+  return null;
 }
 
 export function formatearFechaIngreso(value?: string | null): string {
@@ -79,6 +39,24 @@ export function formatearFechaIngreso(value?: string | null): string {
   if (!match) return value || "-";
 
   return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+export function formatearFechaHoraIngreso(value?: string | null): string {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return formatearFechaIngreso(value);
+  }
+
+  return date.toLocaleString("es-BO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function formatearNumero(value?: number | null): string {

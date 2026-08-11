@@ -1,5 +1,17 @@
 export type EstadoProductoIngreso = "ACTIVO" | "INACTIVO";
 
+export type CategoriaDisponibleIngreso = {
+  idCategoria: number;
+  nombre: string;
+  estado?: EstadoProductoIngreso;
+};
+
+export type ImagenProductoIngreso = {
+  idImagen?: number;
+  urlFoto: string;
+  esPrincipal?: boolean;
+};
+
 export type ProductoDisponibleIngreso = {
   idProducto: number;
   sku: string;
@@ -7,6 +19,21 @@ export type ProductoDisponibleIngreso = {
   stock: number;
   unidadMedida: string;
   estado: EstadoProductoIngreso;
+  idCategoria?: number | null;
+  precioCompra?: number;
+  precioVenta?: number;
+  imagenPrincipal?: string | null;
+  imagenes?: ImagenProductoIngreso[];
+  categoria?: CategoriaDisponibleIngreso | null;
+};
+
+export type ProductoIngresoItem = {
+  idProducto: number;
+  sku: string;
+  nombre: string;
+  stock: number;
+  unidadMedida: string;
+  cantidad: number;
   imagenPrincipal?: string | null;
 };
 
@@ -27,29 +54,34 @@ export type ProductoIngresoResumen = {
   unidadMedida: string;
 };
 
+export type IngresoProductoDetalle = {
+  idDetalleIngresoProducto: number;
+  idIngresoProducto: number;
+  idProducto: number;
+  cantidad: number;
+  stockAnterior: number;
+  stockPosterior: number;
+  producto: ProductoIngresoResumen | null;
+};
+
 export type IngresoProducto = {
   idIngresoProducto: number;
   idUsuario: number;
-  idProducto: number;
-  cantidad: number;
   fechaIngreso: string;
-  stockAnterior: number;
-  stockPosterior: number;
+  observacion: string | null;
+  totalItems: number;
   usuario: UsuarioIngresoProducto | null;
-  producto: ProductoIngresoResumen | null;
+  detalles: IngresoProductoDetalle[];
   created_at: string | null;
 };
 
 export type IngresoProductoPayload = {
-  idProducto: number;
-  cantidad: number;
   fechaIngreso: string;
-};
-
-export type IngresoProductoForm = {
-  idProducto: string;
-  cantidad: string;
-  fechaIngreso: string;
+  observacion?: string | null;
+  detalles: Array<{
+    idProducto: number;
+    cantidad: number;
+  }>;
 };
 
 export type IngresosProductoResponse = {
@@ -60,7 +92,13 @@ export type ProductosIngresoResponse = {
   productos: ProductoDisponibleIngreso[];
 };
 
+export type CategoriasIngresoResponse = {
+  categorias: CategoriaDisponibleIngreso[];
+};
+
 export type GuardarIngresoProductoResponse = {
   message: string;
   ingreso: IngresoProducto;
 };
+
+export type TabIngresoProducto = "realizar" | "historial";

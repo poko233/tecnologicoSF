@@ -1,51 +1,125 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import Toast from "react-native-toast-message";
 
 import {
-    descargarReciboIngresoProducto,
-    guardarIngresoProducto,
-    obtenerIngresosProducto,
-    obtenerProductosParaIngreso,
+  cerrarVentanaPrevisualizacionRecibo,
+  guardarIngresoProducto,
+  obtenerCategoriasParaIngreso,
+  obtenerIngresosProducto,
+  obtenerProductosParaIngreso,
+  prepararVentanaPrevisualizacionRecibo,
+  previsualizarReciboIngresoProducto,
+  type VentanaPrevisualizacionRecibo,
 } from "../services/ingresoProductos.service";
+
 import {
-    IngresoProducto,
-    IngresoProductoPayload,
-    ProductoDisponibleIngreso,
+  CategoriaDisponibleIngreso,
+  IngresoProducto,
+  IngresoProductoPayload,
+  ProductoDisponibleIngreso,
 } from "../types/ingresoProductos.types";
-import { obtenerMensajeErrorIngreso } from "../utils/ingresoProductos.utils";
+
+import {
+  obtenerMensajeErrorIngreso,
+} from "../utils/ingresoProductos.utils";
 
 export function useIngresoProductos() {
-  const [ingresos, setIngresos] = useState<IngresoProducto[]>([]);
-  const [productos, setProductos] = useState<ProductoDisponibleIngreso[]>([]);
+  const [ingresos, setIngresos] = useState<
+    IngresoProducto[]
+  >([]);
+
+  const [productos, setProductos] = useState<
+    ProductoDisponibleIngreso[]
+  >([]);
+
+  const [categorias, setCategorias] = useState<
+    CategoriaDisponibleIngreso[]
+  >([]);
+
   const [loading, setLoading] = useState(false);
+
+  const [loadingHistorial, setLoadingHistorial] =
+    useState(false);
+
   const [guardando, setGuardando] = useState(false);
-  const [descargandoId, setDescargandoId] = useState<number | null>(null);
 
-  const cargar = useCallback(async (mostrarError = true) => {
-    try {
-      setLoading(true);
+  const [
+    previsualizandoId,
+    setPrevisualizandoId,
+  ] = useState<number | null>(null);
 
-      const [ingresosResponse, productosResponse] = await Promise.all([
-        obtenerIngresosProducto(),
-        obtenerProductosParaIngreso(),
-      ]);
+  const cargar = useCallback(
+    async (mostrarError = true) => {
+      try {
+        setLoading(true);
 
-      setIngresos(ingresosResponse.ingresos ?? []);
-      setProductos(
-        (productosResponse.productos ?? []).filter(
-          (producto) => producto.estado === "ACTIVO",
-        ),
-      );
-    } catch (error) {
-      if (mostrarError) {
-        Toast.show({
-          type: "error",
-          text1: "No se pudo cargar",
-          text2: obtenerMensajeErrorIngreso(error),
-        });
+        const [
+          ingresosResponse,
+          productosResponse,
+          categoriasResponse,
+        ] = await Promise.all([
+          obtenerIngresosProducto(),
+          obtenerProductosParaIngreso(),
+          obtenerCategoriasParaIngreso(),
+        ]);
+
+        setIngresos(
+          ingresosResponse.ingresos ?? [],
+        );
+
+        setProductos(
+          (productosResponse.productos ?? []).filter(
+            (producto) =>
+              producto.estado === "ACTIVO",
+          ),
+        );
+
+        setCategorias(
+          (categoriasResponse.categorias ?? []).filter(
+            (categoria) =>
+              !categoria.estado ||
+              categoria.estado === "ACTIVO",
+          ),
+        );
+      } catch (error) {
+        if (mostrarError) {
+          Toast.show({
+            type: "error",
+            text1: "No se pudo cargar",
+            text2:
+              obtenerMensajeErrorIngreso(error),
+          });
+        }
+      } finally {
+        setLoading(false);
       }
+    },
+    [],
+  );
+
+  const cargarHistorial = useCallback(async () => {
+    try {
+      setLoadingHistorial(true);
+
+      const response =
+        await obtenerIngresosProducto();
+
+      setIngresos(response.ingresos ?? []);
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1:
+          "No se pudo cargar el historial",
+        text2:
+          obtenerMensajeErrorIngreso(error),
+      });
     } finally {
-      setLoading(false);
+      setLoadingHistorial(false);
     }
   }, []);
 
@@ -53,71 +127,126 @@ export function useIngresoProductos() {
     void cargar(true);
   }, [cargar]);
 
-  const registrar = useCallback(async (payload: IngresoProductoPayload) => {
-    try {
-      setGuardando(true);
+  const registrar = useCallback(
+    async (
+      payload: IngresoProductoPayload,
+    ): Promise<IngresoProducto | null> => {
+      try {
+        setGuardando(true);
 
-      const response = await guardarIngresoProducto(payload);
-      const ingreso = response.ingreso;
+        const response =
+          await guardarIngresoProducto(payload);
 
-      setIngresos((actuales) => [
-        ingreso,
-        ...actuales.filter(
-          (item) => item.idIngresoProducto !== ingreso.idIngresoProducto,
-        ),
-      ]);
+        const ingreso = response.ingreso;
 
-      setProductos((actuales) =>
-        actuales.map((producto) =>
-          producto.idProducto === ingreso.idProducto
-            ? { ...producto, stock: ingreso.stockPosterior }
-            : producto,
-        ),
-      );
+        setIngresos((actuales) => [
+          ingreso,
+          ...actuales.filter(
+            (item) =>
+              item.idIngresoProducto !==
+              ingreso.idIngresoProducto,
+          ),
+        ]);
 
-      Toast.show({
-        type: "success",
-        text1: "Ingreso registrado",
-        text2: "El stock fue actualizado correctamente.",
-      });
+        const nuevosStocks = new Map(
+          ingreso.detalles.map((detalle) => [
+            detalle.idProducto,
+            detalle.stockPosterior,
+          ]),
+        );
 
-      return ingreso;
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "No se pudo registrar",
-        text2: obtenerMensajeErrorIngreso(error),
-      });
+        setProductos((actuales) =>
+          actuales.map((producto) => {
+            const nuevoStock =
+              nuevosStocks.get(
+                producto.idProducto,
+              );
 
-      return null;
-    } finally {
-      setGuardando(false);
-    }
-  }, []);
+            if (nuevoStock === undefined) {
+              return producto;
+            }
 
-  const descargarRecibo = useCallback(async (idIngresoProducto: number) => {
-    try {
-      setDescargandoId(idIngresoProducto);
-      await descargarReciboIngresoProducto(idIngresoProducto);
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "No se pudo descargar el recibo",
-        text2: obtenerMensajeErrorIngreso(error),
-      });
-    } finally {
-      setDescargandoId(null);
-    }
-  }, []);
+            return {
+              ...producto,
+              stock: nuevoStock,
+            };
+          }),
+        );
+
+        Toast.show({
+          type: "success",
+          text1: "Ingreso registrado",
+          text2:
+            response.message ||
+            "El stock fue actualizado correctamente.",
+        });
+
+        return ingreso;
+      } catch (error) {
+        Toast.show({
+          type: "error",
+          text1:
+            "No se pudo registrar el ingreso",
+          text2:
+            obtenerMensajeErrorIngreso(error),
+        });
+
+        return null;
+      } finally {
+        setGuardando(false);
+      }
+    },
+    [],
+  );
+
+  const previsualizarRecibo = useCallback(
+    async (
+      idIngresoProducto: number,
+      ventanaPreparada?:
+        VentanaPrevisualizacionRecibo,
+    ) => {
+      try {
+        setPrevisualizandoId(
+          idIngresoProducto,
+        );
+
+        await previsualizarReciboIngresoProducto(
+          idIngresoProducto,
+          ventanaPreparada,
+        );
+      } catch (error) {
+        Toast.show({
+          type: "error",
+          text1:
+            "No se pudo abrir el recibo",
+          text2:
+            obtenerMensajeErrorIngreso(error),
+        });
+      } finally {
+        setPrevisualizandoId(null);
+      }
+    },
+    [],
+  );
 
   return {
     ingresos,
     productos,
+    categorias,
     loading,
+    loadingHistorial,
     guardando,
-    descargandoId,
+    previsualizandoId,
     cargar,
+    cargarHistorial,
     registrar,
-    descargarRecibo,
+
+    prepararPrevisualizacionRecibo:
+      prepararVentanaPrevisualizacionRecibo,
+
+    cerrarPrevisualizacionRecibo:
+      cerrarVentanaPrevisualizacionRecibo,
+
+    previsualizarRecibo,
   };
 }
