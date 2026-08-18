@@ -95,8 +95,17 @@ export function ArqueoTransaccionRow({
         </ThemedText>
       </View>
 
-      <View style={tableStyles.colBoleta}>
-        <ThemedText style={[{ fontSize: 13, fontWeight: "600" }, textStyle]}>
+      <View style={[tableStyles.colBoleta, { flexWrap: "wrap" }]}>
+        <ThemedText
+          style={[
+            { fontSize: 13, fontWeight: "600" },
+            textStyle,
+            {
+              flexWrap: "wrap",
+              ...(Platform.OS === "web" && { wordBreak: "break-word" }),
+            },
+          ]}
+        >
           {comprobante}
         </ThemedText>
       </View>
@@ -105,11 +114,16 @@ export function ArqueoTransaccionRow({
         <ThemedText style={[{ fontSize: 13 }, textStyle]}>{usuario}</ThemedText>
       </View>
 
-      <View style={tableStyles.colConcepto}>
+      <View style={[tableStyles.colConcepto, { flexWrap: "wrap" }]}>
         <ThemedText
-          style={[{ fontSize: 13, fontWeight: "500" }, textStyle]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
+          style={[
+            { fontSize: 13, fontWeight: "500" },
+            textStyle,
+            {
+              flexWrap: "wrap",
+              ...(Platform.OS === "web" && { wordBreak: "break-word" }),
+            },
+          ]}
         >
           {concepto}
         </ThemedText>
@@ -140,9 +154,17 @@ export function ArqueoTransaccionRow({
           {transaccion.detalle || "—"}
         </ThemedText>
       </View>
-
-      <View style={tableStyles.colTipoPago}>
-        <ThemedText style={[{ fontSize: 13 }, textStyle]}>
+      <View style={[tableStyles.colTipoPago, { flexWrap: "wrap" }]}>
+        <ThemedText
+          style={[
+            { fontSize: 13 },
+            textStyle,
+            {
+              flexWrap: "wrap",
+              ...(Platform.OS === "web" && { wordBreak: "break-word" }),
+            },
+          ]}
+        >
           {transaccion.metodo}
         </ThemedText>
       </View>
