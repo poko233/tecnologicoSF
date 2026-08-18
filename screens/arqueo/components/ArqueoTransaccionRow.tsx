@@ -5,7 +5,7 @@ import { MoreVertical, Receipt } from "lucide-react-native";
 import { MotiView } from "moti";
 import { MotiPressable } from "moti/interactions";
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { Egreso, Ingreso } from "../types/arqueo.types";
 import { IngresoCombinado, Transaccion } from "../types/transaccion.types";
 import { tableStyles } from "./tableStyles";
@@ -126,11 +126,16 @@ export function ArqueoTransaccionRow({
         </ThemedText>
       </View>
 
-      <View style={tableStyles.colGlosa}>
+      <View style={[tableStyles.colGlosa, { flexWrap: "wrap" }]}>
         <ThemedText
-          style={[{ fontSize: 12 }, textStyle]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
+          style={[
+            { fontSize: 12 },
+            textStyle,
+            {
+              flexWrap: "wrap",
+              ...(Platform.OS === "web" && { wordBreak: "break-word" }),
+            },
+          ]}
         >
           {transaccion.detalle || "—"}
         </ThemedText>

@@ -9,6 +9,7 @@ import {
 } from "react";
 import Toast from "react-native-toast-message";
 import { BASE_URL, httpClient } from "../http/httpClient";
+import { useArqueoStore } from "../screens/arqueo/store/arqueoStore";
 import { clearSession, saveToken } from "../storage/secureStorage";
 import { useModulesStore } from "../store/modulesStore";
 import { getTabsForRoles } from "../utils/roleBasedTabs";
@@ -157,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {}
     await clearSession();
     clearModulos();
+    useArqueoStore.getState().clear();
     setUser(null);
     setAllowedRoutes(new Set());
   };

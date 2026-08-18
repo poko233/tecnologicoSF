@@ -1,27 +1,26 @@
-// screens/arqueo/hooks/useArqueo.ts
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useAuth } from "../../../contexts/AuthContext";
 import { useArqueoStore } from "../store/arqueoStore";
 
 export const useArqueo = () => {
+  const { user } = useAuth();
   const {
     activeArqueo,
     loading,
     error,
-    fetchActiveArqueo,
+    forceFetchActiveArqueo,
     openArqueo,
     closeArqueo,
     clear,
   } = useArqueoStore();
 
-  const hasMounted = useRef(false);
-
-  //  Solo se ejecuta una vez, incluso si el componente se desmonta y vuelve a montar
   useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      fetchActiveArqueo();
+    if (user) {
+      forceFetchActiveArqueo();
+    } else {
+      clear();
     }
-  }, []);
+  }, [user]);
 
   return {
     activeArqueo,
@@ -30,6 +29,6 @@ export const useArqueo = () => {
     openArqueo,
     closeArqueo,
     clear,
-    refetch: fetchActiveArqueo, // Si alguien quiere forzar una recarga manual
+    refetch: forceFetchActiveArqueo,
   };
 };

@@ -333,7 +333,7 @@ export default function ArqueoCloseModal({
                     backgroundColor: theme.colors.card,
                     borderColor: theme.colors.border,
                     width: "95%",
-                    maxWidth: 800,
+                    maxWidth: 1200,
                     maxHeight: "90%",
                   },
                 ]}
@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   resumenGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   resumenItem: {
     flex: 1,
-    minWidth: 100,
+    minWidth: 130,
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
@@ -1179,13 +1179,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontWeight: "700",
     fontSize: 12,
-    minWidth: 80,
+    minWidth: 120,
     paddingHorizontal: 4,
   },
   tableCell: {
     flex: 1,
     fontSize: 12,
-    minWidth: 80,
+    minWidth: 120,
     paddingVertical: 2,
     paddingHorizontal: 4,
   },

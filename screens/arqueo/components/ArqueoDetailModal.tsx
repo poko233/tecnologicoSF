@@ -20,6 +20,7 @@ import { useArqueoTransacciones } from "../hooks/useArqueoTransacciones";
 import { arqueoService } from "../services/arqueo.service";
 import { Arqueo, Egreso, Ingreso, Pago } from "../types/arqueo.types";
 import { ArqueoTransaccionTable } from "./ArqueoTransaccionTable";
+
 interface ArqueoDetailModalProps {
   visible: boolean;
   arqueoId: number;
@@ -31,6 +32,46 @@ const tipoMap: Record<string, string> = {
   MENSUAL: "MENSUALIDAD",
   CONVALIDACION: "CONVALIDACION",
 };
+
+interface ResumenItemProps {
+  label: string;
+  value: number;
+  theme: any;
+  highlight?: boolean;
+}
+
+function ResumenItem({ label, value, theme, highlight }: ResumenItemProps) {
+  return (
+    <View
+      style={[
+        styles.resumenCard,
+        {
+          backgroundColor: highlight
+            ? theme.colors.primary + "15"
+            : theme.colors.backgroundSecondary,
+          borderColor: highlight ? theme.colors.primary : theme.colors.border,
+        },
+      ]}
+    >
+      <ThemedText
+        style={[styles.resumenLabel, { color: theme.colors.textSecondary }]}
+      >
+        {label}
+      </ThemedText>
+      <ThemedText
+        style={[
+          styles.resumenValue,
+          {
+            color: highlight ? theme.colors.primary : theme.colors.text,
+            fontWeight: highlight ? "700" : "600",
+          },
+        ]}
+      >
+        Bs. {value.toFixed(2)}
+      </ThemedText>
+    </View>
+  );
+}
 
 export function ArqueoDetailModal({
   visible,
@@ -52,12 +93,12 @@ export function ArqueoDetailModal({
         ? arqueo.usuario.usuario
         : "";
 
-  const {
-    ingresosCombinados,
-    updateTransaccionEstado,
-    updatingId,
-    loadTransacciones,
-  } = useArqueoTransacciones(arqueoId, pagos, ventas, cajeroUsername);
+  const { ingresosCombinados, loadTransacciones } = useArqueoTransacciones(
+    arqueoId,
+    pagos,
+    ventas,
+    cajeroUsername,
+  );
 
   useEffect(() => {
     if (visible && arqueoId) {
@@ -156,27 +197,12 @@ export function ArqueoDetailModal({
     });
     return { efectivo, tarjeta, qr, transferencia };
   })();
+
   const totalMovimientos =
     totalesPorMetodo.efectivo +
     totalesPorMetodo.tarjeta +
     totalesPorMetodo.qr +
     totalesPorMetodo.transferencia;
-
-  const expectedEfectivo = (() => {
-    let efectivo = 0;
-    pagos.forEach((p) => {
-      if (p.metodo === "EFECTIVO") efectivo += p.monto;
-    });
-    ingresos.forEach((i) => {
-      if (i.metodo === "EFECTIVO" && i.estado !== "ANULADO")
-        efectivo += i.monto;
-    });
-    egresos.forEach((e) => {
-      if (e.metodo === "EFECTIVO" && e.estado !== "ANULADO")
-        efectivo -= e.monto;
-    });
-    return efectivo;
-  })();
 
   const nombreUsuario =
     typeof arqueo.usuario !== "string"
@@ -190,8 +216,6 @@ export function ArqueoDetailModal({
       pagoIndex: pagoIndex + 1,
     })),
   );
-
-  const tieneConteo = arqueo.conteo && arqueo.conteo.billete_200 !== null;
 
   return (
     <Modal transparent visible={visible} onRequestClose={onClose}>
@@ -207,13 +231,14 @@ export function ArqueoDetailModal({
               },
             ]}
           >
+            {/* Header */}
             <View
               style={[
                 styles.header,
                 { borderBottomColor: theme.colors.border },
               ]}
             >
-              <View>
+              <View style={{ flex: 1, paddingRight: 12 }}>
                 <ThemedText
                   style={[styles.title, { color: theme.colors.text }]}
                 >
@@ -240,16 +265,18 @@ export function ArqueoDetailModal({
                     { backgroundColor: theme.colors.backgroundSecondary },
                   ]}
                 >
-                  <X size={18} color={theme.colors.muted} />
+                  <X size={20} color={theme.colors.muted} />
                 </View>
               </MotiPressable>
             </View>
 
+            {/* Body */}
             <ScrollView contentContainerStyle={styles.scrollContent}>
               {loading ? (
                 <ActivityIndicator size="large" color={theme.colors.primary} />
               ) : (
                 <>
+                  {/* Resumen de caja */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -289,6 +316,7 @@ export function ArqueoDetailModal({
                     </View>
                   </View>
 
+                  {/* Totales por método */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -328,6 +356,7 @@ export function ArqueoDetailModal({
                     </View>
                   </View>
 
+                  {/* Ingresos */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -356,6 +385,7 @@ export function ArqueoDetailModal({
                     )}
                   </View>
 
+                  {/* Egresos */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -384,6 +414,7 @@ export function ArqueoDetailModal({
                     )}
                   </View>
 
+                  {/* Pagos */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -401,10 +432,10 @@ export function ArqueoDetailModal({
                       <View style={styles.tableWrapper}>
                         <ScrollView
                           horizontal
-                          showsHorizontalScrollIndicator={false}
+                          showsHorizontalScrollIndicator={true}
                           contentContainerStyle={{ minWidth: "100%" }}
                         >
-                          <View style={[styles.table, { flex: 1 }]}>
+                          <View style={styles.table}>
                             <View
                               style={[
                                 styles.tableRow,
@@ -418,6 +449,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colIdx,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -426,6 +458,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colFecha,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -434,6 +467,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colEstudiante,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -442,6 +476,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colConcepto,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -450,6 +485,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colMetodo,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -458,6 +494,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colMonto,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -475,6 +512,7 @@ export function ArqueoDetailModal({
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colIdx,
                                     { color: theme.colors.text },
                                   ]}
                                 >
@@ -483,6 +521,7 @@ export function ArqueoDetailModal({
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colFecha,
                                     { color: theme.colors.text },
                                   ]}
                                 >
@@ -491,15 +530,17 @@ export function ArqueoDetailModal({
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colEstudiante,
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  {pago.estudiante?.nombres}{" "}
-                                  {pago.estudiante?.apellidoPaterno}
+                                  {`${pago.estudiante?.nombres || ""} ${pago.estudiante?.apellidoPaterno || ""}`.trim() ||
+                                    "-"}
                                 </ThemedText>
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colConcepto,
                                     { color: theme.colors.text },
                                   ]}
                                 >
@@ -516,6 +557,7 @@ export function ArqueoDetailModal({
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colMetodo,
                                     { color: theme.colors.text },
                                   ]}
                                 >
@@ -524,10 +566,11 @@ export function ArqueoDetailModal({
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colMonto,
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  {pago.monto.toFixed(2)}
+                                  Bs. {pago.monto.toFixed(2)}
                                 </ThemedText>
                               </View>
                             ))}
@@ -537,6 +580,7 @@ export function ArqueoDetailModal({
                     )}
                   </View>
 
+                  {/* Cuotas */}
                   <View style={styles.section}>
                     <ThemedText
                       style={[
@@ -554,10 +598,10 @@ export function ArqueoDetailModal({
                       <View style={styles.tableWrapper}>
                         <ScrollView
                           horizontal
-                          showsHorizontalScrollIndicator={false}
+                          showsHorizontalScrollIndicator={true}
                           contentContainerStyle={{ minWidth: "100%" }}
                         >
-                          <View style={[styles.table, { flex: 1 }]}>
+                          <View style={styles.table}>
                             <View
                               style={[
                                 styles.tableRow,
@@ -571,6 +615,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colIdx,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -579,6 +624,7 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colIdx,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -587,14 +633,16 @@ export function ArqueoDetailModal({
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colConcepto,
                                   { color: theme.colors.text },
                                 ]}
                               >
-                                Período
+                                Período / Concepto
                               </ThemedText>
                               <ThemedText
                                 style={[
                                   styles.tableCellHeader,
+                                  styles.colMonto,
                                   { color: theme.colors.text },
                                 ]}
                               >
@@ -612,6 +660,7 @@ export function ArqueoDetailModal({
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colIdx,
                                     { color: theme.colors.text },
                                   ]}
                                 >
@@ -620,30 +669,33 @@ export function ArqueoDetailModal({
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colIdx,
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  {cuota.pagoIndex}
+                                  #{cuota.pagoIndex}
                                 </ThemedText>
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colConcepto,
                                     { color: theme.colors.text },
                                   ]}
                                 >
                                   {cuota.tipo === "MATRICULA"
                                     ? "Matrícula"
                                     : cuota.tipo === "MENSUAL"
-                                      ? `Mes ${cuota.numeroCuota}`
-                                      : `${cuota.numeroCuota}`}
+                                      ? "Mensualidad"
+                                      : cuota.tipo}
                                 </ThemedText>
                                 <ThemedText
                                   style={[
                                     styles.tableCell,
+                                    styles.colMonto,
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  {cuota.monto.toFixed(2)}
+                                  Bs. {(cuota.monto || 0).toFixed(2)}
                                 </ThemedText>
                               </View>
                             ))}
@@ -655,24 +707,6 @@ export function ArqueoDetailModal({
                 </>
               )}
             </ScrollView>
-
-            <View
-              style={[styles.footer, { borderTopColor: theme.colors.border }]}
-            >
-              <MotiPressable
-                onPress={onClose}
-                animate={({ pressed }) => ({ scale: pressed ? 0.95 : 1 })}
-              >
-                <ThemedText
-                  style={{
-                    color: theme.colors.textSecondary,
-                    fontWeight: "600",
-                  }}
-                >
-                  Cerrar
-                </ThemedText>
-              </MotiPressable>
-            </View>
           </View>
         </View>
       </BlurView>
@@ -680,105 +714,132 @@ export function ArqueoDetailModal({
   );
 }
 
-const ResumenItem = ({ label, value, theme, highlight = false }: any) => (
-  <View
-    style={[
-      styles.resumenItem,
-      { backgroundColor: theme.colors.backgroundSecondary },
-    ]}
-  >
-    <ThemedText style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-      {label}
-    </ThemedText>
-    <ThemedText
-      style={[
-        styles.resumenValue,
-        { color: theme.colors.text },
-        highlight && { fontWeight: "800", color: theme.colors.primary },
-      ]}
-    >
-      {value.toFixed(2)} Bs
-    </ThemedText>
-  </View>
-);
-
 const styles = StyleSheet.create({
-  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+  },
   modalContent: {
-    width: "95%",
-    maxWidth: 800,
-    maxHeight: "90%",
-    borderRadius: 24,
+    width: "96%",
+    maxWidth: 1500,
+    maxHeight: "92%",
+    borderRadius: 16,
     borderWidth: 1,
     overflow: "hidden",
-    elevation: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: 24,
+    alignItems: "center",
+    paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  title: { fontSize: 18, fontWeight: "700" },
-  subtitle: { fontSize: 12, marginTop: 2 },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    flexWrap: "wrap",
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    flexWrap: "wrap",
+  },
   closeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  scrollContent: { padding: 24, gap: 24 },
-  section: { gap: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: "700" },
-  resumenGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  resumenItem: {
+  scrollContent: {
+    padding: 20,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 12,
+    flexWrap: "wrap",
+  },
+  resumenGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  resumenCard: {
     flex: 1,
-    minWidth: 100,
-    padding: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  resumenValue: { fontSize: 14, fontWeight: "600", marginTop: 4 },
-  tableWrapper: {
+    minWidth: 160,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: 8,
-    overflow: "hidden",
-    width: "100%",
   },
-  table: { flexDirection: "column", width: "100%" },
+  resumenLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+    flexWrap: "wrap",
+  },
+  resumenValue: {
+    fontSize: 16,
+  },
+  tableWrapper: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(150, 150, 150, 0.2)",
+    overflow: "hidden",
+  },
+  table: {
+    minWidth: "100%",
+  },
   tableRow: {
     flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: 1,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
-  tableHeader: { borderBottomWidth: 2 },
+  tableHeader: {
+    borderBottomWidth: 1,
+  },
   tableCellHeader: {
-    flex: 1,
     fontWeight: "700",
-    fontSize: 12,
-    minWidth: 80,
-    paddingHorizontal: 4,
+    fontSize: 13,
+    flexWrap: "wrap",
   },
   tableCell: {
-    flex: 1,
-    fontSize: 12,
-    minWidth: 80,
-    paddingVertical: 2,
+    fontSize: 13,
+    flexWrap: "wrap",
+  },
+  colIdx: {
+    width: 50,
     paddingHorizontal: 4,
   },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderTopWidth: 1,
+  colFecha: {
+    minWidth: 160,
+    flexShrink: 0,
+    paddingHorizontal: 4,
+  },
+  colEstudiante: {
+    minWidth: 200,
+    flex: 1,
+    paddingHorizontal: 4,
+  },
+  colConcepto: {
+    minWidth: 180,
+    flex: 1,
+    paddingHorizontal: 4,
+  },
+  colMetodo: {
+    minWidth: 120,
+    paddingHorizontal: 4,
+  },
+  colMonto: {
+    minWidth: 110,
+    paddingHorizontal: 4,
   },
 });

@@ -19,7 +19,11 @@ export const tableStyles = StyleSheet.create({
   colCajero: { flex: 0.8 },
   colConcepto: { flex: 1.5 },
   colMonto: { flex: 1.0, alignItems: "flex-end" },
-  colGlosa: { flex: 1.2 },
+  colGlosa: {
+    flex: 2.5, // Incrementa la proporción de ancho (ej. de 1 a 2.5)
+    minWidth: 200, // Garantiza espacio mínimo horizontal
+    paddingHorizontal: 4,
+  },
   colTipoPago: { flex: 0.8 },
   // Reutilizamos colEstado y colAcciones
 });
