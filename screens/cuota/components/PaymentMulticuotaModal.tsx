@@ -52,20 +52,86 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
   const [observacion, setObservacion] = useState("");
   const [loading, setLoading]         = useState(false);
 
-  const montoTotal = useMemo(
-    () => cuotas.reduce((sum, c) => sum + Math.max(0, c.monto - (c.descuento || 0)), 0),
-    [cuotas],
-  );
+  // Montos parciales editables por cuota
+  const [montosParciales, setMontosParciales] = useState<Record<number, string>>({});
+
+  const montoTotal = useMemo(() => {
+    return cuotas.reduce((sum, c) => {
+      const montoParcial = montosParciales[c.idCuota];
+      if (montoParcial) {
+        const valor = parseFloat(montoParcial);
+        return sum + (isNaN(valor) ? 0 : valor);
+      }
+      // Si no hay monto parcial, usar el saldo completo
+      const saldo = (c as any).saldo ?? Math.max(0, c.monto - (c.descuento ?? 0));
+      return sum + saldo;
+    }, 0);
+  }, [cuotas, montosParciales]);
+
+  // Actualizar monto parcial de una cuota
+  const setMontoParcial = (idCuota: number, valor: string) => {
+    setMontosParciales(prev => ({
+      ...prev,
+      [idCuota]: valor
+    }));
+  };
+
+  // Establecer saldo completo
+  const setSaldoCompleto = (idCuota: number, saldo: number) => {
+    setMontosParciales(prev => ({
+      ...prev,
+      [idCuota]: saldo.toFixed(2)
+    }));
+  };
 
   const handleConfirm = async () => {
     if (cuotas.length === 0) return;
+
+    // Validar montos
+    for (const cuota of cuotas) {
+      const montoParcial = montosParciales[cuota.idCuota];
+      if (montoParcial) {
+        const valor = parseFloat(montoParcial);
+        const saldo = (cuota as any).saldo || Math.max(0, cuota.monto - (cuota.descuento || 0));
+
+        if (isNaN(valor) || valor <= 0) {
+          Toast.show({
+            type: "error",
+            text1: "Monto inválido",
+            text2: "Todos los montos deben ser mayores a 0",
+          });
+          return;
+        }
+
+        if (valor > saldo) {
+          Toast.show({
+            type: "error",
+            text1: "Monto excedido",
+            text2: `El monto no puede superar el saldo de Bs. ${saldo.toFixed(2)}`,
+          });
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     try {
+      // Preparar datos con montos parciales
+      const cuotasConMontos = cuotas.map(c => {
+        const montoParcial = montosParciales[c.idCuota];
+        const saldo = (c as any).saldo ?? Math.max(0, c.monto - (c.descuento ?? 0));
+        const montoAbonado = montoParcial ? parseFloat(montoParcial) : saldo;
+
+        return {
+          idCuota: c.idCuota,
+          monto_abonado: montoAbonado
+        };
+      });
+
       const response = await pagoService.registrarPago({
         idUsuario,
-        cuotas: cuotas.map((c) => c.idCuota),
+        cuotas: cuotasConMontos,
         metodo,
-        monto: montoTotal,
         comprobante: comprobante || undefined,
         observacion: observacion || undefined,
       });
@@ -78,6 +144,9 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
 
       onPaymentSuccess(idPago);
       onClose();
+
+      // Limpiar montos parciales
+      setMontosParciales({});
     } catch (error: any) {
       // Cerrar el modal PRIMERO para que el Toast se vea bien
       onClose();
@@ -211,31 +280,79 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
                   keyExtractor={(item) => item.idCuota.toString()}
                   showsVerticalScrollIndicator={false}
                   nestedScrollEnabled
-                  renderItem={({ item, index }) => (
-                    <View style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      paddingHorizontal: 14,
-                      paddingVertical: 11,
-                      borderBottomWidth: index < cuotas.length - 1 ? 0.5 : 0,
-                      borderBottomColor: c.border,
-                    }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                        <Ionicons
-                          name={item.tipo === "MATRICULA" ? "receipt-outline" : "calendar-outline"}
-                          size={14}
-                          color={c.textMuted}
-                        />
-                        <Text style={{ fontSize: 13, color: c.text }} numberOfLines={1}>
-                          {item.tipo === "MATRICULA" ? "Matrícula" : `Cuota N° ${item.numeroCuota}`}
-                        </Text>
+                  renderItem={({ item, index }) => {
+                    const saldo = (item as any).saldo || Math.max(0, item.monto - (item.descuento || 0));
+                    const montoParcial = montosParciales[item.idCuota] || saldo.toFixed(2);
+
+                    return (
+                      <View style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingHorizontal: 14,
+                        paddingVertical: 11,
+                        borderBottomWidth: index < cuotas.length - 1 ? 0.5 : 0,
+                        borderBottomColor: c.border,
+                        gap: 12,
+                      }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                          <Ionicons
+                            name={item.tipo === "MATRICULA" ? "receipt-outline" : "calendar-outline"}
+                            size={14}
+                            color={c.textMuted}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 13, color: c.text }} numberOfLines={1}>
+                              {item.tipo === "MATRICULA" ? "Matrícula" : `Cuota N° ${item.numeroCuota}`}
+                            </Text>
+                            <Text style={{ fontSize: 10, color: c.textMuted }}>
+                              Saldo: {saldo.toFixed(2)} Bs.
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Input editable para monto parcial */}
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <TextInput
+                            style={{
+                              backgroundColor: c.input,
+                              borderWidth: 1,
+                              borderColor: c.border,
+                              borderRadius: 6,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              fontSize: 13,
+                              fontWeight: "600",
+                              color: c.text,
+                              width: 80,
+                              textAlign: "right",
+                            }}
+                            value={montoParcial}
+                            onChangeText={(text) => setMontoParcial(item.idCuota, text)}
+                            keyboardType="decimal-pad"
+                            placeholder="0.00"
+                            placeholderTextColor={c.textMuted}
+                          />
+                          <Text style={{ fontSize: 11, color: c.textMuted, width: 25 }}>Bs.</Text>
+
+                          {/* Botón para poner saldo completo */}
+                          <Pressable
+                            onPress={() => setSaldoCompleto(item.idCuota, saldo)}
+                            style={{
+                              paddingHorizontal: 6,
+                              paddingVertical: 4,
+                              borderRadius: 4,
+                              backgroundColor: c.primary + "20",
+                            }}
+                          >
+                            <Text style={{ fontSize: 9, fontWeight: "600", color: c.primary }}>
+                              TODO
+                            </Text>
+                          </Pressable>
+                        </View>
                       </View>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: c.text }}>
-                        {(item.monto - (item.descuento || 0)).toFixed(2)} Bs.
-                      </Text>
-                    </View>
-                  )}
+                    );
+                  }}
                 />
               </View>
             </View>

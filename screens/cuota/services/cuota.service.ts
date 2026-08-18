@@ -1,44 +1,101 @@
-import { httpClient } from "../../../http/httpClient";
+import { httpClient } from '@http';
 import {
-  CarreraInscrita,
-  Cuota,
   Estudiante,
   PaginatedResponse,
-} from "../types/cuota.types";
+  CarreraInscrita,
+  Cuota,
+  EstadoCuentaResponse,
+  RegistrarPagoRequest,
+  PagoResponse,
+  HistorialAbonosResponse,
+} from '../types/cuota.types';
 
-// Cambia esta URL según tu endpoint real (ej: '/students/search' o '/cuotas/search')
-const API_SEARCH_STUDENTS = "/api/cuota/search";
-const API_STUDENT_DETAIL = "/api/cuota/estudiante"; // base, luego se añade /{id}
+const BASE_URL = '/api';
 
 export const cuotaService = {
-  searchStudents: (
-    searchTerm: string,
-    page: number = 1,
-    perPage: number = 15,
-  ) => {
+  /**
+   * Buscar estudiantes por CI, nombre o matrícula
+   */
+  async searchStudents(
+    search: string = '',
+    perPage: number = 15
+  ): Promise<PaginatedResponse<Estudiante>> {
     const params = new URLSearchParams();
-    if (searchTerm.trim()) params.append("search", searchTerm.trim());
-    params.append("page", page.toString());
-    params.append("per_page", perPage.toString());
+    if (search) params.append('search', search);
+    params.append('per_page', perPage.toString());
 
     return httpClient.getAuth<PaginatedResponse<Estudiante>>(
-      `${API_SEARCH_STUDENTS}?${params.toString()}`,
-    );
-  },
-  getStudentDetail: (studentId: number) => {
-    return httpClient.getAuth<any>(`${API_STUDENT_DETAIL}/${studentId}`);
-  },
-  // Obtener carreras en las que está inscrito un estudiante
-  getCarrerasByStudent: (usuarioId: number) => {
-    return httpClient.getAuth<CarreraInscrita[]>(
-      `/api/estudiantes/${usuarioId}/carreras`,
+      `${BASE_URL}/cuota/search?${params.toString()}`
     );
   },
 
-  // Obtener cuotas de una carrera específica de un estudiante
-  getCuotasByCarrera: (usuarioId: number, carreraId: number) => {
+  /**
+   * Obtener carreras de un estudiante
+   */
+  async getCarrerasEstudiante(estudianteId: number): Promise<CarreraInscrita[]> {
+    return httpClient.getAuth<CarreraInscrita[]>(
+      `${BASE_URL}/estudiantes/${estudianteId}/carreras`
+    );
+  },
+
+  /**
+   * Obtener carreras de un estudiante (alias para compatibilidad)
+   */
+  async getCarrerasByStudent(usuarioId: number): Promise<CarreraInscrita[]> {
+    return httpClient.getAuth<CarreraInscrita[]>(
+      `${BASE_URL}/estudiantes/${usuarioId}/carreras`
+    );
+  },
+
+  /**
+   * Obtener cuotas de un estudiante para una carrera
+   */
+  async getCuotasPorCarrera(
+    estudianteId: number,
+    carreraId: number
+  ): Promise<Cuota[]> {
     return httpClient.getAuth<Cuota[]>(
-      `/api/estudiantes/${usuarioId}/carreras/${carreraId}/cuotas`,
+      `${BASE_URL}/estudiantes/${estudianteId}/carreras/${carreraId}/cuotas`
+    );
+  },
+
+  /**
+   * Obtener cuotas de un estudiante para una carrera (alias para compatibilidad)
+   */
+  async getCuotasByCarrera(
+    usuarioId: number,
+    carreraId: number
+  ): Promise<Cuota[]> {
+    return httpClient.getAuth<Cuota[]>(
+      `${BASE_URL}/estudiantes/${usuarioId}/carreras/${carreraId}/cuotas`
+    );
+  },
+
+  /**
+   * Obtener estado de cuenta completo con historial de abonos
+   */
+  async getEstadoCuenta(
+    estudianteId: number,
+    carreraId: number
+  ): Promise<EstadoCuentaResponse> {
+    return httpClient.getAuth<EstadoCuentaResponse>(
+      `${BASE_URL}/estudiantes/${estudianteId}/carreras/${carreraId}/estado-cuenta`
+    );
+  },
+
+  /**
+   * Registrar pago parcial o total
+   */
+  async registrarPago(data: RegistrarPagoRequest): Promise<PagoResponse> {
+    return httpClient.postAuth<PagoResponse>(`${BASE_URL}/pagos`, data);
+  },
+
+  /**
+   * Obtener historial de abonos de una cuota
+   */
+  async getHistorialAbonos(cuotaId: number): Promise<HistorialAbonosResponse> {
+    return httpClient.getAuth<HistorialAbonosResponse>(
+      `${BASE_URL}/cuotas/${cuotaId}/abonos`
     );
   },
 };

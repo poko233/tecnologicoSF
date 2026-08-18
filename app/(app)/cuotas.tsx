@@ -1,2 +1,3 @@
-import GestionCuotaScreen from "../../screens/cuota/GestionCuotaScreen";
+import GestionCuotaScreen from '@/screens/cuota/GestionCuotaScreen';
+
 export default GestionCuotaScreen;

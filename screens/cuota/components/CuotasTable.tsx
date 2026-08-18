@@ -246,7 +246,31 @@ export const CuotasTable: React.FC<Props> = ({
                     className="text-xs font-semibold uppercase tracking-wider text-right"
                     style={{ color: theme.colors.textSecondary }}
                   >
-                    Monto (Bs.)
+                    Monto Total
+                  </Text>
+                </View>
+                <View className="flex-[1.5] items-end">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider text-right"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Pagado
+                  </Text>
+                </View>
+                <View className="flex-[1.5] items-end">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider text-right"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Saldo
+                  </Text>
+                </View>
+                <View className="flex-[1] items-center">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider text-center"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Subcuotas
                   </Text>
                 </View>
                 <View className="flex-[1.5] items-center">
@@ -269,7 +293,8 @@ export const CuotasTable: React.FC<Props> = ({
               {filteredCuotas.map((cuota) => {
                 const overdue = isOverdue(cuota);
                 const isSelected = selectedCuotas.has(cuota.idCuota);
-                const isPending = cuota.estadoCuota === "Debe";
+                const saldo = Number((cuota as any).saldo ?? cuota.monto);
+                const isPending = saldo > 0; // Permite pagar si hay saldo (estados: Debe o Parcial)
 
                 return (
                   <Pressable
@@ -356,14 +381,60 @@ export const CuotasTable: React.FC<Props> = ({
                         {formatDisplayDate(cuota.fecha_vencimiento)}
                       </Text>
                     </View>
+
+                    {/* Monto Total */}
                     <View className="flex-[1.5] items-end justify-center">
                       <Text
                         className="text-sm font-bold"
                         style={{ color: theme.colors.text }}
                       >
-                        {cuota.monto.toFixed(2)}
+                        {Number((cuota as any).total_adeudado ?? cuota.monto).toFixed(2)}
                       </Text>
                     </View>
+
+                    {/* Pagado (Pagos Parciales) */}
+                    <View className="flex-[1.5] items-end justify-center">
+                      <Text
+                        className="text-sm font-semibold"
+                        style={{ color: theme.colors.success }}
+                      >
+                        {Number((cuota as any).monto_pagado ?? 0).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    {/* Saldo */}
+                    <View className="flex-[1.5] items-end justify-center">
+                      <Text
+                        className="text-sm font-bold"
+                        style={{ color: theme.colors.destructive }}
+                      >
+                        {Number((cuota as any).saldo ?? cuota.monto).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    {/* Subcuotas (número de abonos) */}
+                    <View className="flex-[1] items-center justify-center">
+                      <View
+                        className="px-2 py-1 rounded-full"
+                        style={{
+                          backgroundColor: Number((cuota as any).total_abonos || 0) > 0
+                            ? theme.colors.primary + "20"
+                            : theme.colors.backgroundTertiary,
+                        }}
+                      >
+                        <Text
+                          className="text-xs font-bold"
+                          style={{
+                            color: Number((cuota as any).total_abonos || 0) > 0
+                              ? theme.colors.primary
+                              : theme.colors.textSecondary,
+                          }}
+                        >
+                          {(cuota as any).total_abonos || 0}
+                        </Text>
+                      </View>
+                    </View>
+
                     <View className="flex-[1.5] items-center justify-center">
                       <View
                         className="px-2 py-1 rounded-full flex-row items-center gap-1"
