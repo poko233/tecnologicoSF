@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { View, ScrollView, ActivityIndicator, Pressable } from "react-native";
+import { View, ScrollView, ActivityIndicator, Pressable, Platform } from "react-native";
 import Toast from "react-native-toast-message";
+import * as WebBrowser from "expo-web-browser";
 import { ThemedText } from "../../components/ThemedText";
 import { useTheme } from "../../theme/useTheme";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -15,6 +16,7 @@ import { VentaActual } from "./components/VentaActual";
 import { VentaTabs } from "./components/VentaTabs";
 import { ListadoVentasPanel } from "./components/ListadoVentasPanel";
 import { createVentaPOSStyles } from "./styles/ventapos.styles";
+import { getToken } from "../../storage/secureStorage";
 
 export default function VentaPOSScreen() {
   const { theme } = useTheme();
@@ -190,9 +192,28 @@ export default function VentaPOSScreen() {
       })),
     });
 
-    if (venta) {
+    if (venta && venta.idVenta) {
       limpiarCarrito();
-      await cargarInventario(); // Recargar para actualizar stock
+      await cargarInventario();
+
+      // Abrir el recibo PDF directamente
+      try {
+        const token = await getToken();
+        const baseUrl = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.25:8001";
+        const url = `${baseUrl}/api/ventas/${venta.idVenta}/recibo?token=${encodeURIComponent(token || '')}`;
+
+        if (Platform.OS === "web") {
+          window.open(url, "_blank");
+        } else {
+          await WebBrowser.openBrowserAsync(url);
+        }
+      } catch (error: any) {
+        Toast.show({
+          type: 'info',
+          text1: 'Venta registrada',
+          text2: 'No se pudo abrir el recibo automáticamente',
+        });
+      }
     }
   }, [activeArqueo, carrito, metodoPago, observacion, crearVenta, limpiarCarrito, cargarInventario]);
 

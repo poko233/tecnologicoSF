@@ -1,23 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  FlatList,
   ActivityIndicator,
+  FlatList,
   Pressable,
-  TextInput,
   useWindowDimensions,
+  View
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { ThemedText } from "../../../components/ThemedText";
+import { BASE_URL } from "../../../http/httpClient";
+import { getToken } from "../../../storage/secureStorage";
 import { Colors } from "../../../theme/types";
-import { InventarioVenta, FiltrosVenta } from "../types/venta.types";
 import { ventaService } from "../services/venta.service";
+import { FiltrosVenta, InventarioVenta } from "../types/venta.types";
 import { AnularVentaModal } from "./AnularVentaModal";
 import { FiltrosVentasPanel } from "./FiltrosVentasPanel";
-import { getToken } from "../../../storage/secureStorage";
-import { BASE_URL } from "../../../http/httpClient";
-import * as WebBrowser from "expo-web-browser";
 
 interface ListadoVentasPanelProps {
   colors: Colors;
@@ -270,7 +269,7 @@ export const ListadoVentasPanel: React.FC<ListadoVentasPanelProps> = ({ colors }
                 <Ionicons name="close-circle" size={18} color={colors.destructive} />
                 {!isMobile && (
                   <ThemedText style={{ fontSize: 12, fontWeight: "900", color: colors.destructive }}>
-                    Dar de Baja
+                    Anular
                   </ThemedText>
                 )}
               </Pressable>
