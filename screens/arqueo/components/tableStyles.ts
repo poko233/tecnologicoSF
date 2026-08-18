@@ -24,6 +24,10 @@ export const tableStyles = StyleSheet.create({
     minWidth: 200, // Garantiza espacio mínimo horizontal
     paddingHorizontal: 4,
   },
-  colTipoPago: { flex: 0.8 },
-  // Reutilizamos colEstado y colAcciones
+  colTipoPago: {
+    flex: 1.5,
+    minWidth: 115,
+    paddingHorizontal: 4,
+    justifyContent: "center",
+  },
 });
