@@ -213,8 +213,8 @@ export const CuotasTable: React.FC<Props> = ({
             </Text>
           </View>
         ) : (
-          <ScrollView horizontal contentContainerStyle={{ minWidth: "100%" }}>
-            <View className="w-full" style={{ minWidth: "100%" }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+            <View style={{ minWidth: isMobile ? 1200 : "100%" }}>
               {/* Cabecera de la tabla */}
               <View
                 className="flex-row py-3 px-4"
@@ -224,8 +224,8 @@ export const CuotasTable: React.FC<Props> = ({
                   borderColor: theme.colors.border,
                 }}
               >
-                <View className="w-10" />
-                <View className="flex-[2.5]">
+                <View style={{ width: 40 }} />
+                <View style={{ width: isMobile ? 140 : 180 }}>
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider"
                     style={{ color: theme.colors.textSecondary }}
@@ -233,7 +233,7 @@ export const CuotasTable: React.FC<Props> = ({
                     Concepto
                   </Text>
                 </View>
-                <View className="flex-[1.5]">
+                <View style={{ width: isMobile ? 100 : 120 }}>
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider"
                     style={{ color: theme.colors.textSecondary }}
@@ -241,7 +241,7 @@ export const CuotasTable: React.FC<Props> = ({
                     Vencimiento
                   </Text>
                 </View>
-                <View className="flex-[1.5] items-end">
+                <View style={{ width: 90 }} className="items-end">
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider text-right"
                     style={{ color: theme.colors.textSecondary }}
@@ -249,7 +249,7 @@ export const CuotasTable: React.FC<Props> = ({
                     Monto Total
                   </Text>
                 </View>
-                <View className="flex-[1.5] items-end">
+                <View style={{ width: 90 }} className="items-end">
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider text-right"
                     style={{ color: theme.colors.textSecondary }}
@@ -257,7 +257,7 @@ export const CuotasTable: React.FC<Props> = ({
                     Pagado
                   </Text>
                 </View>
-                <View className="flex-[1.5] items-end">
+                <View style={{ width: 90 }} className="items-end">
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider text-right"
                     style={{ color: theme.colors.textSecondary }}
@@ -265,15 +265,23 @@ export const CuotasTable: React.FC<Props> = ({
                     Saldo
                   </Text>
                 </View>
-                <View className="flex-[1] items-center">
+                <View style={{ width: 80 }} className="items-end">
+                  <Text
+                    className="text-xs font-semibold uppercase tracking-wider text-right"
+                    style={{ color: theme.colors.textSecondary }}
+                  >
+                    Multa
+                  </Text>
+                </View>
+                <View style={{ width: 70 }} className="items-center">
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider text-center"
                     style={{ color: theme.colors.textSecondary }}
                   >
-                    Subcuotas
+                    Abonos
                   </Text>
                 </View>
-                <View className="flex-[1.5] items-center">
+                <View style={{ width: isMobile ? 100 : 120 }} className="items-center">
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider text-center"
                     style={{ color: theme.colors.textSecondary }}
@@ -281,7 +289,7 @@ export const CuotasTable: React.FC<Props> = ({
                     Estado
                   </Text>
                 </View>
-                <View className="flex-[1.5] items-end">
+                <View style={{ width: isMobile ? 100 : 120 }} className="items-end">
                   <Text
                     className="text-xs font-semibold uppercase tracking-wider text-right"
                     style={{ color: theme.colors.textSecondary }}
@@ -318,7 +326,7 @@ export const CuotasTable: React.FC<Props> = ({
                     }}
                   >
                     {/* Checkbox de selección (solo cuotas pendientes) */}
-                    <View className="w-10 justify-center items-center">
+                    <View style={{ width: 40 }} className="justify-center items-center">
                       {isPending && (
                         <View
                           className="w-5 h-5 rounded border items-center justify-center"
@@ -342,7 +350,7 @@ export const CuotasTable: React.FC<Props> = ({
                       )}
                     </View>
 
-                    <View className="flex-[2.5] flex-row items-center gap-2">
+                    <View style={{ width: isMobile ? 140 : 180 }} className="flex-row items-center gap-2">
                       <Ionicons
                         name={
                           overdue
@@ -363,13 +371,14 @@ export const CuotasTable: React.FC<Props> = ({
                       <Text
                         className="text-sm font-semibold"
                         style={{ color: theme.colors.text }}
+                        numberOfLines={1}
                       >
                         {cuota.tipo === "MATRICULA"
                           ? "Matrícula"
                           : `Mensualidad ${cuota.numeroCuota}`}
                       </Text>
                     </View>
-                    <View className="flex-[1.5] justify-center">
+                    <View style={{ width: isMobile ? 100 : 120 }} className="justify-center">
                       <Text
                         className="text-sm"
                         style={{
@@ -377,13 +386,14 @@ export const CuotasTable: React.FC<Props> = ({
                             ? theme.colors.destructive
                             : theme.colors.textSecondary,
                         }}
+                        numberOfLines={1}
                       >
                         {formatDisplayDate(cuota.fecha_vencimiento)}
                       </Text>
                     </View>
 
                     {/* Monto Total */}
-                    <View className="flex-[1.5] items-end justify-center">
+                    <View style={{ width: 90 }} className="items-end justify-center">
                       <Text
                         className="text-sm font-bold"
                         style={{ color: theme.colors.text }}
@@ -393,7 +403,7 @@ export const CuotasTable: React.FC<Props> = ({
                     </View>
 
                     {/* Pagado (Pagos Parciales) */}
-                    <View className="flex-[1.5] items-end justify-center">
+                    <View style={{ width: 90 }} className="items-end justify-center">
                       <Text
                         className="text-sm font-semibold"
                         style={{ color: theme.colors.success }}
@@ -403,7 +413,7 @@ export const CuotasTable: React.FC<Props> = ({
                     </View>
 
                     {/* Saldo */}
-                    <View className="flex-[1.5] items-end justify-center">
+                    <View style={{ width: 90 }} className="items-end justify-center">
                       <Text
                         className="text-sm font-bold"
                         style={{ color: theme.colors.destructive }}
@@ -412,8 +422,18 @@ export const CuotasTable: React.FC<Props> = ({
                       </Text>
                     </View>
 
+                    {/* Multa (acumulado informativo) */}
+                    <View style={{ width: 80 }} className="items-end justify-center">
+                      <Text
+                        className="text-sm font-semibold"
+                        style={{ color: Number((cuota as any).multa || 0) > 0 ? theme.colors.warning : theme.colors.textMuted }}
+                      >
+                        {Number((cuota as any).multa || 0).toFixed(2)}
+                      </Text>
+                    </View>
+
                     {/* Subcuotas (número de abonos) */}
-                    <View className="flex-[1] items-center justify-center">
+                    <View style={{ width: 70 }} className="items-center justify-center">
                       <View
                         className="px-2 py-1 rounded-full"
                         style={{
@@ -435,7 +455,7 @@ export const CuotasTable: React.FC<Props> = ({
                       </View>
                     </View>
 
-                    <View className="flex-[1.5] items-center justify-center">
+                    <View style={{ width: isMobile ? 100 : 120 }} className="items-center justify-center">
                       <View
                         className="px-2 py-1 rounded-full flex-row items-center gap-1"
                         style={{
@@ -477,7 +497,7 @@ export const CuotasTable: React.FC<Props> = ({
                         </Text>
                       </View>
                     </View>
-                    <View className="flex-[1.5] items-end justify-center">
+                    <View style={{ width: isMobile ? 100 : 120 }} className="items-end justify-center">
                       {isPending ? (
                         <Pressable
                           onPress={(e) => {

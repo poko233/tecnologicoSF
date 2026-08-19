@@ -55,22 +55,47 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
   // Montos parciales editables por cuota
   const [montosParciales, setMontosParciales] = useState<Record<number, string>>({});
 
+  // Multas opcionales por cuota
+  const [multas, setMultas] = useState<Record<number, string>>({});
+
   const montoTotal = useMemo(() => {
     return cuotas.reduce((sum, c) => {
       const montoParcial = montosParciales[c.idCuota];
+      const multa = multas[c.idCuota];
+
+      let subtotal = 0;
+
+      // Monto a pagar (capital)
       if (montoParcial) {
         const valor = parseFloat(montoParcial);
-        return sum + (isNaN(valor) ? 0 : valor);
+        subtotal += isNaN(valor) ? 0 : valor;
+      } else {
+        // Si no hay monto parcial, usar el saldo completo
+        const saldo = (c as any).saldo ?? Math.max(0, c.monto - (c.descuento ?? 0));
+        subtotal += saldo;
       }
-      // Si no hay monto parcial, usar el saldo completo
-      const saldo = (c as any).saldo ?? Math.max(0, c.monto - (c.descuento ?? 0));
-      return sum + saldo;
+
+      // Multa (si hay)
+      if (multa) {
+        const valorMulta = parseFloat(multa);
+        subtotal += isNaN(valorMulta) ? 0 : valorMulta;
+      }
+
+      return sum + subtotal;
     }, 0);
-  }, [cuotas, montosParciales]);
+  }, [cuotas, montosParciales, multas]);
 
   // Actualizar monto parcial de una cuota
   const setMontoParcial = (idCuota: number, valor: string) => {
     setMontosParciales(prev => ({
+      ...prev,
+      [idCuota]: valor
+    }));
+  };
+
+  // Actualizar multa de una cuota
+  const setMulta = (idCuota: number, valor: string) => {
+    setMultas(prev => ({
       ...prev,
       [idCuota]: valor
     }));
@@ -116,16 +141,27 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
 
     setLoading(true);
     try {
-      // Preparar datos con montos parciales
+      // Preparar datos con montos parciales y multas
       const cuotasConMontos = cuotas.map(c => {
         const montoParcial = montosParciales[c.idCuota];
+        const multaStr = multas[c.idCuota];
         const saldo = (c as any).saldo ?? Math.max(0, c.monto - (c.descuento ?? 0));
         const montoAbonado = montoParcial ? parseFloat(montoParcial) : saldo;
 
-        return {
+        const payload: { idCuota: number; monto_abonado: number; multa?: number } = {
           idCuota: c.idCuota,
           monto_abonado: montoAbonado
         };
+
+        // Agregar multa solo si hay valor
+        if (multaStr) {
+          const multaNum = parseFloat(multaStr);
+          if (!isNaN(multaNum) && multaNum > 0) {
+            payload.multa = multaNum;
+          }
+        }
+
+        return payload;
       });
 
       const response = await pagoService.registrarPago({
@@ -145,8 +181,9 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
       onPaymentSuccess(idPago);
       onClose();
 
-      // Limpiar montos parciales
+      // Limpiar montos parciales y multas
       setMontosParciales({});
+      setMultas({});
     } catch (error: any) {
       // Cerrar el modal PRIMERO para que el Toast se vea bien
       onClose();
@@ -283,36 +320,91 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
                   renderItem={({ item, index }) => {
                     const saldo = (item as any).saldo || Math.max(0, item.monto - (item.descuento || 0));
                     const montoParcial = montosParciales[item.idCuota] || saldo.toFixed(2);
+                    const multaValue = multas[item.idCuota] || "";
 
                     return (
                       <View style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
                         paddingHorizontal: 14,
                         paddingVertical: 11,
                         borderBottomWidth: index < cuotas.length - 1 ? 0.5 : 0,
                         borderBottomColor: c.border,
-                        gap: 12,
+                        gap: 10,
                       }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                          <Ionicons
-                            name={item.tipo === "MATRICULA" ? "receipt-outline" : "calendar-outline"}
-                            size={14}
-                            color={c.textMuted}
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 13, color: c.text }} numberOfLines={1}>
-                              {item.tipo === "MATRICULA" ? "Matrícula" : `Cuota N° ${item.numeroCuota}`}
-                            </Text>
-                            <Text style={{ fontSize: 10, color: c.textMuted }}>
-                              Saldo: {saldo.toFixed(2)} Bs.
-                            </Text>
+                        {/* Primera fila: Info de cuota + Monto */}
+                        <View style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                        }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                            <Ionicons
+                              name={item.tipo === "MATRICULA" ? "receipt-outline" : "calendar-outline"}
+                              size={14}
+                              color={c.textMuted}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 13, color: c.text }} numberOfLines={1}>
+                                {item.tipo === "MATRICULA" ? "Matrícula" : `Cuota N° ${item.numeroCuota}`}
+                              </Text>
+                              <Text style={{ fontSize: 10, color: c.textMuted }}>
+                                Saldo: {saldo.toFixed(2)} Bs.
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Input editable para monto parcial */}
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <TextInput
+                              style={{
+                                backgroundColor: c.input,
+                                borderWidth: 1,
+                                borderColor: c.border,
+                                borderRadius: 6,
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                fontSize: 13,
+                                fontWeight: "600",
+                                color: c.text,
+                                width: 80,
+                                textAlign: "right",
+                              }}
+                              value={montoParcial}
+                              onChangeText={(text) => setMontoParcial(item.idCuota, text)}
+                              keyboardType="decimal-pad"
+                              placeholder="0.00"
+                              placeholderTextColor={c.textMuted}
+                            />
+                            <Text style={{ fontSize: 11, color: c.textMuted, width: 25 }}>Bs.</Text>
+
+                            {/* Botón para poner saldo completo */}
+                            <Pressable
+                              onPress={() => setSaldoCompleto(item.idCuota, saldo)}
+                              style={{
+                                paddingHorizontal: 6,
+                                paddingVertical: 4,
+                                borderRadius: 4,
+                                backgroundColor: c.primary + "20",
+                              }}
+                            >
+                              <Text style={{ fontSize: 9, fontWeight: "600", color: c.primary }}>
+                                TODO
+                              </Text>
+                            </Pressable>
                           </View>
                         </View>
 
-                        {/* Input editable para monto parcial */}
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        {/* Segunda fila: Input de multa (opcional) */}
+                        <View style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: 6,
+                          paddingLeft: 30,
+                        }}>
+                          <Text style={{ fontSize: 11, color: c.textMuted, flex: 1 }}>
+                            Multa (opcional):
+                          </Text>
                           <TextInput
                             style={{
                               backgroundColor: c.input,
@@ -327,28 +419,15 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
                               width: 80,
                               textAlign: "right",
                             }}
-                            value={montoParcial}
-                            onChangeText={(text) => setMontoParcial(item.idCuota, text)}
+                            value={multaValue}
+                            onChangeText={(text) => setMulta(item.idCuota, text)}
                             keyboardType="decimal-pad"
                             placeholder="0.00"
                             placeholderTextColor={c.textMuted}
                           />
                           <Text style={{ fontSize: 11, color: c.textMuted, width: 25 }}>Bs.</Text>
-
-                          {/* Botón para poner saldo completo */}
-                          <Pressable
-                            onPress={() => setSaldoCompleto(item.idCuota, saldo)}
-                            style={{
-                              paddingHorizontal: 6,
-                              paddingVertical: 4,
-                              borderRadius: 4,
-                              backgroundColor: c.primary + "20",
-                            }}
-                          >
-                            <Text style={{ fontSize: 9, fontWeight: "600", color: c.primary }}>
-                              TODO
-                            </Text>
-                          </Pressable>
+                          {/* Espacio para alinear con el botón TODO de arriba */}
+                          <View style={{ width: 40 }} />
                         </View>
                       </View>
                     );
