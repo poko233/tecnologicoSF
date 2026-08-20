@@ -1,6 +1,6 @@
 import { useTheme } from '@theme'
 import React from 'react'
-import { Text } from 'react-native'
+import { Text, View } from 'react-native'
 import { GenericAdminScreen } from '../components/GenericAdminScreen'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAdminCrud } from '../hooks/useAdminCrud'
@@ -18,24 +18,55 @@ export function MateriaScreen() {
     { key: 'semestre', header: 'Semestre', width: 90 },
     {
       key: 'carreras',
-      header: 'Carrera',
-      width: 180,
+      header: 'Carreras',
+      width: 200,
       render: (val: any) => {
         if (!val || !Array.isArray(val) || val.length === 0) {
           return (
-            <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontStyle: 'italic' }}>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontStyle: 'italic' }}>
               Sin carrera
             </Text>
           )
         }
+
+        const truncate = (str: string, maxLen: number = 20) => {
+          return str.length > maxLen ? str.substring(0, maxLen) + '...' : str
+        }
+
+        // Mostrar máximo 3 carreras, el resto como "+X"
+        const maxVisible = 3
+        const visibleCarreras = val.slice(0, maxVisible)
+        const remaining = val.length - maxVisible
+
         return (
-          <Text
-            style={{ fontSize: 13, color: theme.colors.text }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {val.map((c: any) => c.nombreCarrera).join(', ')}
-          </Text>
+          <View style={{ height: 60, justifyContent: 'center', paddingVertical: 2 }}>
+            {visibleCarreras.map((c: any, idx: number) => (
+              <Text
+                key={idx}
+                style={{
+                  fontSize: 11,
+                  color: theme.colors.text,
+                  lineHeight: 16,
+                  marginBottom: 2,
+                }}
+                numberOfLines={1}
+              >
+                {truncate(c.nombreCarrera, 22)}
+              </Text>
+            ))}
+            {remaining > 0 && (
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: theme.colors.primary,
+                  fontWeight: '600',
+                  marginTop: 2,
+                }}
+              >
+                +{remaining} más
+              </Text>
+            )}
+          </View>
         )
       },
     },

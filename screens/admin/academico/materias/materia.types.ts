@@ -10,3 +10,15 @@ export interface Materia {
   fecha_inicio?: string
   fecha_fin?: string
 }
+
+// Type para crear/actualizar materia (carreras como IDs)
+export interface MateriaInput {
+  nombreMateria: string
+  codigo: string
+  semestre: number
+  estado?: 'activo' | 'inactivo'
+  idPrerequisito?: number
+  carreras?: number[]  // Solo IDs al crear/editar
+  fecha_inicio?: string
+  fecha_fin?: string
+}

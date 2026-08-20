@@ -21,7 +21,7 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
   const [showPrereqs, setShowPrereqs] = useState(false)
   const [form, setForm] = useState({
     nombreMateria: '', codigo: '', semestre: '1',
-    idPrerequisito: '', idCarrera: '', activo: true,
+    idPrerequisito: '', carreras: [] as number[], activo: true,
     fecha_inicio: '', fecha_fin: '',
   })
   const [fechaInicioModalVisible, setFechaInicioModalVisible] = useState(false)
@@ -39,7 +39,7 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
         codigo: initialData.codigo ?? '',
         semestre: String(initialData.semestre ?? 1),
         idPrerequisito: String(initialData.idPrerequisito ?? ''),
-        idCarrera: '',
+        carreras: initialData.carreras?.map(c => c.idCarrera) ?? [],
         activo: initialData.estado === 'activo',
         fecha_inicio: initialData.fecha_inicio ?? '',
         fecha_fin: initialData.fecha_fin ?? '',
@@ -59,7 +59,7 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
       semestre: Number(form.semestre),
       estado: form.activo ? 'activo' : 'inactivo',
       idPrerequisito: form.idPrerequisito ? Number(form.idPrerequisito) : undefined,
-      idCarrera: form.idCarrera ? Number(form.idCarrera) : undefined,
+      carreras: form.carreras.length > 0 ? form.carreras : undefined,
       fecha_inicio: form.fecha_inicio || undefined,
       fecha_fin: form.fecha_fin || undefined,
     })
@@ -83,14 +83,38 @@ export function MateriaForm({ initialData, onSave, onCancel }: Props) {
       <Text style={lbl}>Semestre * (1-12)</Text>
       <TextInput style={inp} value={form.semestre} onChangeText={set('semestre')} keyboardType="numeric" placeholder="1" placeholderTextColor={theme.colors.textMuted} />
 
-      <Text style={lbl}>Carrera</Text>
+      <Text style={lbl}>Carreras * (puedes seleccionar varias)</Text>
       <View style={styles.chipRow}>
-        {carreras.map(c => (
-          <Pressable key={c.idCarrera} onPress={() => setForm(f => ({ ...f, idCarrera: String(c.idCarrera) }))}
-            style={[styles.chip, { backgroundColor: form.idCarrera === String(c.idCarrera) ? theme.colors.primary : theme.colors.secondary, borderColor: theme.colors.border }]}>
-            <Text style={{ color: form.idCarrera === String(c.idCarrera) ? theme.colors.primaryForeground : theme.colors.text, fontSize: 12 }}>{c.nombreCarrera}</Text>
-          </Pressable>
-        ))}
+        {carreras.map(c => {
+          const isSelected = form.carreras.includes(c.idCarrera)
+          return (
+            <Pressable
+              key={c.idCarrera}
+              onPress={() => {
+                setForm(f => ({
+                  ...f,
+                  carreras: isSelected
+                    ? f.carreras.filter(id => id !== c.idCarrera)
+                    : [...f.carreras, c.idCarrera]
+                }))
+              }}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: isSelected ? theme.colors.primary : theme.colors.secondary,
+                  borderColor: theme.colors.border
+                }
+              ]}
+            >
+              <Text style={{
+                color: isSelected ? theme.colors.primaryForeground : theme.colors.text,
+                fontSize: 12
+              }}>
+                {isSelected ? '✓ ' : ''}{c.nombreCarrera}
+              </Text>
+            </Pressable>
+          )
+        })}
       </View>
 
       <Pressable
