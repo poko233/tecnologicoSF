@@ -22,6 +22,83 @@ import {
   SeleccionMateriaInscripcion,
 } from "../types/asignaciones.types";
 
+function obtenerMensajeBackend(error: any): string {
+  const mensaje =
+    error?.response?.data?.message ??
+    error?.data?.message ??
+    error?.body?.message ??
+    error?.message;
+
+  if (
+    typeof mensaje === "string" &&
+    mensaje.trim()
+  ) {
+    return mensaje.trim();
+  }
+
+  const errores =
+    error?.response?.data?.errors ??
+    error?.data?.errors ??
+    error?.body?.errors;
+
+  if (
+    errores &&
+    typeof errores === "object"
+  ) {
+    const primerError = Object.values(errores)
+      .flat()
+      .find(
+        (item) =>
+          typeof item === "string" &&
+          item.trim() !== "",
+      );
+
+    if (primerError) {
+      return String(primerError).trim();
+    }
+  }
+
+  return "";
+}
+
+function esMensajeSinGrupos(
+  mensaje: string,
+): boolean {
+  const texto = String(mensaje ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return (
+    texto.includes("no existen grupos activos") ||
+    texto.includes("no existen grupos") ||
+    texto.includes("no hay grupos activos") ||
+    texto.includes("no hay grupos disponibles")
+  );
+}
+
+function esErrorSinGrupos(
+  mensaje: string,
+): boolean {
+  const texto = mensaje
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return (
+    texto.includes(
+      "no existen grupos activos",
+    ) ||
+    texto.includes(
+      "no existen grupos",
+    ) ||
+    texto.includes(
+      "no hay grupos activos",
+    )
+  );
+}
+
 export function useAsignaciones() {
   const [loading, setLoading] = useState(false);
   const [loadingCarreras, setLoadingCarreras] = useState(false);
@@ -182,111 +259,228 @@ export function useAsignaciones() {
     }
   }, []);
 
-  const cargarMaterias = useCallback(
-    async (
-      idUsuario: number,
-      idCarrera?: number | null,
-      nivel?: number | null,
-    ) => {
-      const idCarreraFinal =
-        idCarrera !== undefined && idCarrera !== null
-          ? Number(idCarrera)
-          : carreraActualRef.current;
+ const cargarMaterias = useCallback(
+  async (
+    idUsuario: number,
+    idCarrera?: number | null,
+    nivel?: number | null,
+  ) => {
+    const idCarreraFinal =
+      idCarrera !== undefined &&
+      idCarrera !== null
+        ? Number(idCarrera)
+        : carreraActualRef.current;
 
-      const nivelFinal =
-        nivel !== undefined && nivel !== null
-          ? Number(nivel)
-          : nivelActualRef.current;
+    const nivelFinal =
+      nivel !== undefined &&
+      nivel !== null
+        ? Number(nivel)
+        : nivelActualRef.current;
 
-      if (!idCarreraFinal || idCarreraFinal <= 0) {
-        Toast.show({
-          type: "error",
-          text1: "Carrera requerida",
-          text2: "Debes seleccionar una carrera antes de cargar materias.",
-        });
-        return [];
-      }
+    if (
+      !idCarreraFinal ||
+      idCarreraFinal <= 0
+    ) {
+      Toast.show({
+        type: "error",
+        text1: "Carrera requerida",
+        text2:
+          "Debes seleccionar una carrera antes de cargar materias.",
+      });
 
-      if (!nivelFinal || nivelFinal <= 0) {
-        Toast.show({
-          type: "error",
-          text1: "Nivel requerido",
-          text2:
-            "Debes seleccionar semestre, año o mes antes de cargar materias.",
-        });
-        return [];
-      }
+      return [];
+    }
 
-      const requestId = materiasRequestIdRef.current + 1;
-      materiasRequestIdRef.current = requestId;
+    if (
+      !nivelFinal ||
+      nivelFinal <= 0
+    ) {
+      Toast.show({
+        type: "error",
+        text1: "Nivel requerido",
+        text2:
+          "Debes seleccionar semestre, año o mes antes de cargar materias.",
+      });
 
-      try {
-        setLoadingMaterias(true);
-        setMaterias([]);
-        setMateriasPendientesAnteriores([]);
-        setMateriasBloqueadasPrerequisito([]);
-        setNivelMateriasActual(nivelFinal);
+      return [];
+    }
 
-        const data = await getMateriasSemestreUno(
+    const requestId =
+      materiasRequestIdRef.current + 1;
+
+    materiasRequestIdRef.current =
+      requestId;
+
+    try {
+      setLoadingMaterias(true);
+
+      setMaterias([]);
+
+      setMateriasPendientesAnteriores(
+        [],
+      );
+
+      setMateriasBloqueadasPrerequisito(
+        [],
+      );
+
+      setNivelMateriasActual(
+        nivelFinal,
+      );
+
+      const data =
+        await getMateriasSemestreUno(
           idUsuario,
           idCarreraFinal,
           nivelFinal,
         );
 
-        const lista = Array.isArray(data.materias) ? data.materias : [];
-        const pendientesAnteriores = Array.isArray(
+      const lista =
+        Array.isArray(data.materias)
+          ? data.materias
+          : [];
+
+      const pendientesAnteriores =
+        Array.isArray(
           data.materiasPendientesAnteriores,
         )
           ? data.materiasPendientesAnteriores
           : [];
-        const bloqueadasPrerequisito = Array.isArray(
+
+      const bloqueadasPrerequisito =
+        Array.isArray(
           data.materiasBloqueadasPrerequisito,
         )
           ? data.materiasBloqueadasPrerequisito
           : [];
 
-        if (materiasRequestIdRef.current !== requestId) {
-          return lista;
-        }
-
-        setMaterias(lista);
-        setMateriasPendientesAnteriores(pendientesAnteriores);
-        setMateriasBloqueadasPrerequisito(bloqueadasPrerequisito);
-        setNivelMateriasActual(data.nivelSeleccionado ?? nivelFinal);
-        setNotaAprobacionActual(
-          data.notaAprobacion !== undefined && data.notaAprobacion !== null
-            ? Number(data.notaAprobacion)
-            : null,
-        );
-
+      /*
+       * Si apareció una petición más reciente,
+       * ignoramos esta respuesta.
+       */
+      if (
+        materiasRequestIdRef.current !==
+        requestId
+      ) {
         return lista;
-      } catch (error: any) {
-        if (materiasRequestIdRef.current !== requestId) {
-          return [];
-        }
+      }
 
-        setMaterias([]);
-        setMateriasPendientesAnteriores([]);
-        setMateriasBloqueadasPrerequisito([]);
+      setMaterias(lista);
 
+      setMateriasPendientesAnteriores(
+        pendientesAnteriores,
+      );
+
+      setMateriasBloqueadasPrerequisito(
+        bloqueadasPrerequisito,
+      );
+
+      setNivelMateriasActual(
+        data.nivelSeleccionado ??
+          nivelFinal,
+      );
+
+      setNotaAprobacionActual(
+        data.notaAprobacion !==
+          undefined &&
+          data.notaAprobacion !== null
+          ? Number(
+              data.notaAprobacion,
+            )
+          : null,
+      );
+
+      return lista;
+    } catch (error: any) {
+      /*
+       * Si ya existe otra petición más reciente
+       * no hacemos nada.
+       */
+      if (
+        materiasRequestIdRef.current !==
+        requestId
+      ) {
+        return [];
+      }
+
+      setMaterias([]);
+
+      setMateriasPendientesAnteriores(
+        [],
+      );
+
+      setMateriasBloqueadasPrerequisito(
+        [],
+      );
+
+      setNotaAprobacionActual(null);
+
+      const mensajeBackend =
+        obtenerMensajeBackend(error);
+
+      /*
+       * ====================================================
+       * SIN GRUPOS DISPONIBLES
+       * ====================================================
+       *
+       * IMPORTANTE:
+       *
+       * null significa específicamente:
+       * "No existen grupos".
+       *
+       * AsignacionesScreen utilizará este null
+       * para cerrar automáticamente InscribirModal.
+       */
+      if (
+        esMensajeSinGrupos(
+          mensajeBackend,
+        )
+      ) {
         Toast.show({
-          type: "error",
-          text1: "Error",
+          type: "info",
+
+          text1:
+            "Sin grupos disponibles",
+
           text2:
-            error?.response?.data?.message ??
-            "No se pudieron cargar las materias del nivel seleccionado.",
+            mensajeBackend ||
+            `No existen grupos activos para el nivel ${nivelFinal}.`,
+
+          visibilityTime: 5000,
         });
 
-        return [];
-      } finally {
-        if (materiasRequestIdRef.current === requestId) {
-          setLoadingMaterias(false);
-        }
+        return null;
       }
-    },
-    [],
-  );
 
+      /*
+       * ====================================================
+       * ERROR REAL
+       * ====================================================
+       */
+
+      Toast.show({
+        type: "error",
+
+        text1:
+          "No se pudieron cargar las materias",
+
+        text2:
+          mensajeBackend ||
+          "Ocurrió un problema al consultar las materias.",
+      });
+
+      return [];
+    } finally {
+      if (
+        materiasRequestIdRef.current ===
+        requestId
+      ) {
+        setLoadingMaterias(false);
+      }
+    }
+  },
+  [],
+);
   const actualizarInscripcion = useCallback(
     async (
       idUsuario: number,
