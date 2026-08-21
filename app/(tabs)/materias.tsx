@@ -10,26 +10,10 @@ export default function NotasScreen() {
     <View
       style={{
         flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
         backgroundColor: theme.colors.background,
         padding: 24,
       }}
     >
-      <ThemedText
-        style={{ fontSize: 28, fontWeight: "800", color: theme.colors.text }}
-      >
-        HORARIO
-      </ThemedText>
-      <ThemedText
-        style={{
-          marginTop: 12,
-          fontSize: 16,
-          color: theme.colors.textSecondary,
-        }}
-      >
-        Consulta tus HORARIOS.
-      </ThemedText>
     </View>
   );
 }
