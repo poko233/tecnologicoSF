@@ -197,13 +197,52 @@ export default function AsignacionesScreen() {
   );
 
   const cargarMateriasModal = useCallback(
-    async (idCarrera: number, nivel: number) => {
-      if (!estudianteSeleccionado) return;
+  async (
+    idCarrera: number,
+    nivel: number,
+  ) => {
+    if (!estudianteSeleccionado) {
+      return;
+    }
 
-      await cargarMaterias(estudianteSeleccionado.id, idCarrera, nivel);
-    },
-    [estudianteSeleccionado, cargarMaterias],
-  );
+    const resultado =
+      await cargarMaterias(
+        estudianteSeleccionado.id,
+        idCarrera,
+        nivel,
+      );
+
+    /*
+     * ====================================================
+     * SIN GRUPOS
+     * ====================================================
+     *
+     * cargarMaterias devuelve null únicamente cuando
+     * el backend informa que no existen grupos activos.
+     *
+     * En ese caso cerramos automáticamente el modal.
+     */
+    if (resultado === null) {
+      setInscribirVisible(false);
+
+      setDatosCuotasGestion(null);
+
+      setCuotasCarreraId(null);
+
+      setEstudianteSeleccionado(null);
+
+      limpiarSeleccion(false);
+
+      return;
+    }
+  },
+  [
+    estudianteSeleccionado,
+    cargarMaterias,
+    limpiarSeleccion,
+    setEstudianteSeleccionado,
+  ],
+);
 
   const abrirPdfEstudiante = useCallback(async (estudiante: Estudiante) => {
     try {

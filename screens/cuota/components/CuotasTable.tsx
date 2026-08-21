@@ -375,7 +375,7 @@ export const CuotasTable: React.FC<Props> = ({
                       >
                         {cuota.tipo === "MATRICULA"
                           ? "Matrícula"
-                          : `Mensualidad ${cuota.numeroCuota}`}
+                          : `Cuota ${cuota.numeroCuota}`}
                       </Text>
                     </View>
                     <View style={{ width: isMobile ? 100 : 120 }} className="justify-center">

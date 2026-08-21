@@ -1,5 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -12,7 +17,10 @@ import {
 import Toast from "react-native-toast-message";
 
 import { ThemedText } from "../../components/ThemedText";
-import { BASE_URL, httpClient } from "../../http/httpClient";
+import {
+  BASE_URL,
+  httpClient,
+} from "../../http/httpClient";
 import { useTheme } from "../../theme/useTheme";
 
 import FormDateInput from "./components/FormDateInput";
@@ -64,11 +72,18 @@ type EstudianteContinuar = {
   direccion: string;
   celular: string;
   observacionPromociones?: string | null;
-  numero_referencias?: ReferenciaEstudiante[];
-  numeroReferencias?: ReferenciaEstudiante[];
+
+  numero_referencias?:
+    ReferenciaEstudiante[];
+
+  numeroReferencias?:
+    ReferenciaEstudiante[];
 };
 
-const expedidoReverse: Record<string, DepartamentoBolivia> = {
+const expedidoReverse: Record<
+  string,
+  DepartamentoBolivia
+> = {
   LPZ: "La Paz",
   CBBA: "Cochabamba",
   OR: "Oruro",
@@ -82,626 +97,1474 @@ const expedidoReverse: Record<string, DepartamentoBolivia> = {
   EXT: "Cochabamba",
 };
 
-const generoReverse: Record<string, Genero> = {
+const generoReverse: Record<
+  string,
+  Genero
+> = {
   MASCULINO: "Masculino",
   FEMENINO: "Femenino",
 };
 
 export default function InscripcionScreen() {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 900;
-  const { theme } = useTheme();
+  const { width } =
+    useWindowDimensions();
 
-  const { form, updateField, step, setStep, resetForm } =
+  const isMobile =
+    width < 900;
+
+  const { theme } =
+    useTheme();
+
+  const {
+    form,
+    updateField,
+    step,
+    setStep,
+    resetForm,
+  } =
     useInscripcionForm();
 
-  const [idEstudiante, setIdEstudiante] = useState<number | null>(null);
-  const [guardando, setGuardando] = useState(false);
-  const [maxStepReached, setMaxStepReached] = useState(1);
-  const [errors, setErrors] = useState<InscripcionErrors>({});
+  const [
+    idEstudiante,
+    setIdEstudiante,
+  ] =
+    useState<number | null>(
+      null
+    );
 
-  const [matriculaPreview, setMatriculaPreview] = useState("");
-  const [fechaInscripcion, setFechaInscripcion] = useState("");
-  const [loadingMatricula, setLoadingMatricula] = useState(false);
+  const [
+    guardando,
+    setGuardando,
+  ] =
+    useState(false);
 
-  const [documentosLocales, setDocumentosLocales] = useState<
-    Record<string, DocumentoLocal>
+  const [
+    maxStepReached,
+    setMaxStepReached,
+  ] =
+    useState(1);
+
+  const [
+    errors,
+    setErrors,
+  ] =
+    useState<InscripcionErrors>(
+      {}
+    );
+
+  const [
+    matriculaPreview,
+    setMatriculaPreview,
+  ] =
+    useState("");
+
+  const [
+    fechaInscripcion,
+    setFechaInscripcion,
+  ] =
+    useState("");
+
+  const [
+    loadingMatricula,
+    setLoadingMatricula,
+  ] =
+    useState(false);
+
+  const [
+    documentosLocales,
+    setDocumentosLocales,
+  ] = useState<
+    Record<
+      string,
+      DocumentoLocal
+    >
   >({});
 
-  const [modalContinuarVisible, setModalContinuarVisible] = useState(false);
-  const [loadingContinuar, setLoadingContinuar] = useState(false);
-  const [busquedaContinuar, setBusquedaContinuar] = useState("");
-  const [estudiantesContinuar, setEstudiantesContinuar] = useState<
+  const [
+    modalContinuarVisible,
+    setModalContinuarVisible,
+  ] =
+    useState(false);
+
+  const [
+    loadingContinuar,
+    setLoadingContinuar,
+  ] =
+    useState(false);
+
+  const [
+    busquedaContinuar,
+    setBusquedaContinuar,
+  ] =
+    useState("");
+
+  const [
+    estudiantesContinuar,
+    setEstudiantesContinuar,
+  ] = useState<
     EstudianteContinuar[]
   >([]);
 
-  const timeoutCarnet = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const timeoutCorreo = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /*
+   * Solamente conservamos
+   * debounce para correo.
+   *
+   * Ya NO existe verificación
+   * de carnet único.
+   */
+  const timeoutCorreo =
+    useRef<
+      ReturnType<typeof setTimeout>
+      | null
+    >(null);
 
-  const [checkingCarnet, setCheckingCarnet] = useState(false);
-  const [checkingCorreo, setCheckingCorreo] = useState(false);
+  const [
+    checkingCorreo,
+    setCheckingCorreo,
+  ] =
+    useState(false);
 
   const colorSecundario =
-    (theme.colors as any).textSecondary ??
-    (theme.colors as any).muted ??
+    (theme.colors as any)
+      .textSecondary ??
+    (theme.colors as any)
+      .muted ??
     "#94A3B8";
 
-  const cargarSiguienteMatricula = async () => {
-    try {
-      setLoadingMatricula(true);
+  /*
+  |--------------------------------------------------------------------------
+  | MATRÍCULA
+  |--------------------------------------------------------------------------
+  */
 
-      const response = await httpClient.getAuth<{
-        matricula: string;
-        fechaInscripcion: string;
-        fechaInscripcionTexto: string;
-      }>("/api/estudiantes/siguiente-matricula");
+  const cargarSiguienteMatricula =
+    async () => {
+      try {
+        setLoadingMatricula(
+          true
+        );
 
-      setMatriculaPreview(response.matricula ?? "");
+        const response =
+          await httpClient
+            .getAuth<{
+              matricula: string;
+
+              fechaInscripcion:
+                string;
+
+              fechaInscripcionTexto:
+                string;
+            }>(
+              "/api/estudiantes/siguiente-matricula"
+            );
+
+        setMatriculaPreview(
+          response.matricula ??
+            ""
+        );
+
+        setFechaInscripcion(
+          response
+            .fechaInscripcionTexto ??
+            response
+              .fechaInscripcion ??
+            ""
+        );
+
+      } catch (
+        error: any
+      ) {
+        setMatriculaPreview(
+          ""
+        );
+
+        setFechaInscripcion(
+          ""
+        );
+
+        Toast.show({
+          type: "error",
+
+          text1: "Error",
+
+          text2:
+            error?.message ??
+            "No se pudo cargar la matrícula automática.",
+        });
+
+      } finally {
+        setLoadingMatricula(
+          false
+        );
+      }
+    };
+
+  /*
+  |--------------------------------------------------------------------------
+  | LIMPIAR
+  |--------------------------------------------------------------------------
+  */
+
+  const limpiarInscripcion =
+    () => {
+      resetForm();
+
+      setErrors({});
+
+      setIdEstudiante(
+        null
+      );
+
+      setMaxStepReached(
+        1
+      );
+
+      setDocumentosLocales(
+        {}
+      );
+
+      setBusquedaContinuar(
+        ""
+      );
+
+      setEstudiantesContinuar(
+        []
+      );
+
+      void cargarSiguienteMatricula();
+    };
+
+  /*
+  |--------------------------------------------------------------------------
+  | ACTUALIZAR CAMPO
+  |--------------------------------------------------------------------------
+  */
+
+  const updateFieldWithValidation =
+    (
+      field:
+        keyof typeof form,
+
+      value: any,
+    ) => {
+      updateField(
+        field,
+        value
+      );
+
+      setErrors(
+        (prev) => ({
+          ...prev,
+
+          [field]:
+            undefined,
+        })
+      );
+    };
+
+  /*
+  |--------------------------------------------------------------------------
+  | FECHA
+  |--------------------------------------------------------------------------
+  */
+
+  const fechaBackendAFrontend =
+    (
+      fecha?:
+        string | null
+    ) => {
+      if (!fecha) {
+        return "";
+      }
+
+      const limpia =
+        fecha.split("T")[0];
+
+      const [
+        year,
+        month,
+        day,
+      ] =
+        limpia.split("-");
+
+      if (
+        !year ||
+        !month ||
+        !day
+      ) {
+        return "";
+      }
+
+      return `${day}/${month}/${year}`;
+    };
+
+  /*
+  |--------------------------------------------------------------------------
+  | DOCUMENTOS
+  |--------------------------------------------------------------------------
+  */
+
+  const normalizarArchivoUrl =
+    (
+      ubicacionArchivo:
+        string | null
+    ) => {
+      if (
+        !ubicacionArchivo
+      ) {
+        return null;
+      }
+
+      if (
+        ubicacionArchivo
+          .startsWith(
+            "http"
+          )
+      ) {
+        return ubicacionArchivo;
+      }
+
+      return `${BASE_URL}/${ubicacionArchivo}`
+        .replace(
+          /([^:]\/)\/+/g,
+          "$1"
+        );
+    };
+
+  const cargarDocumentosEstudiante =
+    async (
+      idUsuario: number
+    ) => {
+      try {
+        const response =
+          await httpClient
+            .getAuth<{
+              documentos: {
+                idDocumentoEstudiante:
+                  number;
+
+                nombreDocumento:
+                  string;
+
+                ubicacionArchivo:
+                  string | null;
+
+                estadoDocumento:
+                  string;
+
+                idUsuario:
+                  number;
+              }[];
+            }>(
+              `/api/estudiantes/${idUsuario}/documentos-inscripcion`
+            );
+
+        const documentosMap:
+          Record<
+            string,
+            DocumentoLocal
+          > = {};
+
+        (
+          response.documentos ??
+          []
+        ).forEach(
+          (doc) => {
+            const archivo =
+              doc.ubicacionArchivo ??
+              null;
+
+            const archivoNombre =
+              archivo
+                ? archivo
+                    .split("/")
+                    .pop() ??
+                  null
+                : null;
+
+            if (
+              !doc.nombreDocumento
+            ) {
+              return;
+            }
+
+            documentosMap[
+              doc.nombreDocumento
+            ] = {
+              nombreDocumento:
+                doc.nombreDocumento,
+
+              archivoNombre,
+
+              previewUri:
+                normalizarArchivoUrl(
+                  archivo
+                ),
+
+              mimeType:
+                null,
+            };
+          }
+        );
+
+        setDocumentosLocales(
+          documentosMap
+        );
+
+      } catch (
+        error
+      ) {
+        setDocumentosLocales(
+          {}
+        );
+      }
+    };
+
+  /*
+  |--------------------------------------------------------------------------
+  | CONTINUAR INSCRIPCIÓN
+  |--------------------------------------------------------------------------
+  */
+
+  const abrirContinuarInscripcion =
+    async () => {
+      try {
+        setModalContinuarVisible(
+          true
+        );
+
+        setLoadingContinuar(
+          true
+        );
+
+        const response =
+          await httpClient
+            .getAuth<{
+              estudiantes:
+                EstudianteContinuar[];
+            }>(
+              "/api/estudiantes/continuar-inscripcion"
+            );
+
+        setEstudiantesContinuar(
+          response.estudiantes ??
+            []
+        );
+
+      } catch (
+        error: any
+      ) {
+        Toast.show({
+          type: "error",
+
+          text1: "Error",
+
+          text2:
+            error?.message ??
+            "No se pudieron cargar los estudiantes pendientes.",
+        });
+
+      } finally {
+        setLoadingContinuar(
+          false
+        );
+      }
+    };
+
+  const seleccionarEstudianteContinuar =
+    async (
+      estudiante:
+        EstudianteContinuar
+    ) => {
+      const referencias =
+        estudiante
+          .numeroReferencias ??
+        estudiante
+          .numero_referencias ??
+        [];
+
+      const referencia =
+        referencias.length > 0
+          ? referencias[0]
+          : null;
+
+      setMatriculaPreview(
+        estudiante.matricula ??
+          ""
+      );
 
       setFechaInscripcion(
-        response.fechaInscripcionTexto ?? response.fechaInscripcion ?? "",
+        fechaBackendAFrontend(
+          new Date()
+            .toISOString()
+        )
       );
-    } catch (error: any) {
-
-      setMatriculaPreview("");
-      setFechaInscripcion("");
-
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2:
-          error?.message ??
-          "No se pudo cargar la matrícula automática.",
-      });
-    } finally {
-      setLoadingMatricula(false);
-    }
-  };
-
-  const limpiarInscripcion = () => {
-    resetForm();
-    setErrors({});
-    setIdEstudiante(null);
-    setMaxStepReached(1);
-    setDocumentosLocales({});
-    setBusquedaContinuar("");
-    setEstudiantesContinuar([]);
-    void cargarSiguienteMatricula();
-  };
-
-  const updateFieldWithValidation = (
-    field: keyof typeof form,
-    value: any,
-  ) => {
-    updateField(field, value);
-
-    setErrors((prev) => ({
-      ...prev,
-      [field]: undefined,
-    }));
-  };
-
-  const fechaBackendAFrontend = (fecha?: string | null) => {
-    if (!fecha) {
-      return "";
-    }
-
-    const limpia = fecha.split("T")[0];
-    const [year, month, day] = limpia.split("-");
-
-    if (!year || !month || !day) {
-      return "";
-    }
-
-    return `${day}/${month}/${year}`;
-  };
-
-  const normalizarArchivoUrl = (ubicacionArchivo: string | null) => {
-    if (!ubicacionArchivo) {
-      return null;
-    }
-
-    if (ubicacionArchivo.startsWith("http")) {
-      return ubicacionArchivo;
-    }
-
-    return `${BASE_URL}/${ubicacionArchivo}`.replace(/([^:]\/)\/+/g, "$1");
-  };
-
-  const cargarDocumentosEstudiante = async (idUsuario: number) => {
-    try {
-      const response = await httpClient.getAuth<{
-        documentos: {
-          idDocumentoEstudiante: number;
-          nombreDocumento: string;
-          ubicacionArchivo: string | null;
-          estadoDocumento: string;
-          idUsuario: number;
-        }[];
-      }>(`/api/estudiantes/${idUsuario}/documentos-inscripcion`);
-
-      const documentosMap: Record<string, DocumentoLocal> = {};
-
-      (response.documentos ?? []).forEach((doc) => {
-        const archivo = doc.ubicacionArchivo ?? null;
-        const archivoNombre = archivo ? archivo.split("/").pop() ?? null : null;
-
-        if (!doc.nombreDocumento) {
-          return;
-        }
-
-        documentosMap[doc.nombreDocumento] = {
-          nombreDocumento: doc.nombreDocumento,
-          archivoNombre,
-          previewUri: normalizarArchivoUrl(archivo),
-          mimeType: null,
-        };
-      });
-
-      setDocumentosLocales(documentosMap);
-    } catch (error) {
-      setDocumentosLocales({});
-    }
-  };
-
-  const abrirContinuarInscripcion = async () => {
-    try {
-      setModalContinuarVisible(true);
-      setLoadingContinuar(true);
-
-      const response = await httpClient.getAuth<{
-        estudiantes: EstudianteContinuar[];
-      }>("/api/estudiantes/continuar-inscripcion");
-
-      setEstudiantesContinuar(response.estudiantes ?? []);
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2:
-          error?.message ??
-          "No se pudieron cargar los estudiantes pendientes.",
-      });
-    } finally {
-      setLoadingContinuar(false);
-    }
-  };
-
-  const seleccionarEstudianteContinuar = async (
-    estudiante: EstudianteContinuar,
-  ) => {
-    const referencias =
-      estudiante.numeroReferencias ??
-      estudiante.numero_referencias ??
-      [];
-
-    const referencia = referencias.length > 0 ? referencias[0] : null;
-
-    setMatriculaPreview(estudiante.matricula ?? "");
-    setFechaInscripcion(fechaBackendAFrontend(new Date().toISOString()));
-
-    updateField("apellidoPaterno", estudiante.apellidoPaterno ?? "");
-    updateField("apellidoMaterno", estudiante.apellidoMaterno ?? "");
-    updateField("nombres", estudiante.nombres ?? "");
-    updateField("carnet", estudiante.ci ?? "");
-    updateField("email", estudiante.email ?? "");
-    updateField("celular", estudiante.celular ?? "");
-    updateField("direccion", estudiante.direccion ?? "");
-
-    updateField(
-      "observacionPromociones",
-      estudiante.observacionPromociones ?? "",
-    );
-
-    updateField(
-      "fechaNacimiento",
-      fechaBackendAFrontend(estudiante.fecha_nac),
-    );
-
-    updateField(
-      "expedidoEn",
-      expedidoReverse[estudiante.expedido] ?? "Cochabamba",
-    );
-
-    updateField("genero", generoReverse[estudiante.genero] ?? "Masculino");
-
-    updateField(
-      "referenciaNombre",
-      referencia?.nombreContactoReferencia ?? "",
-    );
-
-    updateField("referenciaParentesco", referencia?.parentesco ?? "");
-    updateField("referenciaNumero", referencia?.numeroReferencia ?? "");
-
-    setIdEstudiante(estudiante.id);
-    setErrors({});
-    setMaxStepReached(2);
-    setStep(2);
-    setModalContinuarVisible(false);
-
-    await cargarDocumentosEstudiante(estudiante.id);
-
-    Toast.show({
-      type: "success",
-      text1: "Inscripción cargada",
-      text2: referencia
-        ? "Datos cargados correctamente."
-        : "El estudiante no tiene contacto de referencia registrado.",
-    });
-  };
-
-  const estudiantesFiltrados = useMemo(() => {
-    const textoBusqueda = busquedaContinuar.trim().toLowerCase();
-
-    if (!textoBusqueda) {
-      return estudiantesContinuar;
-    }
-
-    return estudiantesContinuar.filter((estudiante) => {
-      const texto =
-        `${estudiante.nombres} ${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.ci} ${estudiante.email} ${estudiante.matricula ?? ""}`.toLowerCase();
-
-      return texto.includes(textoBusqueda);
-    });
-  }, [busquedaContinuar, estudiantesContinuar]);
-
-  const validarFormulario = () => {
-    const nuevosErrores: InscripcionErrors = {};
-
-    if (!form.apellidoPaterno.trim()) {
-      nuevosErrores.apellidoPaterno = "Ingrese el apellido paterno";
-    }
-
-    if (!form.nombres.trim()) {
-      nuevosErrores.nombres = "Ingrese los nombres";
-    }
-
-    if (!form.carnet.trim()) {
-      nuevosErrores.carnet = "Ingrese el número de carnet";
-    } else if (form.carnet.length < 5) {
-      nuevosErrores.carnet = "Carnet inválido";
-    }
-
-    if (
-      form.email.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
-    ) {
-      nuevosErrores.email = "Correo electrónico inválido";
-    }
-
-    if (!form.fechaNacimiento?.trim()) {
-      nuevosErrores.fechaNacimiento =
-        "La fecha de nacimiento es obligatoria";
-    }
-
-    if (!form.direccion.trim()) {
-      nuevosErrores.direccion = "Ingrese la dirección";
-    }
-
-    if (!form.celular.trim()) {
-      nuevosErrores.celular = "Ingrese el celular";
-    } else if (form.celular.length !== 8) {
-      nuevosErrores.celular = "El celular debe tener 8 dígitos";
-    }
-
-    if (!form.referenciaNombre.trim()) {
-      nuevosErrores.referenciaNombre = "Ingrese el nombre de referencia";
-    }
-
-    if (!form.referenciaParentesco.trim()) {
-      nuevosErrores.referenciaParentesco = "Ingrese el parentesco";
-    }
-
-    if (!form.referenciaNumero.trim()) {
-      nuevosErrores.referenciaNumero = "Ingrese el número de referencia";
-    } else if (form.referenciaNumero.length !== 8) {
-      nuevosErrores.referenciaNumero = "El número debe tener 8 dígitos";
-    }
-
-    setErrors(nuevosErrores);
-
-    return Object.keys(nuevosErrores).length === 0;
-  };
-
-  const guardarEstudiante = async () => {
-    try {
-      const valido = validarFormulario();
-
-      if (!valido) {
-        Toast.show({
-          type: "error",
-          text1: "Formulario inválido",
-          text2: "Corrige los campos marcados.",
-        });
-
-        return;
-      }
-
-      if (errors.carnet || errors.email || checkingCarnet || checkingCorreo) {
-        Toast.show({
-          type: "error",
-          text1: "Validaciones pendientes",
-          text2: "Verifica los datos antes de continuar.",
-        });
-
-        return;
-      }
-
-      setGuardando(true);
-
-      const [day, month, year] = form.fechaNacimiento.split("/");
-
-      const expedidoMap: Record<DepartamentoBolivia, string> = {
-        "La Paz": "LPZ",
-        Cochabamba: "CBBA",
-        Oruro: "OR",
-        Potosí: "PT",
-        Tarija: "TJ",
-        "Santa Cruz": "SCZ",
-        Beni: "BN",
-        Pando: "PD",
-        Chuquisaca: "CH",
-      };
-
-      const generoMap: Record<Genero, string> = {
-        Masculino: "MASCULINO",
-        Femenino: "FEMENINO",
-      };
-
-      const payload = {
-        apellidoPaterno: form.apellidoPaterno.trim(),
-        apellidoMaterno: form.apellidoMaterno?.trim() ?? "",
-        nombres: form.nombres.trim(),
-        carnet: form.carnet.replace(/\D/g, ""),
-        email:
-          form.email.trim() !== ""
-            ? form.email.trim().toLowerCase()
-            : null,
-        celular: form.celular.replace(/\D/g, "").replace(/^591/, ""),
-        direccion: form.direccion.trim(),
-        observacionPromociones:
-          form.observacionPromociones?.trim() || null,
-        referenciaNombre: form.referenciaNombre.trim(),
-        referenciaParentesco: form.referenciaParentesco.trim(),
-        referenciaNumero: form.referenciaNumero.replace(/\D/g, ""),
-        fechaNacimiento: `${year}-${month}-${day}`,
-        expedidoEn: expedidoMap[form.expedidoEn],
-        genero: generoMap[form.genero],
-      };
-
-      const response = idEstudiante
-        ? await httpClient.putAuth<{
-            estudiante: {
-              id?: number;
-              idUsuario?: number;
-              matricula?: string | null;
-            };
-          }>(`/api/estudiantes/${idEstudiante}`, payload)
-        : await httpClient.postAuth<{
-            matricula?: string;
-            fechaInscripcion?: string;
-            fechaInscripcionTexto?: string;
-            estudiante: {
-              id?: number;
-              idUsuario?: number;
-              matricula?: string | null;
-            };
-          }>("/api/estudiantes", payload);
-
-      const estudianteId =
-        response.estudiante.id ??
-        response.estudiante.idUsuario ??
-        idEstudiante;
-
-      if (!estudianteId) {
-        Toast.show({
-          type: "error",
-          text1: "Error",
-          text2: "El backend no devolvió el ID.",
-        });
-
-        return;
-      }
-
-      const matriculaGuardada =
-        response.estudiante.matricula ??
-        (response as any).matricula ??
-        matriculaPreview;
-
-      if (matriculaGuardada) {
-        setMatriculaPreview(matriculaGuardada);
-      }
-
-      if ((response as any).fechaInscripcionTexto) {
-        setFechaInscripcion((response as any).fechaInscripcionTexto);
-      }
-
-      setIdEstudiante(estudianteId);
-      setMaxStepReached((prev) => Math.max(prev, 2));
+
+      updateField(
+        "apellidoPaterno",
+        estudiante
+          .apellidoPaterno ??
+          ""
+      );
+
+      updateField(
+        "apellidoMaterno",
+        estudiante
+          .apellidoMaterno ??
+          ""
+      );
+
+      updateField(
+        "nombres",
+        estudiante.nombres ??
+          ""
+      );
+
+      updateField(
+        "carnet",
+        estudiante.ci ??
+          ""
+      );
+
+      updateField(
+        "email",
+        estudiante.email ??
+          ""
+      );
+
+      updateField(
+        "celular",
+        estudiante.celular ??
+          ""
+      );
+
+      updateField(
+        "direccion",
+        estudiante.direccion ??
+          ""
+      );
+
+      updateField(
+        "observacionPromociones",
+        estudiante
+          .observacionPromociones ??
+          ""
+      );
+
+      updateField(
+        "fechaNacimiento",
+        fechaBackendAFrontend(
+          estudiante
+            .fecha_nac
+        )
+      );
+
+      updateField(
+        "expedidoEn",
+        expedidoReverse[
+          estudiante.expedido
+        ] ??
+          "Cochabamba"
+      );
+
+      updateField(
+        "genero",
+        generoReverse[
+          estudiante.genero
+        ] ??
+          "Masculino"
+      );
+
+      updateField(
+        "referenciaNombre",
+        referencia
+          ?.nombreContactoReferencia ??
+          ""
+      );
+
+      updateField(
+        "referenciaParentesco",
+        referencia
+          ?.parentesco ??
+          ""
+      );
+
+      updateField(
+        "referenciaNumero",
+        referencia
+          ?.numeroReferencia ??
+          ""
+      );
+
+      setIdEstudiante(
+        estudiante.id
+      );
+
+      setErrors({});
+
+      setMaxStepReached(
+        2
+      );
+
       setStep(2);
+
+      setModalContinuarVisible(
+        false
+      );
+
+      await cargarDocumentosEstudiante(
+        estudiante.id
+      );
 
       Toast.show({
         type: "success",
-        text1: idEstudiante
-          ? "Estudiante actualizado"
-          : "Estudiante registrado",
-        text2: idEstudiante
-          ? "Los datos fueron actualizados correctamente."
-          : "Ahora gestiona las cuotas.",
-      });
-    } catch (error: any) {
 
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: error?.message ?? "No se pudo guardar al estudiante.",
+        text1:
+          "Inscripción cargada",
+
+        text2:
+          referencia
+            ? "Datos cargados correctamente."
+            : "El estudiante no tiene contacto de referencia registrado.",
       });
-    } finally {
-      setGuardando(false);
-    }
-  };
+    };
+
+  const estudiantesFiltrados =
+    useMemo(() => {
+      const textoBusqueda =
+        busquedaContinuar
+          .trim()
+          .toLowerCase();
+
+      if (
+        !textoBusqueda
+      ) {
+        return estudiantesContinuar;
+      }
+
+      return estudiantesContinuar
+        .filter(
+          (
+            estudiante
+          ) => {
+            const texto =
+              `${
+                estudiante.nombres
+              } ${
+                estudiante
+                  .apellidoPaterno
+              } ${
+                estudiante
+                  .apellidoMaterno
+              } ${
+                estudiante.ci
+              } ${
+                estudiante.email
+              } ${
+                estudiante.matricula ??
+                ""
+              }`
+                .toLowerCase();
+
+            return texto
+              .includes(
+                textoBusqueda
+              );
+          }
+        );
+    }, [
+      busquedaContinuar,
+      estudiantesContinuar,
+    ]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | VALIDACIÓN
+  |--------------------------------------------------------------------------
+  */
+
+  const validarFormulario =
+    () => {
+      const nuevosErrores:
+        InscripcionErrors =
+        {};
+
+      if (
+        !form
+          .apellidoPaterno
+          .trim()
+      ) {
+        nuevosErrores
+          .apellidoPaterno =
+          "Ingrese el apellido paterno";
+      }
+
+      if (
+        !form
+          .nombres
+          .trim()
+      ) {
+        nuevosErrores
+          .nombres =
+          "Ingrese los nombres";
+      }
+
+      /*
+       * CARNET:
+       *
+       * - requerido
+       * - mínimo 5 caracteres
+       * - NO UNIQUE
+       * - permite letras
+       */
+      const carnet =
+        form.carnet.trim();
+
+      if (!carnet) {
+        nuevosErrores.carnet =
+          "Ingrese el número de carnet";
+
+      } else if (
+        carnet.length < 5
+      ) {
+        nuevosErrores.carnet =
+          "El carnet debe tener al menos 5 caracteres";
+      }
+
+      if (
+        form.email.trim() &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+          .test(
+            form.email
+          )
+      ) {
+        nuevosErrores.email =
+          "Correo electrónico inválido";
+      }
+
+      if (
+        !form
+          .fechaNacimiento
+          ?.trim()
+      ) {
+        nuevosErrores
+          .fechaNacimiento =
+          "La fecha de nacimiento es obligatoria";
+      }
+
+      if (
+        !form
+          .direccion
+          .trim()
+      ) {
+        nuevosErrores
+          .direccion =
+          "Ingrese la dirección";
+      }
+
+      if (
+        !form
+          .celular
+          .trim()
+      ) {
+        nuevosErrores.celular =
+          "Ingrese el celular";
+
+      } else if (
+        form.celular.length !==
+        8
+      ) {
+        nuevosErrores.celular =
+          "El celular debe tener 8 dígitos";
+      }
+
+      if (
+        !form
+          .referenciaNombre
+          .trim()
+      ) {
+        nuevosErrores
+          .referenciaNombre =
+          "Ingrese el nombre de referencia";
+      }
+
+      if (
+        !form
+          .referenciaParentesco
+          .trim()
+      ) {
+        nuevosErrores
+          .referenciaParentesco =
+          "Ingrese el parentesco";
+      }
+
+      if (
+        !form
+          .referenciaNumero
+          .trim()
+      ) {
+        nuevosErrores
+          .referenciaNumero =
+          "Ingrese el número de referencia";
+
+      } else if (
+        form
+          .referenciaNumero
+          .length !==
+        8
+      ) {
+        nuevosErrores
+          .referenciaNumero =
+          "El número debe tener 8 dígitos";
+      }
+
+      setErrors(
+        nuevosErrores
+      );
+
+      return (
+        Object.keys(
+          nuevosErrores
+        ).length === 0
+      );
+    };
+
+  /*
+  |--------------------------------------------------------------------------
+  | GUARDAR ESTUDIANTE
+  |--------------------------------------------------------------------------
+  */
+
+  const guardarEstudiante =
+    async () => {
+      try {
+        const valido =
+          validarFormulario();
+
+        if (!valido) {
+          Toast.show({
+            type: "error",
+
+            text1:
+              "Formulario inválido",
+
+            text2:
+              "Corrige los campos marcados.",
+          });
+
+          return;
+        }
+
+        /*
+         * YA NO esperamos ninguna
+         * validación de carnet.
+         */
+        if (
+          errors.email ||
+          checkingCorreo
+        ) {
+          Toast.show({
+            type: "error",
+
+            text1:
+              "Validaciones pendientes",
+
+            text2:
+              "Verifica el correo antes de continuar.",
+          });
+
+          return;
+        }
+
+        setGuardando(
+          true
+        );
+
+        const [
+          day,
+          month,
+          year,
+        ] =
+          form
+            .fechaNacimiento
+            .split("/");
+
+        const expedidoMap:
+          Record<
+            DepartamentoBolivia,
+            string
+          > = {
+            "La Paz":
+              "LPZ",
+
+            Cochabamba:
+              "CBBA",
+
+            Oruro:
+              "OR",
+
+            Potosí:
+              "PT",
+
+            Tarija:
+              "TJ",
+
+            "Santa Cruz":
+              "SCZ",
+
+            Beni:
+              "BN",
+
+            Pando:
+              "PD",
+
+            Chuquisaca:
+              "CH",
+          };
+
+        const generoMap:
+          Record<
+            Genero,
+            string
+          > = {
+            Masculino:
+              "MASCULINO",
+
+            Femenino:
+              "FEMENINO",
+          };
+
+        const payload = {
+          apellidoPaterno:
+            form
+              .apellidoPaterno
+              .trim(),
+
+          apellidoMaterno:
+            form
+              .apellidoMaterno
+              ?.trim() ??
+            "",
+
+          nombres:
+            form
+              .nombres
+              .trim(),
+
+          /*
+           * IMPORTANTE:
+           *
+           * Ya NO usamos replace(/\D/g).
+           *
+           * Las letras se conservan.
+           */
+          carnet:
+            form
+              .carnet
+              .trim()
+              .toUpperCase(),
+
+          email:
+            form.email
+              .trim() !==
+            ""
+              ? form.email
+                  .trim()
+                  .toLowerCase()
+              : null,
+
+          celular:
+            form.celular
+              .replace(
+                /\D/g,
+                ""
+              )
+              .replace(
+                /^591/,
+                ""
+              ),
+
+          direccion:
+            form
+              .direccion
+              .trim(),
+
+          observacionPromociones:
+            form
+              .observacionPromociones
+              ?.trim() ||
+            null,
+
+          referenciaNombre:
+            form
+              .referenciaNombre
+              .trim(),
+
+          referenciaParentesco:
+            form
+              .referenciaParentesco
+              .trim(),
+
+          referenciaNumero:
+            form
+              .referenciaNumero
+              .replace(
+                /\D/g,
+                ""
+              ),
+
+          fechaNacimiento:
+            `${year}-${month}-${day}`,
+
+          expedidoEn:
+            expedidoMap[
+              form.expedidoEn
+            ],
+
+          genero:
+            generoMap[
+              form.genero
+            ],
+        };
+
+        const response =
+          idEstudiante
+            ? await httpClient
+                .putAuth<{
+                  estudiante: {
+                    id?: number;
+
+                    idUsuario?:
+                      number;
+
+                    matricula?:
+                      string | null;
+                  };
+                }>(
+                  `/api/estudiantes/${idEstudiante}`,
+                  payload
+                )
+
+            : await httpClient
+                .postAuth<{
+                  matricula?:
+                    string;
+
+                  fechaInscripcion?:
+                    string;
+
+                  fechaInscripcionTexto?:
+                    string;
+
+                  usuarioAcceso?:
+                    string;
+
+                  estudiante: {
+                    id?: number;
+
+                    idUsuario?:
+                      number;
+
+                    matricula?:
+                      string | null;
+                  };
+                }>(
+                  "/api/estudiantes",
+                  payload
+                );
+
+        const estudianteId =
+          response
+            .estudiante
+            .id ??
+          response
+            .estudiante
+            .idUsuario ??
+          idEstudiante;
+
+        if (
+          !estudianteId
+        ) {
+          Toast.show({
+            type: "error",
+
+            text1:
+              "Error",
+
+            text2:
+              "El backend no devolvió el ID.",
+          });
+
+          return;
+        }
+
+        const matriculaGuardada =
+          response
+            .estudiante
+            .matricula ??
+          (
+            response as any
+          ).matricula ??
+          matriculaPreview;
+
+        if (
+          matriculaGuardada
+        ) {
+          setMatriculaPreview(
+            matriculaGuardada
+          );
+        }
+
+        if (
+          (
+            response as any
+          )
+            .fechaInscripcionTexto
+        ) {
+          setFechaInscripcion(
+            (
+              response as any
+            )
+              .fechaInscripcionTexto
+          );
+        }
+
+        setIdEstudiante(
+          estudianteId
+        );
+
+        setMaxStepReached(
+          (prev) =>
+            Math.max(
+              prev,
+              2
+            )
+        );
+
+        setStep(2);
+
+        Toast.show({
+          type: "success",
+
+          text1:
+            idEstudiante
+              ? "Estudiante actualizado"
+              : "Estudiante registrado",
+
+          text2:
+            idEstudiante
+              ? "Los datos fueron actualizados correctamente."
+              : "Ahora gestiona las cuotas.",
+        });
+
+      } catch (
+        error: any
+      ) {
+        Toast.show({
+          type: "error",
+
+          text1:
+            "Error",
+
+          text2:
+            error?.message ??
+            "No se pudo guardar al estudiante.",
+        });
+
+      } finally {
+        setGuardando(
+          false
+        );
+      }
+    };
+
+  /*
+  |--------------------------------------------------------------------------
+  | CARGA INICIAL
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     void cargarSiguienteMatricula();
   }, []);
 
-  useEffect(() => {
-    if (!form.carnet || form.carnet.length < 5) {
-      return;
-    }
-
-    if (timeoutCarnet.current) {
-      clearTimeout(timeoutCarnet.current);
-    }
-
-    timeoutCarnet.current = setTimeout(async () => {
-      try {
-        setCheckingCarnet(true);
-
-        const response = await httpClient.postAuth<{
-          carnetExiste: boolean;
-        }>("/api/estudiantes/verificar-datos", {
-          carnet: form.carnet,
-          idUsuario: idEstudiante,
-        });
-
-        setErrors((prev) => ({
-          ...prev,
-          carnet: response.carnetExiste
-            ? "Este carnet ya está registrado"
-            : undefined,
-        }));
-      } finally {
-        setCheckingCarnet(false);
-      }
-    }, 700);
-
-    return () => {
-      if (timeoutCarnet.current) {
-        clearTimeout(timeoutCarnet.current);
-      }
-    };
-  }, [form.carnet, idEstudiante]);
+  /*
+  |--------------------------------------------------------------------------
+  | VERIFICAR CORREO
+  |--------------------------------------------------------------------------
+  |
+  | Solamente verificamos email.
+  |
+  | El carnet ya NO tiene debounce
+  | ni comprobación de duplicados.
+  |
+  */
 
   useEffect(() => {
-    if (!form.email.trim()) {
-      setErrors((prev) => ({
-        ...prev,
-        email: undefined,
-      }));
-
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      return;
-    }
-
-    if (timeoutCorreo.current) {
-      clearTimeout(timeoutCorreo.current);
-    }
-
-    timeoutCorreo.current = setTimeout(async () => {
-      try {
-        setCheckingCorreo(true);
-
-        const response = await httpClient.postAuth<{
-          correoExiste: boolean;
-        }>("/api/estudiantes/verificar-datos", {
-          email: form.email,
-          idUsuario: idEstudiante,
-        });
-
-        setErrors((prev) => ({
+    if (
+      !form.email.trim()
+    ) {
+      setErrors(
+        (prev) => ({
           ...prev,
-          email: response.correoExiste
-            ? "Este correo ya está registrado"
-            : undefined,
-        }));
-      } finally {
-        setCheckingCorreo(false);
-      }
-    }, 700);
+
+          email:
+            undefined,
+        })
+      );
+
+      return;
+    }
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        .test(
+          form.email
+        )
+    ) {
+      return;
+    }
+
+    if (
+      timeoutCorreo.current
+    ) {
+      clearTimeout(
+        timeoutCorreo.current
+      );
+    }
+
+    timeoutCorreo.current =
+      setTimeout(
+        async () => {
+          try {
+            setCheckingCorreo(
+              true
+            );
+
+            const response =
+              await httpClient
+                .postAuth<{
+                  correoExiste:
+                    boolean;
+                }>(
+                  "/api/estudiantes/verificar-datos",
+                  {
+                    email:
+                      form.email,
+
+                    idUsuario:
+                      idEstudiante,
+                  }
+                );
+
+            setErrors(
+              (prev) => ({
+                ...prev,
+
+                email:
+                  response
+                    .correoExiste
+                    ? "Este correo ya está registrado"
+                    : undefined,
+              })
+            );
+
+          } finally {
+            setCheckingCorreo(
+              false
+            );
+          }
+        },
+        700
+      );
 
     return () => {
-      if (timeoutCorreo.current) {
-        clearTimeout(timeoutCorreo.current);
+      if (
+        timeoutCorreo.current
+      ) {
+        clearTimeout(
+          timeoutCorreo.current
+        );
       }
     };
-  }, [form.email, idEstudiante]);
+
+  }, [
+    form.email,
+    idEstudiante,
+  ]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <ScrollView
       style={{
         flex: 1,
-        backgroundColor: theme.colors.background,
+
+        backgroundColor:
+          theme.colors
+            .background,
       }}
       contentContainerStyle={{
-        padding: isMobile ? 16 : 34,
-        paddingBottom: 50,
+        padding:
+          isMobile
+            ? 16
+            : 34,
+
+        paddingBottom:
+          50,
       }}
-      showsVerticalScrollIndicator={false}
+      showsVerticalScrollIndicator={
+        false
+      }
     >
+      {/* =====================================================
+          TÍTULO
+      ===================================================== */}
+
       <View
         style={{
-          flexDirection: isMobile ? "column" : "row",
-          justifyContent: "space-between",
-          alignItems: isMobile ? "flex-start" : "center",
+          flexDirection:
+            isMobile
+              ? "column"
+              : "row",
+
+          justifyContent:
+            "space-between",
+
+          alignItems:
+            isMobile
+              ? "flex-start"
+              : "center",
+
           gap: 20,
-          marginBottom: 30,
+
+          marginBottom:
+            30,
         }}
       >
         <ThemedText
           style={{
-            fontSize: isMobile ? 28 : 38,
-            fontWeight: "900",
-            color: theme.colors.text,
+            fontSize:
+              isMobile
+                ? 28
+                : 38,
+
+            fontWeight:
+              "900",
+
+            color:
+              theme.colors
+                .text,
           }}
         >
-          {step === 1 && "Datos del Estudiante"}
-          {step === 2 && "Gestion de Cuotas"}
-          {step === 3 && "Carga de Documentos"}
-          {step === 4 && "Inscripción Finalizada"}
+          {step === 1 &&
+            "Datos del Estudiante"}
+
+          {step === 2 &&
+            "Gestion de Cuotas"}
+
+          {step === 3 &&
+            "Carga de Documentos"}
+
+          {step === 4 &&
+            "Inscripción Finalizada"}
         </ThemedText>
 
         <StepIndicator
-          currentStep={step}
-          maxStepReached={maxStepReached}
-          onStepPress={(selectedStep) => {
-            if (selectedStep <= maxStepReached) {
-              setStep(selectedStep);
+          currentStep={
+            step
+          }
+          maxStepReached={
+            maxStepReached
+          }
+          onStepPress={(
+            selectedStep
+          ) => {
+            if (
+              selectedStep <=
+              maxStepReached
+            ) {
+              setStep(
+                selectedStep
+              );
             }
           }}
         />
       </View>
 
+      {/* =====================================================
+          PASO 1
+      ===================================================== */}
+
       {step === 1 && (
         <View
           style={{
-            backgroundColor: theme.colors.card,
-            borderRadius: 24,
-            padding: isMobile ? 18 : 32,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
+            backgroundColor:
+              theme.colors
+                .card,
+
+            borderRadius:
+              24,
+
+            padding:
+              isMobile
+                ? 18
+                : 32,
+
+            borderWidth:
+              1,
+
+            borderColor:
+              theme.colors
+                .border,
           }}
         >
+          {/* CONTINUAR INSCRIPCIÓN */}
+
           <View
             style={{
-              alignItems: isMobile ? "stretch" : "flex-end",
-              marginBottom: 24,
+              alignItems:
+                isMobile
+                  ? "stretch"
+                  : "flex-end",
+
+              marginBottom:
+                24,
             }}
           >
             <Pressable
-              onPress={abrirContinuarInscripcion}
+              onPress={
+                abrirContinuarInscripcion
+              }
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                backgroundColor: theme.colors.primary,
-                paddingHorizontal: 18,
-                paddingVertical: 13,
-                borderRadius: 14,
+                flexDirection:
+                  "row",
+
+                alignItems:
+                  "center",
+
+                justifyContent:
+                  "center",
+
+                gap:
+                  8,
+
+                backgroundColor:
+                  theme.colors
+                    .primary,
+
+                paddingHorizontal:
+                  18,
+
+                paddingVertical:
+                  13,
+
+                borderRadius:
+                  14,
               }}
             >
               <Ionicons
@@ -712,8 +1575,11 @@ export default function InscripcionScreen() {
 
               <ThemedText
                 style={{
-                  color: "#FFFFFF",
-                  fontWeight: "900",
+                  color:
+                    "#FFFFFF",
+
+                  fontWeight:
+                    "900",
                 }}
               >
                 Continuar Inscripción
@@ -721,21 +1587,47 @@ export default function InscripcionScreen() {
             </Pressable>
           </View>
 
-          <View style={{ gap: 22 }}>
+          <View
+            style={{
+              gap:
+                22,
+            }}
+          >
+            {/* MATRÍCULA / FECHA */}
+
             <View
               style={{
-                flexDirection: isMobile ? "column" : "row",
-                gap: 18,
+                flexDirection:
+                  isMobile
+                    ? "column"
+                    : "row",
+
+                gap:
+                  18,
               }}
             >
-              <View style={{ flex: 1 }}>
+              <View
+                style={{
+                  flex:
+                    1,
+                }}
+              >
                 <ThemedText
                   style={{
-                    fontSize: 12,
-                    fontWeight: "900",
-                    color: colorSecundario,
-                    marginBottom: 7,
-                    textTransform: "uppercase",
+                    fontSize:
+                      12,
+
+                    fontWeight:
+                      "900",
+
+                    color:
+                      colorSecundario,
+
+                    marginBottom:
+                      7,
+
+                    textTransform:
+                      "uppercase",
                   }}
                 >
                   MATRÍCULA AUTOMÁTICA
@@ -747,32 +1639,72 @@ export default function InscripcionScreen() {
                       ? "Generando matrícula..."
                       : matriculaPreview
                   }
-                  editable={false}
+                  editable={
+                    false
+                  }
                   placeholder="10001"
-                  placeholderTextColor={colorSecundario}
+                  placeholderTextColor={
+                    colorSecundario
+                  }
                   style={{
-                    backgroundColor: theme.colors.background,
-                    color: theme.colors.text,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: 14,
-                    paddingHorizontal: 14,
-                    paddingVertical: 13,
-                    fontWeight: "800",
-                    opacity: 0.78,
-                    outlineStyle: "none" as any,
+                    backgroundColor:
+                      theme.colors
+                        .background,
+
+                    color:
+                      theme.colors
+                        .text,
+
+                    borderWidth:
+                      1,
+
+                    borderColor:
+                      theme.colors
+                        .border,
+
+                    borderRadius:
+                      14,
+
+                    paddingHorizontal:
+                      14,
+
+                    paddingVertical:
+                      13,
+
+                    fontWeight:
+                      "800",
+
+                    opacity:
+                      0.78,
+
+                    outlineStyle:
+                      "none" as any,
                   }}
                 />
               </View>
 
-              <View style={{ flex: 1 }}>
+              <View
+                style={{
+                  flex:
+                    1,
+                }}
+              >
                 <ThemedText
                   style={{
-                    fontSize: 12,
-                    fontWeight: "900",
-                    color: colorSecundario,
-                    marginBottom: 7,
-                    textTransform: "uppercase",
+                    fontSize:
+                      12,
+
+                    fontWeight:
+                      "900",
+
+                    color:
+                      colorSecundario,
+
+                    marginBottom:
+                      7,
+
+                    textTransform:
+                      "uppercase",
                   }}
                 >
                   FECHA DE INSCRIPCIÓN
@@ -784,49 +1716,100 @@ export default function InscripcionScreen() {
                       ? "Cargando fecha..."
                       : fechaInscripcion
                   }
-                  editable={false}
+                  editable={
+                    false
+                  }
                   placeholder="Fecha de hoy"
-                  placeholderTextColor={colorSecundario}
+                  placeholderTextColor={
+                    colorSecundario
+                  }
                   style={{
-                    backgroundColor: theme.colors.background,
-                    color: theme.colors.text,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: 14,
-                    paddingHorizontal: 14,
-                    paddingVertical: 13,
-                    fontWeight: "800",
-                    opacity: 0.78,
-                    outlineStyle: "none" as any,
+                    backgroundColor:
+                      theme.colors
+                        .background,
+
+                    color:
+                      theme.colors
+                        .text,
+
+                    borderWidth:
+                      1,
+
+                    borderColor:
+                      theme.colors
+                        .border,
+
+                    borderRadius:
+                      14,
+
+                    paddingHorizontal:
+                      14,
+
+                    paddingVertical:
+                      13,
+
+                    fontWeight:
+                      "800",
+
+                    opacity:
+                      0.78,
+
+                    outlineStyle:
+                      "none" as any,
                   }}
                 />
               </View>
             </View>
 
+            {/* NOMBRES */}
+
             <View
               style={{
-                flexDirection: isMobile ? "column" : "row",
-                gap: 18,
+                flexDirection:
+                  isMobile
+                    ? "column"
+                    : "row",
+
+                gap:
+                  18,
               }}
             >
               <FormInput
                 required
                 label="APELLIDO PATERNO"
                 placeholder="Escriba su primer apellido"
-                value={form.apellidoPaterno}
-                error={errors.apellidoPaterno}
-                onChangeText={(text) =>
-                  updateFieldWithValidation("apellidoPaterno", text)
+                value={
+                  form.apellidoPaterno
+                }
+                error={
+                  errors.apellidoPaterno
+                }
+                onChangeText={(
+                  text
+                ) =>
+                  updateFieldWithValidation(
+                    "apellidoPaterno",
+                    text
+                  )
                 }
               />
 
               <FormInput
                 label="APELLIDO MATERNO"
                 placeholder="Escriba su segundo apellido"
-                value={form.apellidoMaterno}
-                error={errors.apellidoMaterno}
-                onChangeText={(text) =>
-                  updateFieldWithValidation("apellidoMaterno", text)
+                value={
+                  form.apellidoMaterno
+                }
+                error={
+                  errors.apellidoMaterno
+                }
+                onChangeText={(
+                  text
+                ) =>
+                  updateFieldWithValidation(
+                    "apellidoMaterno",
+                    text
+                  )
                 }
               />
 
@@ -834,47 +1817,69 @@ export default function InscripcionScreen() {
                 required
                 label="NOMBRES"
                 placeholder="Sus nombres completos"
-                value={form.nombres}
-                error={errors.nombres}
-                onChangeText={(text) =>
-                  updateFieldWithValidation("nombres", text)
+                value={
+                  form.nombres
+                }
+                error={
+                  errors.nombres
+                }
+                onChangeText={(
+                  text
+                ) =>
+                  updateFieldWithValidation(
+                    "nombres",
+                    text
+                  )
                 }
               />
             </View>
 
+            {/* CARNET / EXPEDIDO / GÉNERO */}
+
             <View
               style={{
-                flexDirection: isMobile ? "column" : "row",
-                gap: 18,
+                flexDirection:
+                  isMobile
+                    ? "column"
+                    : "row",
+
+                gap:
+                  18,
               }}
             >
+              {/* =================================================
+                  CARNET CORREGIDO
+              ================================================= */}
+
               <FormInput
                 required
                 label="NÚMERO DE CARNET"
-                placeholder="0000000"
-                value={form.carnet}
+                placeholder="Ej: 1234567A"
+                value={
+                  form.carnet
+                }
                 error={
-                  checkingCarnet ? "Verificando carnet..." : errors.carnet
+                  errors.carnet
                 }
-                success={
-                  !checkingCarnet &&
-                  !errors.carnet &&
-                  form.carnet.length >= 5
-                    ? "Carnet disponible"
-                    : undefined
-                }
-                loading={checkingCarnet}
-                keyboardType="numeric"
-                onlyNumbers
-                maxLength={12}
-                onChangeText={(text) =>
-                  updateFieldWithValidation("carnet", text)
+                keyboardType="default"
+                autoCapitalize="characters"
+                maxLength={50}
+                onChangeText={(
+                  text
+                ) =>
+                  updateFieldWithValidation(
+                    "carnet",
+
+                    text.toUpperCase()
+                  )
                 }
               />
 
               <FormSelect
                 label="EXPEDIDO EN"
-                value={form.expedidoEn}
+                value={
+                  form.expedidoEn
+                }
                 options={[
                   "La Paz",
                   "Cochabamba",
@@ -886,224 +1891,477 @@ export default function InscripcionScreen() {
                   "Beni",
                   "Pando",
                 ]}
-                onChange={(value) =>
-                  updateField("expedidoEn", value as DepartamentoBolivia)
+                onChange={(
+                  value
+                ) =>
+                  updateField(
+                    "expedidoEn",
+
+                    value as DepartamentoBolivia
+                  )
                 }
               />
 
               <FormSelect
                 label="GÉNERO"
-                value={form.genero}
-                options={["Masculino", "Femenino"]}
-                onChange={(value) => updateField("genero", value as Genero)}
+                value={
+                  form.genero
+                }
+                options={[
+                  "Masculino",
+                  "Femenino",
+                ]}
+                onChange={(
+                  value
+                ) =>
+                  updateField(
+                    "genero",
+
+                    value as Genero
+                  )
+                }
               />
             </View>
 
+            {/* CORREO / FECHA */}
+
             <View
               style={{
-                flexDirection: isMobile ? "column" : "row",
-                gap: 18,
+                flexDirection:
+                  isMobile
+                    ? "column"
+                    : "row",
+
+                gap:
+                  18,
               }}
             >
               <FormInput
                 label="CORREO ELECTRÓNICO"
                 placeholder="correo@gmail.com"
-                value={form.email}
+                value={
+                  form.email
+                }
                 error={
-                  checkingCorreo ? "Verificando correo..." : errors.email
+                  checkingCorreo
+                    ? "Verificando correo..."
+                    : errors.email
                 }
                 success={
                   !checkingCorreo &&
                   !errors.email &&
-                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                    .test(
+                      form.email
+                    )
                     ? "Correo disponible"
                     : undefined
                 }
-                loading={checkingCorreo}
+                loading={
+                  checkingCorreo
+                }
                 keyboardType="email-address"
                 autoCapitalize="none"
-                onChangeText={(text) =>
-                  updateFieldWithValidation("email", text)
+                onChangeText={(
+                  text
+                ) =>
+                  updateFieldWithValidation(
+                    "email",
+                    text
+                  )
                 }
               />
 
-              <View style={{ flex: 1 }}>
-              <FormDateInput
-  required
-  label="FECHA DE NACIMIENTO"
-  value={form.fechaNacimiento}
-  error={errors.fechaNacimiento}
-  onChangeText={(text) =>
-    updateFieldWithValidation("fechaNacimiento", text)
-  }
-/>
-
-               
+              <View
+                style={{
+                  flex:
+                    1,
+                }}
+              >
+                <FormDateInput
+                  required
+                  label="FECHA DE NACIMIENTO"
+                  value={
+                    form.fechaNacimiento
+                  }
+                  error={
+                    errors.fechaNacimiento
+                  }
+                  onChangeText={(
+                    text
+                  ) =>
+                    updateFieldWithValidation(
+                      "fechaNacimiento",
+                      text
+                    )
+                  }
+                />
               </View>
             </View>
+
+            {/* DIRECCIÓN */}
 
             <FormInput
               required
               label="DIRECCIÓN SEGÚN CARNET"
               placeholder="Calle, número, zona..."
-              value={form.direccion}
-              error={errors.direccion}
-              onChangeText={(text) =>
-                updateFieldWithValidation("direccion", text)
+              value={
+                form.direccion
+              }
+              error={
+                errors.direccion
+              }
+              onChangeText={(
+                text
+              ) =>
+                updateFieldWithValidation(
+                  "direccion",
+                  text
+                )
               }
             />
+
+            {/* CELULAR */}
 
             <FormInput
               required
               label="CELULAR PRINCIPAL"
               placeholder="63066882"
-              value={form.celular}
-              error={errors.celular}
+              value={
+                form.celular
+              }
+              error={
+                errors.celular
+              }
               keyboardType="phone-pad"
               onlyNumbers
               maxLength={8}
-              onChangeText={(text) =>
-                updateFieldWithValidation("celular", text)
+              onChangeText={(
+                text
+              ) =>
+                updateFieldWithValidation(
+                  "celular",
+                  text
+                )
               }
             />
+
+            {/* PROMOCIONES */}
 
             <View>
               <ThemedText
                 style={{
-                  fontSize: 12,
-                  fontWeight: "900",
-                  color: colorSecundario,
-                  marginBottom: 7,
-                  textTransform: "uppercase",
+                  fontSize:
+                    12,
+
+                  fontWeight:
+                    "900",
+
+                  color:
+                    colorSecundario,
+
+                  marginBottom:
+                    7,
+
+                  textTransform:
+                    "uppercase",
                 }}
               >
                 REGALOS O PROMOCIONES ENTREGADAS
               </ThemedText>
 
               <TextInput
-                value={form.observacionPromociones}
+                value={
+                  form
+                    .observacionPromociones
+                }
                 placeholder="Ej: Mochila, polera, descuento, beca, promoción..."
-                placeholderTextColor={colorSecundario}
+                placeholderTextColor={
+                  colorSecundario
+                }
                 multiline
-                numberOfLines={4}
+                numberOfLines={
+                  4
+                }
                 textAlignVertical="top"
-                onChangeText={(text) =>
-                  updateFieldWithValidation("observacionPromociones", text)
+                onChangeText={(
+                  text
+                ) =>
+                  updateFieldWithValidation(
+                    "observacionPromociones",
+                    text
+                  )
                 }
                 style={{
-                  minHeight: 110,
-                  backgroundColor: theme.colors.background,
-                  color: theme.colors.text,
-                  borderWidth: 1,
-                  borderColor: errors.observacionPromociones
-                    ? "#EF4444"
-                    : theme.colors.border,
-                  borderRadius: 14,
-                  paddingHorizontal: 14,
-                  paddingVertical: 13,
-                  outlineStyle: "none" as any,
+                  minHeight:
+                    110,
+
+                  backgroundColor:
+                    theme.colors
+                      .background,
+
+                  color:
+                    theme.colors
+                      .text,
+
+                  borderWidth:
+                    1,
+
+                  borderColor:
+                    errors
+                      .observacionPromociones
+                      ? "#EF4444"
+                      : theme
+                          .colors
+                          .border,
+
+                  borderRadius:
+                    14,
+
+                  paddingHorizontal:
+                    14,
+
+                  paddingVertical:
+                    13,
+
+                  outlineStyle:
+                    "none" as any,
                 }}
               />
 
-              {errors.observacionPromociones && (
+              {errors
+                .observacionPromociones && (
                 <ThemedText
                   style={{
-                    color: "#EF4444",
-                    fontSize: 12,
-                    marginTop: 6,
-                    fontWeight: "700",
+                    color:
+                      "#EF4444",
+
+                    fontSize:
+                      12,
+
+                    marginTop:
+                      6,
+
+                    fontWeight:
+                      "700",
                   }}
                 >
-                  {errors.observacionPromociones}
+                  {
+                    errors
+                      .observacionPromociones
+                  }
                 </ThemedText>
               )}
             </View>
 
+            {/* REFERENCIA */}
+
             <ReferenceSection
-              isMobile={isMobile}
-              form={form}
-              errors={errors}
-              updateField={updateFieldWithValidation}
+              isMobile={
+                isMobile
+              }
+              form={
+                form
+              }
+              errors={
+                errors
+              }
+              updateField={
+                updateFieldWithValidation
+              }
             />
 
+            {/* CONTINUAR */}
+
             <NavigationButtons
-              onNext={guardarEstudiante}
-              loading={guardando}
+              onNext={
+                guardarEstudiante
+              }
+              loading={
+                guardando
+              }
             />
           </View>
         </View>
       )}
 
-      {step === 2 && idEstudiante && (
-        <PasoCuotas
-          idEstudiante={idEstudiante}
-          onFinish={() => {
-            setMaxStepReached((prev) => Math.max(prev, 3));
-            setStep(3);
-          }}
-        />
-      )}
+      {/* =====================================================
+          PASO 2
+      ===================================================== */}
 
-      {step === 3 && idEstudiante && (
-        <PasoDocumentacion
-          idUsuario={idEstudiante}
-          documentosLocales={documentosLocales}
-          setDocumentosLocales={setDocumentosLocales}
-          onBack={() => setStep(2)}
-          onFinish={() => {
-            setMaxStepReached((prev) => Math.max(prev, 4));
-            setStep(4);
-          }}
-        />
-      )}
+      {step === 2 &&
+        idEstudiante && (
+          <PasoCuotas
+            idEstudiante={
+              idEstudiante
+            }
+            onFinish={() => {
+              setMaxStepReached(
+                (prev) =>
+                  Math.max(
+                    prev,
+                    3
+                  )
+              );
 
-      {step === 4 && idEstudiante && (
-        <PasoFinalizar
-          idUsuario={idEstudiante}
-          onDashboard={limpiarInscripcion}
-          onResetForm={limpiarInscripcion}
-        />
-      )}
+              setStep(
+                3
+              );
+            }}
+          />
+        )}
+
+      {/* =====================================================
+          PASO 3
+      ===================================================== */}
+
+      {step === 3 &&
+        idEstudiante && (
+          <PasoDocumentacion
+            idUsuario={
+              idEstudiante
+            }
+            documentosLocales={
+              documentosLocales
+            }
+            setDocumentosLocales={
+              setDocumentosLocales
+            }
+            onBack={() =>
+              setStep(
+                2
+              )
+            }
+            onFinish={() => {
+              setMaxStepReached(
+                (prev) =>
+                  Math.max(
+                    prev,
+                    4
+                  )
+              );
+
+              setStep(
+                4
+              );
+            }}
+          />
+        )}
+
+      {/* =====================================================
+          PASO 4
+      ===================================================== */}
+
+      {step === 4 &&
+        idEstudiante && (
+          <PasoFinalizar
+            idUsuario={
+              idEstudiante
+            }
+            onDashboard={
+              limpiarInscripcion
+            }
+            onResetForm={
+              limpiarInscripcion
+            }
+          />
+        )}
+
+      {/* =====================================================
+          CONTINUAR INSCRIPCIÓN
+      ===================================================== */}
 
       <Modal
-        visible={modalContinuarVisible}
+        visible={
+          modalContinuarVisible
+        }
         transparent
         animationType="fade"
-        onRequestClose={() => setModalContinuarVisible(false)}
+        onRequestClose={() =>
+          setModalContinuarVisible(
+            false
+          )
+        }
       >
         <View
           style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.65)",
-            justifyContent: "center",
-            padding: isMobile ? 14 : 28,
+            flex:
+              1,
+
+            backgroundColor:
+              "rgba(0,0,0,0.65)",
+
+            justifyContent:
+              "center",
+
+            padding:
+              isMobile
+                ? 14
+                : 28,
           }}
         >
           <View
             style={{
-              backgroundColor: theme.colors.card,
-              borderRadius: 24,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              padding: isMobile ? 16 : 22,
-              maxHeight: "86%",
+              backgroundColor:
+                theme.colors
+                  .card,
+
+              borderRadius:
+                24,
+
+              borderWidth:
+                1,
+
+              borderColor:
+                theme.colors
+                  .border,
+
+              padding:
+                isMobile
+                  ? 16
+                  : 22,
+
+              maxHeight:
+                "86%",
             }}
           >
             <View
               style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: 12,
-                marginBottom: 18,
+                flexDirection:
+                  "row",
+
+                justifyContent:
+                  "space-between",
+
+                alignItems:
+                  "flex-start",
+
+                gap:
+                  12,
+
+                marginBottom:
+                  18,
               }}
             >
-              <View style={{ flex: 1 }}>
+              <View
+                style={{
+                  flex:
+                    1,
+                }}
+              >
                 <ThemedText
                   style={{
-                    fontSize: isMobile ? 20 : 24,
-                    fontWeight: "900",
-                    color: theme.colors.text,
+                    fontSize:
+                      isMobile
+                        ? 20
+                        : 24,
+
+                    fontWeight:
+                      "900",
+
+                    color:
+                      theme.colors
+                        .text,
                   }}
                 >
                   Continuar Inscripción
@@ -1111,193 +2369,388 @@ export default function InscripcionScreen() {
 
                 <ThemedText
                   style={{
-                    color: colorSecundario,
-                    marginTop: 4,
-                    lineHeight: 20,
+                    color:
+                      colorSecundario,
+
+                    marginTop:
+                      4,
+
+                    lineHeight:
+                      20,
                   }}
                 >
-                  Se muestran estudiantes sin cuotas asignadas y sin carrera
-                  registrada.
+                  Se muestran estudiantes sin cuotas asignadas y sin carrera registrada.
                 </ThemedText>
               </View>
 
               <Pressable
-                onPress={() => setModalContinuarVisible(false)}
+                onPress={() =>
+                  setModalContinuarVisible(
+                    false
+                  )
+                }
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 19,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: theme.colors.background,
-                  borderWidth: 1,
-                  borderColor: theme.colors.border,
+                  width:
+                    38,
+
+                  height:
+                    38,
+
+                  borderRadius:
+                    19,
+
+                  alignItems:
+                    "center",
+
+                  justifyContent:
+                    "center",
+
+                  backgroundColor:
+                    theme.colors
+                      .background,
+
+                  borderWidth:
+                    1,
+
+                  borderColor:
+                    theme.colors
+                      .border,
                 }}
               >
-                <Ionicons name="close" size={22} color={theme.colors.text} />
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color={
+                    theme.colors
+                      .text
+                  }
+                />
               </Pressable>
             </View>
 
             <TextInput
               placeholder="Buscar por nombre, carnet, matrícula o correo..."
-              placeholderTextColor={colorSecundario}
-              value={busquedaContinuar}
-              onChangeText={setBusquedaContinuar}
+              placeholderTextColor={
+                colorSecundario
+              }
+              value={
+                busquedaContinuar
+              }
+              onChangeText={
+                setBusquedaContinuar
+              }
               style={{
-                backgroundColor: theme.colors.background,
-                color: theme.colors.text,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: 14,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                marginBottom: 16,
-                outlineStyle: "none" as any,
+                backgroundColor:
+                  theme.colors
+                    .background,
+
+                color:
+                  theme.colors
+                    .text,
+
+                borderWidth:
+                  1,
+
+                borderColor:
+                  theme.colors
+                    .border,
+
+                borderRadius:
+                  14,
+
+                paddingHorizontal:
+                  14,
+
+                paddingVertical:
+                  12,
+
+                marginBottom:
+                  16,
+
+                outlineStyle:
+                  "none" as any,
               }}
             />
 
             {loadingContinuar ? (
               <View
                 style={{
-                  paddingVertical: 36,
-                  alignItems: "center",
-                  justifyContent: "center",
+                  paddingVertical:
+                    36,
+
+                  alignItems:
+                    "center",
+
+                  justifyContent:
+                    "center",
                 }}
               >
-                <ActivityIndicator color={theme.colors.primary} size="large" />
+                <ActivityIndicator
+                  color={
+                    theme.colors
+                      .primary
+                  }
+                  size="large"
+                />
 
                 <ThemedText
                   style={{
-                    color: colorSecundario,
-                    marginTop: 12,
+                    color:
+                      colorSecundario,
+
+                    marginTop:
+                      12,
                   }}
                 >
                   Cargando estudiantes...
                 </ThemedText>
               </View>
             ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {estudiantesFiltrados.length === 0 ? (
+              <ScrollView
+                showsVerticalScrollIndicator={
+                  false
+                }
+              >
+                {estudiantesFiltrados
+                  .length === 0 ? (
                   <View
                     style={{
-                      padding: 28,
-                      borderRadius: 18,
-                      backgroundColor: theme.colors.background,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      alignItems: "center",
+                      padding:
+                        28,
+
+                      borderRadius:
+                        18,
+
+                      backgroundColor:
+                        theme.colors
+                          .background,
+
+                      borderWidth:
+                        1,
+
+                      borderColor:
+                        theme.colors
+                          .border,
+
+                      alignItems:
+                        "center",
                     }}
                   >
                     <Ionicons
                       name="folder-open-outline"
                       size={34}
-                      color={colorSecundario}
+                      color={
+                        colorSecundario
+                      }
                     />
 
                     <ThemedText
                       style={{
-                        color: colorSecundario,
-                        textAlign: "center",
-                        marginTop: 10,
-                        fontWeight: "700",
+                        color:
+                          colorSecundario,
+
+                        textAlign:
+                          "center",
+
+                        marginTop:
+                          10,
+
+                        fontWeight:
+                          "700",
                       }}
                     >
                       No hay estudiantes pendientes para continuar.
                     </ThemedText>
                   </View>
                 ) : (
-                  estudiantesFiltrados.map((estudiante) => (
-                    <Pressable
-                      key={estudiante.id}
-                      onPress={() =>
-                        void seleccionarEstudianteContinuar(estudiante)
-                      }
-                      style={{
-                        padding: 16,
-                        borderRadius: 18,
-                        backgroundColor: theme.colors.background,
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: isMobile ? "column" : "row",
-                          justifyContent: "space-between",
-                          gap: 10,
-                        }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <ThemedText
-                            style={{
-                              fontSize: 16,
-                              fontWeight: "900",
-                              color: theme.colors.text,
-                            }}
-                          >
-                            {estudiante.apellidoPaterno}{" "}
-                            {estudiante.apellidoMaterno} {estudiante.nombres}
-                          </ThemedText>
-
-                          <ThemedText
-                            style={{
-                              color: colorSecundario,
-                              marginTop: 5,
-                            }}
-                          >
-                            Matrícula: {estudiante.matricula ?? "Sin matrícula"}
-                          </ThemedText>
-
-                          <ThemedText
-                            style={{
-                              color: colorSecundario,
-                              marginTop: 2,
-                            }}
-                          >
-                            CI: {estudiante.ci}
-                          </ThemedText>
-
-                          <ThemedText
-                            style={{
-                              color: colorSecundario,
-                              marginTop: 2,
-                            }}
-                          >
-                            {estudiante.email}
-                          </ThemedText>
-                        </View>
-
-                        <View
+                  estudiantesFiltrados
+                    .map(
+                      (
+                        estudiante
+                      ) => (
+                        <Pressable
+                          key={
+                            estudiante.id
+                          }
+                          onPress={() =>
+                            void seleccionarEstudianteContinuar(
+                              estudiante
+                            )
+                          }
                           style={{
-                            alignSelf: isMobile ? "flex-start" : "center",
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 6,
-                            backgroundColor: theme.colors.primary,
-                            paddingHorizontal: 12,
-                            paddingVertical: 9,
-                            borderRadius: 12,
+                            padding:
+                              16,
+
+                            borderRadius:
+                              18,
+
+                            backgroundColor:
+                              theme
+                                .colors
+                                .background,
+
+                            borderWidth:
+                              1,
+
+                            borderColor:
+                              theme
+                                .colors
+                                .border,
+
+                            marginBottom:
+                              12,
                           }}
                         >
-                          <ThemedText
+                          <View
                             style={{
-                              color: "#FFFFFF",
-                              fontWeight: "900",
+                              flexDirection:
+                                isMobile
+                                  ? "column"
+                                  : "row",
+
+                              justifyContent:
+                                "space-between",
+
+                              gap:
+                                10,
                             }}
                           >
-                            Continuar
-                          </ThemedText>
+                            <View
+                              style={{
+                                flex:
+                                  1,
+                              }}
+                            >
+                              <ThemedText
+                                style={{
+                                  fontSize:
+                                    16,
 
-                          <Ionicons
-                            name="arrow-forward"
-                            size={16}
-                            color="#FFFFFF"
-                          />
-                        </View>
-                      </View>
-                    </Pressable>
-                  ))
+                                  fontWeight:
+                                    "900",
+
+                                  color:
+                                    theme
+                                      .colors
+                                      .text,
+                                }}
+                              >
+                                {
+                                  estudiante
+                                    .apellidoPaterno
+                                }{" "}
+                                {
+                                  estudiante
+                                    .apellidoMaterno
+                                }{" "}
+                                {
+                                  estudiante
+                                    .nombres
+                                }
+                              </ThemedText>
+
+                              <ThemedText
+                                style={{
+                                  color:
+                                    colorSecundario,
+
+                                  marginTop:
+                                    5,
+                                }}
+                              >
+                                Matrícula:{" "}
+                                {estudiante
+                                  .matricula ??
+                                  "Sin matrícula"}
+                              </ThemedText>
+
+                              <ThemedText
+                                style={{
+                                  color:
+                                    colorSecundario,
+
+                                  marginTop:
+                                    2,
+                                }}
+                              >
+                                CI:{" "}
+                                {
+                                  estudiante
+                                    .ci
+                                }
+                              </ThemedText>
+
+                              <ThemedText
+                                style={{
+                                  color:
+                                    colorSecundario,
+
+                                  marginTop:
+                                    2,
+                                }}
+                              >
+                                {
+                                  estudiante
+                                    .email
+                                }
+                              </ThemedText>
+                            </View>
+
+                            <View
+                              style={{
+                                alignSelf:
+                                  isMobile
+                                    ? "flex-start"
+                                    : "center",
+
+                                flexDirection:
+                                  "row",
+
+                                alignItems:
+                                  "center",
+
+                                gap:
+                                  6,
+
+                                backgroundColor:
+                                  theme
+                                    .colors
+                                    .primary,
+
+                                paddingHorizontal:
+                                  12,
+
+                                paddingVertical:
+                                  9,
+
+                                borderRadius:
+                                  12,
+                              }}
+                            >
+                              <ThemedText
+                                style={{
+                                  color:
+                                    "#FFFFFF",
+
+                                  fontWeight:
+                                    "900",
+                                }}
+                              >
+                                Continuar
+                              </ThemedText>
+
+                              <Ionicons
+                                name="arrow-forward"
+                                size={
+                                  16
+                                }
+                                color="#FFFFFF"
+                              />
+                            </View>
+                          </View>
+                        </Pressable>
+                      )
+                    )
                 )}
               </ScrollView>
             )}

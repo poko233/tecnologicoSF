@@ -2,7 +2,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { MotiView } from "moti";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -47,8 +47,20 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
   const { theme } = useTheme();
   const { isMobile } = useResponsive();
 
+  // Generar número de comprobante automático al abrir el modal
+  const generarNumeroComprobante = () => {
+    const fecha = new Date();
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const hours = String(fecha.getHours()).padStart(2, '0');
+    const minutes = String(fecha.getMinutes()).padStart(2, '0');
+    const seconds = String(fecha.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+  };
+
   const [metodo, setMetodo]           = useState<MetodoPago>("EFECTIVO");
-  const [comprobante, setComprobante] = useState("");
+  const [comprobante, setComprobante] = useState(generarNumeroComprobante());
   const [observacion, setObservacion] = useState("");
   const [loading, setLoading]         = useState(false);
 
@@ -57,6 +69,13 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
 
   // Multas opcionales por cuota
   const [multas, setMultas] = useState<Record<number, string>>({});
+
+  // Regenerar número de comprobante cada vez que se abre el modal
+  useEffect(() => {
+    if (visible) {
+      setComprobante(generarNumeroComprobante());
+    }
+  }, [visible]);
 
   const montoTotal = useMemo(() => {
     return cuotas.reduce((sum, c) => {
