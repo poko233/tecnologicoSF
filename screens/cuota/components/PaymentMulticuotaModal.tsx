@@ -197,8 +197,39 @@ export const PaymentMulticuotaModal: React.FC<Props> = ({
 
       const idPago = (response?.data as any)?.id || (response?.data as any)?.idPago;
 
-      onPaymentSuccess(idPago);
+      // Cerrar modal primero
       onClose();
+
+      // Mostrar toast de éxito
+      Toast.show({
+        type: "success",
+        text1: "✅ Pago registrado exitosamente",
+        text2: "Toque aquí para ver el recibo",
+        visibilityTime: 6000,
+        position: "top",
+        onPress: () => {
+          if (idPago) {
+            pagoService.verRecibo(idPago).catch((err) => {
+              Toast.show({
+                type: "error",
+                text1: "Error al abrir recibo",
+                text2: err?.message || "No se pudo abrir el recibo",
+              });
+            });
+          }
+        },
+      });
+
+      // Descargar recibo automáticamente
+      if (idPago) {
+        setTimeout(() => {
+          pagoService.verRecibo(idPago).catch((err) => {
+            console.error("Error al abrir recibo automático:", err);
+          });
+        }, 500);
+      }
+
+      onPaymentSuccess(idPago);
 
       // Limpiar montos parciales y multas
       setMontosParciales({});
