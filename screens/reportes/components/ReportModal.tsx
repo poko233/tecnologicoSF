@@ -1,7 +1,7 @@
 import { useTheme } from "@/theme/useTheme";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
-import { X } from "lucide-react-native";
+import { ChevronRight, X } from "lucide-react-native";
 import { AnimatePresence, MotiView } from "moti";
 import React, { useEffect, useState } from "react";
 import {
@@ -18,9 +18,10 @@ import { useInscritosFilters } from "../hooks/useInscritosFilters";
 import { usePagosFilters } from "../hooks/usePagosFilters";
 import { reportesService } from "../services/reportes.service";
 import { InscritosFiltrosResponse } from "../types/reportes.types";
+import { FilterSelectButton } from "./FilterSelectButton";
 import { InscritosForm } from "./InscritosForm";
 import { PagosForm } from "./PagosForm";
-
+import { RemoteSearchSelectorModal } from "./RemoteSearchSelectorModal";
 interface Props {
   visible: boolean;
   reportType: string | null;
@@ -54,7 +55,7 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
 
   // Pagos
   const pagosFilters = usePagosFilters();
-
+  const [grupoModalVisible, setGrupoModalVisible] = useState(false);
   const isCentralizador = reportType === "centralizador";
   const isInscritos = reportType === "carrera";
   const isListaGrupo = reportType === "lista-grupo";
@@ -364,18 +365,183 @@ export function ReportModal({ visible, reportType, onClose }: Props) {
                           )}
                           {isListaGrupo && (
                             <>
-                              {renderChipSelect(
-                                "Grupo / Materia / Docente",
-                                [
-                                  { label: "Todos", value: null },
-                                  ...grupos.map((g: any) => ({
-                                    label: `${g.grupo} - ${g.materia}`,
-                                    value: g.idGrupoMateriaDocente,
-                                  })),
-                                ],
-                                idGrupo,
-                                setIdGrupo,
-                              )}
+                              <FilterSelectButton
+                                label="Grupo / Materia / Docente"
+                                selectedText={
+                                  idGrupo === null
+                                    ? "Todos"
+                                    : grupos.find(
+                                          (g) =>
+                                            g.idGrupoMateriaDocente === idGrupo,
+                                        )
+                                      ? `${grupos.find((g) => g.idGrupoMateriaDocente === idGrupo).grupo} - ${grupos.find((g) => g.idGrupoMateriaDocente === idGrupo).materia}`
+                                      : "Seleccionar"
+                                }
+                                onPress={() => setGrupoModalVisible(true)}
+                                isActive={idGrupo !== null}
+                              />
+                              <RemoteSearchSelectorModal<any>
+                                visible={grupoModalVisible}
+                                title="Seleccionar grupo / materia / docente"
+                                fetchItems={async (search, page, signal) => {
+                                  if (grupos.length === 0) {
+                                    const data =
+                                      await reportesService.obtenerGrupos();
+                                    setGrupos(data);
+                                  }
+                                  const filtered = grupos.filter((g) =>
+                                    `${g.grupo} ${g.materia} ${g.docente}`
+                                      .toLowerCase()
+                                      .includes(search.toLowerCase()),
+                                  );
+                                  return {
+                                    data: filtered,
+                                    meta: {
+                                      current_page: 1,
+                                      last_page: 1,
+                                      total: filtered.length,
+                                    },
+                                    next_page_url: null,
+                                  };
+                                }}
+                                onSelect={(item) => {
+                                  setIdGrupo(item.idGrupoMateriaDocente);
+                                  setGrupoModalVisible(false);
+                                }}
+                                onClose={() => setGrupoModalVisible(false)}
+                                keyExtractor={(item) =>
+                                  String(item.idGrupoMateriaDocente)
+                                }
+                                renderItem={(item) => (
+                                  <View style={[styles.listItemContainer]}>
+                                    <View style={styles.listItemContent}>
+                                      {/* MATERIA */}
+                                      <View style={styles.dataRow}>
+                                        <Text
+                                          style={[
+                                            styles.dataLabel,
+                                            { color: c.primary },
+                                          ]}
+                                        >
+                                          MATERIA:
+                                        </Text>
+                                        <Text
+                                          style={[
+                                            styles.dataValue,
+                                            { color: c.text },
+                                          ]}
+                                        >
+                                          {item.materia}
+                                        </Text>
+                                      </View>
+
+                                      {/* DOCENTE */}
+                                      <View style={styles.dataRow}>
+                                        <Text
+                                          style={[
+                                            styles.dataLabel,
+                                            { color: c.primary },
+                                          ]}
+                                        >
+                                          DOCENTE:
+                                        </Text>
+                                        <Text
+                                          style={[
+                                            styles.dataValue,
+                                            { color: c.text },
+                                          ]}
+                                        >
+                                          {item.docente}
+                                        </Text>
+                                      </View>
+
+                                      {/* GRUPO Y GESTIÓN */}
+                                      <View style={styles.dataRowMulti}>
+                                        <View
+                                          style={[
+                                            styles.dataCol,
+                                            { flex: 1.5, paddingRight: 8 },
+                                          ]}
+                                        >
+                                          <Text
+                                            style={[
+                                              styles.dataLabel,
+                                              { color: c.primary },
+                                            ]}
+                                          >
+                                            GRUPO:
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.dataValue,
+                                              { color: c.text },
+                                            ]}
+                                          >
+                                            {item.grupo}
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[styles.dataCol, { flex: 1 }]}
+                                        >
+                                          <Text
+                                            style={[
+                                              styles.dataLabel,
+                                              { color: c.primary, width: 65 },
+                                            ]}
+                                          >
+                                            GESTIÓN:
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.dataValue,
+                                              { color: c.text },
+                                            ]}
+                                          >
+                                            {item.gestion}
+                                          </Text>
+                                        </View>
+                                      </View>
+
+                                      {/* CARRERA */}
+                                      {item.carrera && (
+                                        <View
+                                          style={[
+                                            styles.dataRow,
+                                            { marginTop: 4 },
+                                          ]}
+                                        >
+                                          <Text
+                                            style={[
+                                              styles.dataLabel,
+                                              { color: c.primary },
+                                            ]}
+                                          >
+                                            CARRERA:
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.dataValue,
+                                              { color: c.textSecondary },
+                                            ]}
+                                          >
+                                            {item.carrera}
+                                          </Text>
+                                        </View>
+                                      )}
+                                    </View>
+
+                                    {/* Flecha indicadora */}
+                                    <View style={{ justifyContent: "center" }}>
+                                      <ChevronRight
+                                        size={20}
+                                        color={c.textSecondary}
+                                        opacity={0.5}
+                                      />
+                                    </View>
+                                  </View>
+                                )}
+                                placeholder="Buscar por grupo, materia o docente..."
+                              />
                             </>
                           )}
                         </>
@@ -622,5 +788,43 @@ const styles = StyleSheet.create({
   downloadText: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  // Mantén estos dos que ya tenías
+  listItemContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  listItemContent: {
+    flex: 1,
+    gap: 4, // Espaciado entre cada fila de datos
+  },
+
+  // --- NUEVOS ESTILOS PARA EL TEXTO CLARITO ---
+  dataRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  dataRowMulti: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20, // Espacio entre el bloque de GRUPO y GESTIÓN
+    marginTop: 2,
+  },
+  dataCol: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  dataLabel: {
+    fontSize: 12,
+    fontWeight: "800", // Negrita fuerte para que destaque el título
+    width: 75, // Ancho fijo para alinear los dos puntos de manera uniforme
+    marginTop: 1, // Pequeño ajuste para alinear con el texto de la derecha
+  },
+  dataValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1,
   },
 });
