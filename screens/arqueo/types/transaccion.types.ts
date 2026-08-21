@@ -16,7 +16,7 @@ export interface Transaccion {
   fecha_registro: string;
   estado: "VALIDO" | "ANULADO";
   usuario: string;
-  tipo_transaccion: string | null;
+  tipo_transaccion: string | TipoTransaccion | null;
 }
 
 export interface IngresoCombinado {
@@ -33,5 +33,5 @@ export interface IngresoCombinado {
   usuario: string;
   comprobante: string | null;
   detalle: string | null;
-  tipo_transaccion: string | null;
+  tipo_transaccion: string | TipoTransaccion | null;
 }

@@ -1,5 +1,6 @@
 // types/arqueo.types.ts
 import { InventarioVenta } from "../../ventas/types/venta.types";
+import { TipoTransaccion } from "./transaccion.types";
 
 export interface Conteo {
   billete_200: number;
@@ -10,6 +11,9 @@ export interface Conteo {
   moneda_5: number;
   moneda_2: number;
   moneda_1: number;
+  moneda_50ctvs?: number;
+  moneda_20ctvs?: number;
+  moneda_10ctvs?: number;
 }
 
 export type EstadoArqueo = "INICIADO" | "TERMINADO";
@@ -31,7 +35,7 @@ export interface Ingreso {
   fecha_registro: string; // ISO
   estado: "VALIDO" | "ANULADO";
   usuario: string;
-  tipo_transaccion: string | null;
+  tipo_transaccion: string | TipoTransaccion | null;
 }
 
 export interface Egreso {
@@ -43,7 +47,7 @@ export interface Egreso {
   fecha_registro: string; // ISO
   estado: "VALIDO" | "ANULADO";
   usuario: string;
-  tipo_transaccion: string | null;
+  tipo_transaccion: string | TipoTransaccion | null;
 }
 
 export interface Pago {

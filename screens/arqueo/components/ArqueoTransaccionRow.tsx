@@ -20,6 +20,23 @@ interface ArqueoTransaccionRowProps {
   showMenu?: boolean;
 }
 
+const getStringValue = (value: any, fallback: string = "—"): string => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  if (typeof value === "object") {
+    return (
+      value.nombre ||
+      value.usuario ||
+      value.transaccion ||
+      value.codigo ||
+      value.detalle ||
+      fallback
+    );
+  }
+  return fallback;
+};
+
 export function ArqueoTransaccionRow({
   transaccion,
   index,
@@ -27,7 +44,7 @@ export function ArqueoTransaccionRow({
   isUpdating = false,
   showReceipt = false,
   onPrintReceipt,
-  showMenu = true, // por defecto true
+  showMenu = true,
 }: ArqueoTransaccionRowProps) {
   const { theme } = useTheme();
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -62,10 +79,16 @@ export function ArqueoTransaccionRow({
     : { color: theme.colors.textSecondary };
 
   const fecha = transaccion.fecha_registro;
-  const comprobante = transaccion.comprobante || "—";
-  const usuario = transaccion.usuario || "—";
-  const concepto =
-    transaccion.tipo_transaccion || transaccion.detalle || "Sin concepto";
+  const comprobante = getStringValue(transaccion.comprobante);
+  const usuario = getStringValue(transaccion.usuario);
+  const concepto = transaccion.tipo_transaccion
+    ? typeof transaccion.tipo_transaccion === "string"
+      ? transaccion.tipo_transaccion
+      : transaccion.tipo_transaccion.transaccion ||
+        transaccion.tipo_transaccion.codigo ||
+        transaccion.detalle ||
+        "Sin concepto"
+    : transaccion.detalle || "Sin concepto";
 
   const handleMenuPress = () => {
     if (isUpdating) return;
@@ -74,9 +97,7 @@ export function ArqueoTransaccionRow({
 
   const handleActionPress = () => {
     setShowContextMenu(false);
-    if (onUpdateEstado) {
-      onUpdateEstado(nuevoEstado);
-    }
+    if (onUpdateEstado) onUpdateEstado(nuevoEstado);
   };
 
   return (
@@ -136,7 +157,7 @@ export function ArqueoTransaccionRow({
             textStyle,
           ]}
         >
-          {transaccion.monto.toFixed(2)} Bs
+          {Number(transaccion.monto || 0).toFixed(2)} Bs
         </ThemedText>
       </View>
 
@@ -151,9 +172,10 @@ export function ArqueoTransaccionRow({
             },
           ]}
         >
-          {transaccion.detalle || "—"}
+          {getStringValue(transaccion.detalle)}
         </ThemedText>
       </View>
+
       <View style={[tableStyles.colTipoPago, { flexWrap: "wrap" }]}>
         <ThemedText
           style={[
@@ -165,7 +187,7 @@ export function ArqueoTransaccionRow({
             },
           ]}
         >
-          {transaccion.metodo}
+          {getStringValue(transaccion.metodo)}
         </ThemedText>
       </View>
 
@@ -179,7 +201,6 @@ export function ArqueoTransaccionRow({
 
       <View style={tableStyles.colAcciones}>
         <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-          {/* Botón de recibo (siempre visible) */}
           {showReceipt && onPrintReceipt && (
             <MotiPressable
               onPress={onPrintReceipt}
@@ -189,7 +210,6 @@ export function ArqueoTransaccionRow({
             </MotiPressable>
           )}
 
-          {/* Menú de tres puntos solo si showMenu es true */}
           {showMenu && (
             <>
               <MotiPressable
