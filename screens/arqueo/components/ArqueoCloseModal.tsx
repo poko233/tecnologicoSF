@@ -42,6 +42,9 @@ const denominations: { key: keyof Conteo; label: string; value: number }[] = [
   { key: "moneda_5", label: "Monedas 5 Bs", value: 5 },
   { key: "moneda_2", label: "Monedas 2 Bs", value: 2 },
   { key: "moneda_1", label: "Monedas 1 Bs", value: 1 },
+  { key: "moneda_50ctvs", label: "Monedas 50 ctvs", value: 0.5 },
+  { key: "moneda_20ctvs", label: "Monedas 20 ctvs", value: 0.2 },
+  { key: "moneda_10ctvs", label: "Monedas 10 ctvs", value: 0.1 },
 ];
 
 const tipoMap: Record<string, string> = {
@@ -73,6 +76,9 @@ export default function ArqueoCloseModal({
     moneda_5: 0,
     moneda_2: 0,
     moneda_1: 0,
+    moneda_50ctvs: 0,
+    moneda_20ctvs: 0,
+    moneda_10ctvs: 0,
   });
 
   const arqueo = activeArqueo?.id === arqueoId ? activeArqueo : null;
@@ -117,21 +123,21 @@ export default function ArqueoCloseModal({
   };
 
   const totalPagos = useMemo(
-    () => pagos.reduce((s, p) => s + p.monto, 0),
+    () => pagos.reduce((s, p) => s + Number(p.monto || 0), 0),
     [pagos],
   );
   const totalIngresosManual = useMemo(
     () =>
       ingresos
         .filter((i) => i.estado !== "ANULADO")
-        .reduce((s, i) => s + i.monto, 0),
+        .reduce((s, i) => s + Number(i.monto || 0), 0),
     [ingresos],
   );
   const totalEgresos = useMemo(
     () =>
       egresos
         .filter((e) => e.estado !== "ANULADO")
-        .reduce((s, e) => s + e.monto, 0),
+        .reduce((s, e) => s + Number(e.monto || 0), 0),
     [egresos],
   );
   const totalVentas = useMemo(
@@ -141,7 +147,7 @@ export default function ArqueoCloseModal({
         .reduce((s, v) => s + parseFloat(v.total.toString()), 0),
     [ventas],
   );
-  const saldoAnterior = arqueo?.saldo_anterior || 0;
+  const saldoAnterior = Number(arqueo?.saldo_anterior) || 0;
 
   const totalesPorMetodo = useMemo(() => {
     let efectivo = 0,
@@ -149,7 +155,7 @@ export default function ArqueoCloseModal({
       qr = 0,
       transferencia = 0;
     pagos.forEach((p) => {
-      const monto = p.monto || 0;
+      const monto = Number(p.monto) || 0;
       switch (p.metodo) {
         case "EFECTIVO":
           efectivo += monto;
@@ -167,7 +173,7 @@ export default function ArqueoCloseModal({
     });
     ingresos.forEach((i) => {
       if (i.estado === "ANULADO") return;
-      const monto = i.monto || 0;
+      const monto = Number(i.monto) || 0;
       switch (i.metodo) {
         case "EFECTIVO":
           efectivo += monto;
@@ -185,7 +191,7 @@ export default function ArqueoCloseModal({
     });
     egresos.forEach((e) => {
       if (e.estado === "ANULADO") return;
-      const monto = e.monto || 0;
+      const monto = Number(e.monto) || 0;
       switch (e.metodo) {
         case "EFECTIVO":
           efectivo -= monto;
@@ -229,7 +235,9 @@ export default function ArqueoCloseModal({
     totalesPorMetodo.transferencia;
 
   const expectedEfectivo = useMemo(() => {
-    return saldoAnterior + totalesPorMetodo.efectivo;
+    const saldo = Number(saldoAnterior) || 0;
+    const efectivo = Number(totalesPorMetodo.efectivo) || 0;
+    return saldo + efectivo;
   }, [saldoAnterior, totalesPorMetodo.efectivo]);
 
   const totalContado = useMemo(() => {
@@ -668,7 +676,8 @@ export default function ArqueoCloseModal({
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  {pago.monto.toFixed(2)}
+                                  {/* 🔥 CORRECCIÓN: Number() para evitar string */}
+                                  {Number(pago.monto).toFixed(2)}
                                 </ThemedText>
                               </View>
                             ))}
@@ -789,7 +798,8 @@ export default function ArqueoCloseModal({
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  {cuota.monto.toFixed(2)}
+                                  {/* 🔥 CORRECCIÓN: Number() para evitar string */}
+                                  {Number(cuota.monto).toFixed(2)}
                                 </ThemedText>
                               </View>
                             ))}
@@ -943,6 +953,7 @@ export default function ArqueoCloseModal({
                                       },
                                     ]}
                                   >
+                                    {/* 🔥 Ya usa parseFloat, seguro */}
                                     {parseFloat(venta.total.toString()).toFixed(
                                       2,
                                     )}{" "}
@@ -1075,13 +1086,13 @@ export default function ArqueoCloseModal({
                   </Pressable>
                   <MotiPressable
                     onPress={handleClose}
-                    disabled={loading || diferencia !== 0}
+                    disabled={loading}
                     animate={({ pressed }) => ({ scale: pressed ? 0.95 : 1 })}
                     style={[
                       styles.applyBtn,
                       {
                         backgroundColor: theme.colors.primary,
-                        opacity: loading || diferencia !== 0 ? 0.5 : 1,
+                        opacity: loading ? 0.5 : 1,
                       },
                     ]}
                   >
@@ -1099,6 +1110,7 @@ export default function ArqueoCloseModal({
   );
 }
 
+// 🔥 Seguridad extra: convertir value a número antes de .toFixed()
 const ResumenItem = ({ label, value, theme, highlight = false }: any) => (
   <View
     style={[
@@ -1116,7 +1128,7 @@ const ResumenItem = ({ label, value, theme, highlight = false }: any) => (
         highlight && { fontWeight: "800", color: theme.colors.primary },
       ]}
     >
-      {value.toFixed(2)} Bs
+      {Number(value || 0).toFixed(2)} Bs
     </ThemedText>
   </View>
 );

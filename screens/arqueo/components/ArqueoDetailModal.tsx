@@ -6,7 +6,7 @@ import { formatDateTimeNatural } from "@/utils/dateHelpers";
 import { BlurView } from "expo-blur";
 import { X } from "lucide-react-native";
 import { MotiPressable } from "moti/interactions";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -18,7 +18,7 @@ import {
 import Toast from "react-native-toast-message";
 import { useArqueoTransacciones } from "../hooks/useArqueoTransacciones";
 import { arqueoService } from "../services/arqueo.service";
-import { Arqueo, Egreso, Ingreso, Pago } from "../types/arqueo.types";
+import { Arqueo, Conteo, Egreso, Ingreso, Pago } from "../types/arqueo.types";
 import { ArqueoTransaccionTable } from "./ArqueoTransaccionTable";
 
 interface ArqueoDetailModalProps {
@@ -32,6 +32,24 @@ const tipoMap: Record<string, string> = {
   MENSUAL: "MENSUALIDAD",
   CONVALIDACION: "CONVALIDACION",
 };
+
+const denominationConfig: {
+  key: keyof Conteo;
+  label: string;
+  value: number;
+}[] = [
+  { key: "billete_200", label: "Billetes 200 Bs", value: 200 },
+  { key: "billete_100", label: "Billetes 100 Bs", value: 100 },
+  { key: "billete_50", label: "Billetes 50 Bs", value: 50 },
+  { key: "billete_20", label: "Billetes 20 Bs", value: 20 },
+  { key: "billete_10", label: "Billetes 10 Bs", value: 10 },
+  { key: "moneda_5", label: "Monedas 5 Bs", value: 5 },
+  { key: "moneda_2", label: "Monedas 2 Bs", value: 2 },
+  { key: "moneda_1", label: "Monedas 1 Bs", value: 1 },
+  { key: "moneda_50ctvs", label: "Monedas 50 ctvs", value: 0.5 },
+  { key: "moneda_20ctvs", label: "Monedas 20 ctvs", value: 0.2 },
+  { key: "moneda_10ctvs", label: "Monedas 10 ctvs", value: 0.1 },
+];
 
 interface ResumenItemProps {
   label: string;
@@ -67,7 +85,7 @@ function ResumenItem({ label, value, theme, highlight }: ResumenItemProps) {
           },
         ]}
       >
-        Bs. {value.toFixed(2)}
+        Bs. {Number(value || 0).toFixed(2)}
       </ThemedText>
     </View>
   );
@@ -154,18 +172,26 @@ export function ArqueoDetailModal({
     }
   };
 
+  const totalContado = useMemo(() => {
+    if (!arqueo?.conteo) return 0;
+    return denominationConfig.reduce((total, denom) => {
+      const cantidad = arqueo.conteo?.[denom.key] || 0;
+      return total + cantidad * denom.value;
+    }, 0);
+  }, [arqueo?.conteo]);
+
   if (!visible || !arqueo) return null;
 
-  const totalPagos = pagos.reduce((s, p) => s + p.monto, 0);
+  // 🔥 Cálculos con conversión numérica
+  const saldoAnterior = Number(arqueo.saldo_anterior) || 0;
+
+  const totalPagos = pagos.reduce((s, p) => s + Number(p.monto || 0), 0);
   const totalIngresosManual = ingresos
     .filter((i) => i.estado !== "ANULADO")
-    .reduce((s, i) => s + i.monto, 0);
+    .reduce((s, i) => s + Number(i.monto || 0), 0);
   const totalEgresos = egresos
     .filter((e) => e.estado !== "ANULADO")
-    .reduce((s, e) => s + e.monto, 0);
-  const saldoAnterior = arqueo.saldo_anterior || 0;
-  const cajaEsperadaGeneral =
-    saldoAnterior + totalPagos + totalIngresosManual - totalEgresos;
+    .reduce((s, e) => s + Number(e.monto || 0), 0);
 
   const totalesPorMetodo = (() => {
     let efectivo = 0,
@@ -173,7 +199,7 @@ export function ArqueoDetailModal({
       qr = 0,
       transferencia = 0;
     pagos.forEach((p) => {
-      const monto = p.monto || 0;
+      const monto = Number(p.monto) || 0;
       if (p.metodo === "EFECTIVO") efectivo += monto;
       else if (p.metodo === "TARJETA") tarjeta += monto;
       else if (p.metodo === "QR") qr += monto;
@@ -181,7 +207,7 @@ export function ArqueoDetailModal({
     });
     ingresos.forEach((i) => {
       if (i.estado === "ANULADO") return;
-      const monto = i.monto || 0;
+      const monto = Number(i.monto) || 0;
       if (i.metodo === "EFECTIVO") efectivo += monto;
       else if (i.metodo === "TARJETA") tarjeta += monto;
       else if (i.metodo === "QR") qr += monto;
@@ -189,11 +215,20 @@ export function ArqueoDetailModal({
     });
     egresos.forEach((e) => {
       if (e.estado === "ANULADO") return;
-      const monto = e.monto || 0;
+      const monto = Number(e.monto) || 0;
       if (e.metodo === "EFECTIVO") efectivo -= monto;
       else if (e.metodo === "TARJETA") tarjeta -= monto;
       else if (e.metodo === "QR") qr -= monto;
       else if (e.metodo === "TRANSFERENCIA") transferencia -= monto;
+    });
+    // 🔥 AGREGADO: VENTAS DE PRODUCTOS
+    ventas.forEach((v) => {
+      if (v.estado !== "PAGADO") return;
+      const monto = Number(v.total) || 0;
+      if (v.metodo_pago === "EFECTIVO") efectivo += monto;
+      else if (v.metodo_pago === "TARJETA") tarjeta += monto;
+      else if (v.metodo_pago === "QR") qr += monto;
+      else if (v.metodo_pago === "TRANSFERENCIA") transferencia += monto;
     });
     return { efectivo, tarjeta, qr, transferencia };
   })();
@@ -203,6 +238,9 @@ export function ArqueoDetailModal({
     totalesPorMetodo.tarjeta +
     totalesPorMetodo.qr +
     totalesPorMetodo.transferencia;
+
+  // 🔥 CORRECCIÓN CLAVE: solo efectivo esperado para comparar con conteo
+  const expectedEfectivo = saldoAnterior + totalesPorMetodo.efectivo;
 
   const nombreUsuario =
     typeof arqueo.usuario !== "string"
@@ -216,6 +254,8 @@ export function ArqueoDetailModal({
       pagoIndex: pagoIndex + 1,
     })),
   );
+
+  const diferenciaConteo = totalContado - expectedEfectivo;
 
   return (
     <Modal transparent visible={visible} onRequestClose={onClose}>
@@ -308,8 +348,8 @@ export function ArqueoDetailModal({
                         theme={theme}
                       />
                       <ResumenItem
-                        label="Caja esperada"
-                        value={cajaEsperadaGeneral}
+                        label="Caja esperada (efectivo)"
+                        value={expectedEfectivo}
                         theme={theme}
                         highlight
                       />
@@ -570,7 +610,7 @@ export function ArqueoDetailModal({
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  Bs. {pago.monto.toFixed(2)}
+                                  Bs. {Number(pago.monto).toFixed(2)}
                                 </ThemedText>
                               </View>
                             ))}
@@ -695,7 +735,7 @@ export function ArqueoDetailModal({
                                     { color: theme.colors.text },
                                   ]}
                                 >
-                                  Bs. {(cuota.monto || 0).toFixed(2)}
+                                  Bs. {Number(cuota.monto || 0).toFixed(2)}
                                 </ThemedText>
                               </View>
                             ))}
@@ -704,6 +744,118 @@ export function ArqueoDetailModal({
                       </View>
                     )}
                   </View>
+
+                  {/* Conteo de efectivo */}
+                  {arqueo.conteo && (
+                    <View style={styles.section}>
+                      <ThemedText
+                        style={[
+                          styles.sectionTitle,
+                          { color: theme.colors.text },
+                        ]}
+                      >
+                        Conteo de efectivo
+                      </ThemedText>
+                      <View style={styles.conteoGrid}>
+                        {denominationConfig.map((denom) => {
+                          const cantidad = arqueo.conteo?.[denom.key] || 0;
+                          if (cantidad <= 0) return null;
+                          return (
+                            <View
+                              key={denom.key}
+                              style={[
+                                styles.conteoItem,
+                                {
+                                  backgroundColor:
+                                    theme.colors.backgroundSecondary,
+                                },
+                              ]}
+                            >
+                              <ThemedText
+                                style={{
+                                  fontSize: 12,
+                                  color: theme.colors.textSecondary,
+                                }}
+                              >
+                                {denom.label}
+                              </ThemedText>
+                              <ThemedText
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: "600",
+                                  color: theme.colors.text,
+                                }}
+                              >
+                                {cantidad} × {denom.value.toFixed(2)} ={" "}
+                                {(cantidad * denom.value).toFixed(2)} Bs
+                              </ThemedText>
+                            </View>
+                          );
+                        })}
+                      </View>
+                      <View style={styles.totalConteoRow}>
+                        <ThemedText
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontWeight: "600",
+                          }}
+                        >
+                          Total contado:
+                        </ThemedText>
+                        <ThemedText
+                          style={{
+                            color: theme.colors.primary,
+                            fontWeight: "700",
+                            fontSize: 16,
+                          }}
+                        >
+                          {totalContado.toFixed(2)} Bs
+                        </ThemedText>
+                      </View>
+                      <View style={styles.totalConteoRow}>
+                        <ThemedText
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontWeight: "600",
+                          }}
+                        >
+                          Caja esperada (efectivo):
+                        </ThemedText>
+                        <ThemedText
+                          style={{
+                            color: theme.colors.text,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {expectedEfectivo.toFixed(2)} Bs
+                        </ThemedText>
+                      </View>
+                      {diferenciaConteo !== 0 && (
+                        <View
+                          style={[
+                            styles.alertRow,
+                            {
+                              backgroundColor:
+                                diferenciaConteo > 0 ? "#FEF3C7" : "#FEE2E2",
+                            },
+                          ]}
+                        >
+                          <ThemedText
+                            style={{
+                              fontSize: 12,
+                              color:
+                                diferenciaConteo > 0 ? "#D97706" : "#DC2626",
+                              fontWeight: "600",
+                            }}
+                          >
+                            {diferenciaConteo > 0
+                              ? `Sobrante: ${diferenciaConteo.toFixed(2)} Bs`
+                              : `Faltante: ${Math.abs(diferenciaConteo).toFixed(2)} Bs`}
+                          </ThemedText>
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </>
               )}
             </ScrollView>
@@ -738,16 +890,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    flexWrap: "wrap",
-  },
-  subtitle: {
-    fontSize: 13,
-    marginTop: 2,
-    flexWrap: "wrap",
-  },
+  title: { fontSize: 20, fontWeight: "700", flexWrap: "wrap" },
+  subtitle: { fontSize: 13, marginTop: 2, flexWrap: "wrap" },
   closeBtn: {
     width: 36,
     height: 36,
@@ -755,23 +899,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  scrollContent: {
-    padding: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
+  scrollContent: { padding: 20 },
+  section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 12,
     flexWrap: "wrap",
   },
-  resumenGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
+  resumenGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   resumenCard: {
     flex: 1,
     minWidth: 160,
@@ -779,23 +915,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  resumenLabel: {
-    fontSize: 12,
-    marginBottom: 4,
-    flexWrap: "wrap",
-  },
-  resumenValue: {
-    fontSize: 16,
-  },
+  resumenLabel: { fontSize: 12, marginBottom: 4, flexWrap: "wrap" },
+  resumenValue: { fontSize: 16 },
   tableWrapper: {
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(150, 150, 150, 0.2)",
     overflow: "hidden",
   },
-  table: {
-    minWidth: "100%",
-  },
+  table: { minWidth: "100%" },
   tableRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -803,43 +931,37 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
   },
-  tableHeader: {
-    borderBottomWidth: 1,
+  tableHeader: { borderBottomWidth: 1 },
+  tableCellHeader: { fontWeight: "700", fontSize: 13, flexWrap: "wrap" },
+  tableCell: { fontSize: 13, flexWrap: "wrap" },
+  colIdx: { width: 50, paddingHorizontal: 4 },
+  colFecha: { minWidth: 160, flexShrink: 0, paddingHorizontal: 4 },
+  colEstudiante: { minWidth: 200, flex: 1, paddingHorizontal: 4 },
+  colConcepto: { minWidth: 180, flex: 1, paddingHorizontal: 4 },
+  colMetodo: { minWidth: 120, paddingHorizontal: 4 },
+  colMonto: { minWidth: 110, paddingHorizontal: 4 },
+  conteoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8 },
+  conteoItem: {
+    flexBasis: "45%",
+    flexGrow: 1,
+    minWidth: 140,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(150, 150, 150, 0.2)",
   },
-  tableCellHeader: {
-    fontWeight: "700",
-    fontSize: 13,
-    flexWrap: "wrap",
-  },
-  tableCell: {
-    fontSize: 13,
-    flexWrap: "wrap",
-  },
-  colIdx: {
-    width: 50,
+  totalConteoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
     paddingHorizontal: 4,
   },
-  colFecha: {
-    minWidth: 160,
-    flexShrink: 0,
-    paddingHorizontal: 4,
-  },
-  colEstudiante: {
-    minWidth: 200,
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  colConcepto: {
-    minWidth: 180,
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  colMetodo: {
-    minWidth: 120,
-    paddingHorizontal: 4,
-  },
-  colMonto: {
-    minWidth: 110,
-    paddingHorizontal: 4,
+  alertRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
   },
 });
