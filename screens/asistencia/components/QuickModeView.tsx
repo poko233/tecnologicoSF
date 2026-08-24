@@ -1,6 +1,7 @@
+// screens/asistencia/components/QuickModeView.tsx
 import { useTheme } from "@/theme/useTheme";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -37,7 +38,6 @@ export function QuickModeView({
   const [animatingIds, setAnimatingIds] = useState<Set<number>>(new Set());
   const [triggerMap, setTriggerMap] = useState<Record<number, string>>({});
 
-  // Corregido: TypeScript ahora entiende correctamente el tipo de temporizador y su valor inicial nulo
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentSwipeDirection = useSharedValue<
@@ -52,9 +52,18 @@ export function QuickModeView({
     return manualSwipeDirection.value || currentSwipeDirection.value;
   });
 
+  // ✅ Estudiantes ordenados alfabéticamente por apellido paterno (A-Z)
+  const sortedStudents = useMemo(() => {
+    return [...estudiantesData.estudiantes].sort((a, b) => {
+      const aKey = `${a.apellidoPaterno.toLowerCase()} ${a.apellidoMaterno.toLowerCase()} ${a.nombres.toLowerCase()}`;
+      const bKey = `${b.apellidoPaterno.toLowerCase()} ${b.apellidoMaterno.toLowerCase()} ${b.nombres.toLowerCase()}`;
+      return aKey.localeCompare(bKey);
+    });
+  }, [estudiantesData.estudiantes]);
+
   const handleAction = useCallback(
     (direction: "right" | "left" | "up" | "down", isManual: boolean) => {
-      const estudiante = estudiantesData.estudiantes[activeIndex];
+      const estudiante = sortedStudents[activeIndex];
       if (!estudiante) return;
 
       let tipo: AsistenciaTipo;
@@ -99,7 +108,7 @@ export function QuickModeView({
 
       setActiveIndex((prev) => prev + 1);
     },
-    [activeIndex, estudiantesData.estudiantes, localState, onUpdateLocal],
+    [activeIndex, sortedStudents, localState, onUpdateLocal],
   );
 
   const handleAnimationEnd = useCallback((id: number) => {
@@ -111,10 +120,9 @@ export function QuickModeView({
   }, []);
 
   const isFinished =
-    activeIndex >= estudiantesData.estudiantes.length &&
-    animatingIds.size === 0;
+    activeIndex >= sortedStudents.length && animatingIds.size === 0;
 
-  // Ajustamos las distancias de traducción a 200 para esconder los arcos más grandes
+  // Gradientes de los gestos (sin cambios)
   const config = { duration: 250 };
   const gradRightStyle = useAnimatedStyle(() => ({
     opacity: withTiming(activeDirection.value === "right" ? 1 : 0, config),
@@ -163,54 +171,53 @@ export function QuickModeView({
 
   if (isFinished) {
     onFinish?.();
-    return null; // o podrías mostrar un loader, pero mejor retornar null inmediatamente
+    return null;
   }
 
-  const cardsToRender = [...estudiantesData.estudiantes]
-    .reverse()
-    .map((estudiante) => {
-      const originalIndex = estudiantesData.estudiantes.findIndex(
-        (e) => e.id_inscripcion === estudiante.id_inscripcion,
-      );
-      const isAnimating = animatingIds.has(estudiante.id_inscripcion);
-      const isActive = originalIndex === activeIndex;
-      const isNext = originalIndex === activeIndex + 1;
+  // Se invierte el array para que la tarjeta activa quede encima de la siguiente
+  const cardsToRender = [...sortedStudents].reverse().map((estudiante) => {
+    const originalIndex = sortedStudents.findIndex(
+      (e) => e.id_inscripcion === estudiante.id_inscripcion,
+    );
+    const isAnimating = animatingIds.has(estudiante.id_inscripcion);
+    const isActive = originalIndex === activeIndex;
+    const isNext = originalIndex === activeIndex + 1;
 
-      if (!isActive && !isNext && !isAnimating) return null;
+    if (!isActive && !isNext && !isAnimating) return null;
 
-      return (
-        <CardEntranceWrapper
-          key={estudiante.id_inscripcion}
-          isNext={isNext}
-          isActive={isActive}
+    return (
+      <CardEntranceWrapper
+        key={estudiante.id_inscripcion}
+        isNext={isNext}
+        isActive={isActive}
+      >
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { zIndex: isActive || isAnimating ? 10 : 1 },
+          ]}
+          pointerEvents={isActive ? "auto" : "none"}
         >
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { zIndex: isActive || isAnimating ? 10 : 1 },
-            ]}
-            pointerEvents={isActive ? "auto" : "none"}
-          >
-            <SwipeCard
-              estudiante={estudiante}
-              observacion={
-                localState[estudiante.id_inscripcion]?.observacion ?? ""
-              }
-              onObservacionChange={(txt) =>
-                onUpdateLocal(estudiante.id_inscripcion, null, txt)
-              }
-              onSwipeStart={(dir) => {
-                if (isActive) handleAction(dir, false);
-              }}
-              onSwipeEnd={() => handleAnimationEnd(estudiante.id_inscripcion)}
-              triggerSwipeOut={triggerMap[estudiante.id_inscripcion]}
-              enabled={isActive}
-              swipeDirectionRef={isActive ? currentSwipeDirection : undefined}
-            />
-          </View>
-        </CardEntranceWrapper>
-      );
-    });
+          <SwipeCard
+            estudiante={estudiante}
+            observacion={
+              localState[estudiante.id_inscripcion]?.observacion ?? ""
+            }
+            onObservacionChange={(txt) =>
+              onUpdateLocal(estudiante.id_inscripcion, null, txt)
+            }
+            onSwipeStart={(dir) => {
+              if (isActive) handleAction(dir, false);
+            }}
+            onSwipeEnd={() => handleAnimationEnd(estudiante.id_inscripcion)}
+            triggerSwipeOut={triggerMap[estudiante.id_inscripcion]}
+            enabled={isActive}
+            swipeDirectionRef={isActive ? currentSwipeDirection : undefined}
+          />
+        </View>
+      </CardEntranceWrapper>
+    );
+  });
 
   return (
     <View style={styles.container}>
@@ -226,8 +233,8 @@ export function QuickModeView({
 
       <View style={styles.counter}>
         <Text style={{ color: c.textSecondary }}>
-          {Math.min(activeIndex + 1, estudiantesData.estudiantes.length)} /{" "}
-          {estudiantesData.estudiantes.length}
+          {Math.min(activeIndex + 1, sortedStudents.length)} /{" "}
+          {sortedStudents.length}
         </Text>
       </View>
 

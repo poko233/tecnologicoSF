@@ -141,10 +141,15 @@ export function GroupSelector({ grupos, onSelect }: Props) {
   } => {
     if (containerWidth === 0)
       return { numColumns: 1, itemWidth: "100%" as DimensionValue, gap: 0 };
+
     const gap = 12;
     const numColumns = containerWidth < 768 ? 1 : containerWidth < 1024 ? 2 : 3;
     const totalGapWidth = gap * (numColumns - 1);
-    const itemWidth = (containerWidth - totalGapWidth) / numColumns;
+
+    const usableWidth = containerWidth - 32;
+
+    const itemWidth = (usableWidth - totalGapWidth) / numColumns;
+
     return { numColumns, itemWidth, gap };
   };
 
@@ -276,7 +281,7 @@ export function GroupSelector({ grupos, onSelect }: Props) {
               numColumns={numColumns}
               columnWrapperStyle={numColumns > 1 ? { gap } : undefined}
               renderItem={({ item, index }) => (
-                <View style={{ width: itemWidth, marginBottom: gap }}>
+                <View style={{ width: itemWidth, flex: 1, marginBottom: gap }}>
                   <GroupCard
                     grupo={item}
                     onPress={onSelect}
