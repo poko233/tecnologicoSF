@@ -10,7 +10,7 @@ import {
 import Toast from "react-native-toast-message";
 import { BASE_URL, httpClient } from "../http/httpClient";
 import { useArqueoStore } from "../screens/arqueo/store/arqueoStore";
-import { clearSession, saveToken } from "../storage/secureStorage";
+import { clearSession, getToken, saveToken } from "../storage/secureStorage";
 import { useModulesStore } from "../store/modulesStore";
 import { getTabsForRoles } from "../utils/roleBasedTabs";
 
@@ -85,6 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [allowedRoutes, setAllowedRoutes] = useState<Set<string>>(new Set());
   const { fetchModulos, clearModulos } = useModulesStore();
 
+  const buildAllowedRoutes = useCallback((roles: string[]) => {
+    const moduleRoutes = useModulesStore.getState().allowedRoutes;
+    const tabs = getTabsForRoles(roles);
+    return new Set<string>([
+      ...moduleRoutes,
+      ...tabs.map((tab) => `/${tab.name}`),
+    ]);
+  }, []);
+
   const hasRole = useCallback(
     (role: string) => (user ? user.roles.includes(role) : false),
     [user],
@@ -96,60 +105,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
-  // Efecto inicial
+  // Restaurar sesión únicamente si hay un token recuperable.
   useEffect(() => {
+    let active = true;
     (async () => {
       try {
+        const token = await getToken();
+        if (!token) {
+          if (active) {
+            clearModulos();
+            setUser(null);
+            setAllowedRoutes(new Set());
+          }
+          return;
+        }
         const rawData = await httpClient.getAuth<any>("/api/user");
         const userData = mapBackendUserToUsuario(rawData);
-        setUser(userData);
-
         await fetchModulos();
-        const moduleRoutes = useModulesStore.getState().allowedRoutes;
-
-        const tabRoutes = new Set<string>();
-        const tabsForRoles = getTabsForRoles(userData.roles);
-        for (const tab of tabsForRoles) {
-          tabRoutes.add(`/${tab.name}`);
+        if (active) {
+          setAllowedRoutes(buildAllowedRoutes(userData.roles));
+          setUser(userData);
         }
-
-        const merged = new Set([...moduleRoutes, ...tabRoutes]);
-        setAllowedRoutes(merged);
-      } catch {
+      } catch (err: any) {
+        // Un 401/403 al validar identidad invalida la sesión.
+        // Un fallo al cargar permisos tampoco permite navegar con permisos vacíos.
         await clearSession();
-        clearModulos();
-        setUser(null);
-        setAllowedRoutes(new Set());
+        if (active) {
+          clearModulos();
+          setUser(null);
+          setAllowedRoutes(new Set());
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
-  }, []);
+    return () => { active = false; };
+  }, [buildAllowedRoutes, clearModulos, fetchModulos]);
 
   const login = async (token: string): Promise<Usuario> => {
     await saveToken(token);
-    const rawData = await httpClient.getAuth<any>("/api/user");
-    const userData = mapBackendUserToUsuario(rawData);
-    setUser(userData);
-
-    Toast.show({
-      type: "success",
-      text1: "Inicio de sesión exitoso",
-      text2: "Bienvenido de nuevo.",
-    });
-    await fetchModulos();
-    const moduleRoutes = useModulesStore.getState().allowedRoutes;
-
-    const tabRoutes = new Set<string>();
-    const tabsForRoles = getTabsForRoles(userData.roles);
-    for (const tab of tabsForRoles) {
-      tabRoutes.add(`/${tab.name}`);
+    try {
+      const rawData = await httpClient.getAuth<any>("/api/user");
+      const userData = mapBackendUserToUsuario(rawData);
+      await fetchModulos();
+      setAllowedRoutes(buildAllowedRoutes(userData.roles));
+      setUser(userData);
+      Toast.show({
+        type: "success",
+        text1: "Inicio de sesión exitoso",
+        text2: "Bienvenido de nuevo.",
+      });
+      return userData;
+    } catch (err) {
+      await clearSession();
+      clearModulos();
+      setUser(null);
+      setAllowedRoutes(new Set());
+      throw err;
     }
-
-    const merged = new Set([...moduleRoutes, ...tabRoutes]);
-    setAllowedRoutes(merged);
-
-    return userData;
   };
 
   const logout = async () => {

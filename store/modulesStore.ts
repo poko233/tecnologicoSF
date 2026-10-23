@@ -33,16 +33,18 @@ interface ModulesState {
   clearModulos: () => void;
 }
 
-export const useModulesStore = create<ModulesState>((set, get) => ({
+let pendingFetch: Promise<void> | null = null;
+
+export const useModulesStore = create<ModulesState>((set) => ({
   modulos: [],
   loading: false,
   error: null,
   allowedRoutes: new Set(),
 
   fetchModulos: async () => {
-    // Evitar múltiples peticiones simultáneas sin bloquear la primera
-    if ((get() as any)._fetching) return;
-    (get() as any)._fetching = true;
+    // Los solicitantes concurrentes esperan el MISMO resultado.
+    if (pendingFetch) return pendingFetch;
+    const operation = async () => {
     set({ loading: true, error: null });
     try {
       const data = await httpClient.getAuth<MisModulosResponse>(
@@ -71,8 +73,15 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
         allowedRoutes: new Set(),
         loading: false,
       });
+      throw err;
+    }
+    };
+    const promise = operation();
+    pendingFetch = promise;
+    try {
+      await promise;
     } finally {
-      (get() as any)._fetching = false;
+      if (pendingFetch === promise) pendingFetch = null;
     }
   },
 
@@ -87,5 +96,7 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
 }));
 
 modulosEventBus.subscribe(() => {
-  useModulesStore.getState().fetchModulos();
+  void useModulesStore.getState().fetchModulos().catch(() => {
+    // El store expone el error; evitamos rechazo no gestionado del evento.
+  });
 });

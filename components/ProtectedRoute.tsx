@@ -33,9 +33,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Redirect href="/login" />;
   }
 
-  const route = pathname.split("?")[0] || "/";
+  // Normalizar barras finales para comparar con las rutas del backend.
+  const route = pathname.split("?")[0].replace(/\/+$/, "") || "/";
   if (
-    allowedRoutes.size > 0 &&
     !allowedRoutes.has(route) &&
     route !== "/" &&
     route !== "/403"

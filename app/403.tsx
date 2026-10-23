@@ -1,5 +1,6 @@
 // app/403.tsx
 import { router } from "expo-router";
+import { useAuth } from "../contexts/AuthContext";
 import React, { useCallback, useEffect, useMemo } from "react";
 import {
   DimensionValue,
@@ -921,6 +922,7 @@ const FloatingShape = ({
 
 /* ─── Pantalla 403 ─── */
 export default function ForbiddenScreen() {
+  const { logout } = useAuth();
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
   const { isMobile, isDesktop } = useResponsive();
@@ -1139,6 +1141,22 @@ export default function ForbiddenScreen() {
             <SubmitButton
               title="Volver al inicio"
               onPress={() => router.replace("/")}
+              loading={false}
+              disabled={false}
+            />
+          </Animated.View>
+
+          {/* Recuperación manual para sesiones persistidas desactualizadas */}
+          <Animated.View
+            entering={FadeIn.delay(650).duration(400)}
+            style={{ width: isMobile ? 200 : 220, marginTop: 12 }}
+          >
+            <SubmitButton
+              title="Cerrar sesión"
+              onPress={async () => {
+                await logout();
+                router.replace("/login");
+              }}
               loading={false}
               disabled={false}
             />

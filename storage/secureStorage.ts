@@ -95,7 +95,23 @@ export async function getToken(): Promise<string | null> {
   if (!stored) return null;
 
   try {
-    const { iv, data } = JSON.parse(stored);
+    // Compatibilidad con tokens legados en texto plano.
+    // Un objeto cifrado dañado NO debe enviarse como Bearer token.
+    let payload: unknown;
+    try {
+      payload = JSON.parse(stored);
+    } catch {
+      return stored;
+    }
+    if (!payload || typeof payload !== "object") {
+      localStorage.removeItem(TOKEN_KEY);
+      return null;
+    }
+    const { iv, data } = payload as { iv?: unknown; data?: unknown };
+    if (typeof iv !== "string" || typeof data !== "string") {
+      localStorage.removeItem(TOKEN_KEY);
+      return null;
+    }
     const key = await getKey();
     const ivBuffer = base64ToArrayBuffer(iv);
     const dataBuffer = base64ToArrayBuffer(data);
@@ -106,7 +122,9 @@ export async function getToken(): Promise<string | null> {
     );
     return new TextDecoder().decode(decrypted);
   } catch {
-    return stored;
+    // Si cambió la clave del despliegue, no reutilizar el JSON cifrado.
+    localStorage.removeItem(TOKEN_KEY);
+    return null;
   }
 }
 
