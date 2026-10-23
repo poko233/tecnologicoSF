@@ -248,12 +248,12 @@ const SwipeCard = ({
               </Text>
             </View>
           )}
-          <Text style={[styles.name, { color: c.text }]} numberOfLines={1}>
+          <Text style={[styles.name, { color: c.text }]} numberOfLines={3}>
             {fullName}
           </Text>
           <Text
             style={[styles.carrera, { color: c.textSecondary }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {estudiante.carrera}
           </Text>
@@ -283,8 +283,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   card: {
-    width: "100%", // Fijamos dimensiones explícitas para evitar el colapso en Web
-    height: "100%", // Fijamos dimensiones explícitas para evitar el colapso en Web
+    width: "100%",
+    height: "100%",
     borderRadius: 24,
     borderWidth: 1,
     padding: 24,
@@ -297,28 +297,30 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   photo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
-    borderWidth: 4,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    marginBottom: 12,
+    borderWidth: 3,
     borderColor: "#fff",
   },
-  initials: { fontSize: 36, fontWeight: "700" },
+  initials: { fontSize: 28, fontWeight: "700" },
   name: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: "center",
+    lineHeight: 20,
   },
   carrera: {
-    fontSize: 14,
+    fontSize: 12,
     backgroundColor: "rgba(0,0,0,0.05)",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 12,
     textAlign: "center",
+    lineHeight: 16,
   },
   obsContainer: {
     width: "100%",
