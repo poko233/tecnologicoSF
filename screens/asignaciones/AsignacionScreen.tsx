@@ -197,58 +197,24 @@ export default function AsignacionesScreen() {
   );
 
   const cargarMateriasModal = useCallback(
-  async (
-    idCarrera: number,
-    nivel: number,
-  ) => {
-    if (!estudianteSeleccionado) {
-      return;
-    }
+    async (idCarrera: number, nivel: number) => {
+      if (!estudianteSeleccionado) return;
 
-    const resultado =
-      await cargarMaterias(
-        estudianteSeleccionado.id,
-        idCarrera,
-        nivel,
-      );
-
-    /*
-     * ====================================================
-     * SIN GRUPOS
-     * ====================================================
-     *
-     * cargarMaterias devuelve null únicamente cuando
-     * el backend informa que no existen grupos activos.
-     *
-     * En ese caso cerramos automáticamente el modal.
-     */
-    if (resultado === null) {
-      setInscribirVisible(false);
-
-      setDatosCuotasGestion(null);
-
-      setCuotasCarreraId(null);
-
-      setEstudianteSeleccionado(null);
-
-      limpiarSeleccion(false);
-
-      return;
-    }
-  },
-  [
-    estudianteSeleccionado,
-    cargarMaterias,
-    limpiarSeleccion,
-    setEstudianteSeleccionado,
-  ],
-);
+      // Un nivel sin grupos no debe cerrar el modal ni perder las materias
+      // seleccionadas previamente en otros niveles.
+      await cargarMaterias(estudianteSeleccionado.id, idCarrera, nivel);
+    },
+    [estudianteSeleccionado, cargarMaterias],
+  );
 
   const abrirPdfEstudiante = useCallback(async (estudiante: Estudiante) => {
     try {
+      const carreraQuery = carreraActual
+        ? `idCarrera=${encodeURIComponent(String(carreraActual))}&`
+        : "";
       const url =
         `${BASE_URL}/api/inscripcion/formulario-registro/` +
-        `${estudiante.id}/pdf?t=${Date.now()}`;
+        `${estudiante.id}/pdf?${carreraQuery}t=${Date.now()}`;
 
       await Linking.openURL(url);
     } catch (error) {
@@ -259,7 +225,7 @@ export default function AsignacionesScreen() {
         text2: "No se pudo abrir el formulario de registro.",
       });
     }
-  }, []);
+  }, [carreraActual]);
 
   const cerrarInscribir = useCallback(() => {
     setInscribirVisible(false);

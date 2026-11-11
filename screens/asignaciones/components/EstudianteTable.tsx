@@ -77,8 +77,8 @@ function obtenerTurnoEstudiante(
 }
 
 function nombreCompleto(estudiante: Estudiante): string {
-  return `${estudiante.nombres ?? ""} ${estudiante.apellidoPaterno ?? ""} ${
-    estudiante.apellidoMaterno ?? ""
+  return `${estudiante.apellidoPaterno ?? ""} ${estudiante.apellidoMaterno ?? ""} ${
+    estudiante.nombres ?? ""
   }`
     .replace(/\s+/g, " ")
     .trim();

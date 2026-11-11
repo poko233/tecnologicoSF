@@ -139,11 +139,22 @@ const eliminarAsignacion = async (idMateria: number, idDocente: number) => {
       .sort(([a], [b]) => a - b)
       .map(([semestre, items]) => ({
         semestre,
-        materias: items.sort((a, b) =>
-          String(a.nombreMateria ?? a.nombre ?? "").localeCompare(
-            String(b.nombreMateria ?? b.nombre ?? "")
-          )
-        ),
+        materias: items.sort((a, b) => {
+          const codigoA = String(a.codigo ?? a.sigla ?? "").trim();
+          const codigoB = String(b.codigo ?? b.sigla ?? "").trim();
+          const numeroA = codigoA.match(/(\d+)(?!.*\d)/)?.[1];
+          const numeroB = codigoB.match(/(\d+)(?!.*\d)/)?.[1];
+          if (numeroA && numeroB && Number(numeroA) !== Number(numeroB)) {
+            return Number(numeroA) - Number(numeroB);
+          }
+          if (codigoA && codigoB) {
+            const diferencia = codigoA.localeCompare(codigoB, "es", { numeric: true });
+            if (diferencia !== 0) return diferencia;
+          }
+          return String(a.nombreMateria ?? a.nombre ?? "").localeCompare(
+            String(b.nombreMateria ?? b.nombre ?? ""), "es", { numeric: true }
+          );
+        }),
       }));
   }, [materiasCarreraFiltradas]);
 

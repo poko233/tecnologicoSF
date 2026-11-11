@@ -71,8 +71,8 @@ function toNumber(value: unknown, fallback = 0): number {
 function nombreCompleto(estudiante: Estudiante | null): string {
   if (!estudiante) return "";
 
-  return `${estudiante.nombres ?? ""} ${estudiante.apellidoPaterno ?? ""} ${
-    estudiante.apellidoMaterno ?? ""
+  return `${estudiante.apellidoPaterno ?? ""} ${estudiante.apellidoMaterno ?? ""} ${
+    estudiante.nombres ?? ""
   }`
     .replace(/\s+/g, " ")
     .trim();
@@ -501,6 +501,12 @@ export default function InscribirModal({
 
       const seleccionFinal =
         adicion ?? (inscripcionActual && !retiro ? inscripcionActual : null);
+      // Solo marcar el paralelo/turno en el que realmente está elegida la materia.
+      const marcada = Boolean(
+        seleccionFinal &&
+        Number(seleccionFinal.idGrupoMateriaDocente) ===
+          Number(grupoDisponible.idGrupoMateriaDocente),
+      );
 
       resultado.push({
         ...materia,
@@ -509,7 +515,7 @@ export default function InscribirModal({
         retiro,
         grupoDisponible,
         seleccionFinal,
-        marcada: Boolean(seleccionFinal),
+        marcada,
         puedeAlternar:
           Boolean(inscripcionActual) ||
           Boolean(adicion) ||
@@ -588,8 +594,7 @@ export default function InscribirModal({
 
     setNivelSeleccionado(Number(nivel));
     setParaleloSeleccionado(null);
-    setAgregar([]);
-    setQuitar([]);
+    // Conservamos los cambios de todos los niveles hasta guardar o cerrar.
     await onLoadMaterias(carreraSeleccionadaId, Number(nivel));
   };
 
@@ -598,57 +603,59 @@ export default function InscribirModal({
 
     setTurnoSeleccionado(turno);
     setParaleloSeleccionado(null);
-    setAgregar([]);
-    setQuitar([]);
+    // El turno solo filtra los grupos visibles; no descarta cambios previos.
   };
 
   const cambiarParalelo = (paralelo: string) => {
     if (guardando || loadingMaterias) return;
 
     setParaleloSeleccionado(normalizarParalelo(paralelo));
-    setAgregar([]);
-    setQuitar([]);
+    // El paralelo solo cambia la vista, no la selección global.
   };
 
   const alternarMateria = (materia: MateriaVisual) => {
     if (guardando || !materia.puedeAlternar) return;
+    if (!materia.grupoDisponible || !turnoSeleccionado || !nivelSeleccionado) return;
 
     const idMateria = Number(materia.idMateria);
+    const idGrupoElegido = Number(materia.grupoDisponible.idGrupoMateriaDocente);
+    const inscripcionActual = materia.inscripcionActual;
+    const adicion = materia.adicion;
+    const grupoActual = inscripcionActual
+      ? Number(inscripcionActual.idGrupoMateriaDocente)
+      : null;
+    const grupoAgregado = adicion
+      ? Number(adicion.idGrupoMateriaDocente)
+      : null;
 
-    if (materia.adicion) {
-      setAgregar((actuales) =>
-        actuales.filter((item) => item.idMateria !== idMateria),
-      );
-      return;
-    }
-
-    if (materia.inscripcionActual && !materia.retiro) {
-      setQuitar((actuales) => [...actuales, materia.inscripcionActual!]);
-      return;
-    }
-
-    if (materia.inscripcionActual && materia.retiro) {
-      const mismoGrupo =
-        materia.grupoDisponible &&
-        Number(materia.grupoDisponible.idGrupoMateriaDocente) ===
-          Number(materia.inscripcionActual.idGrupoMateriaDocente);
-
-      if (!materia.grupoDisponible || mismoGrupo || !turnoSeleccionado) {
-        setQuitar((actuales) =>
-          actuales.filter((item) => item.idMateria !== idMateria),
-        );
-        return;
+    // Pulsar la selección pendiente del mismo grupo la cancela.
+    // Si era un cambio de grupo, restaura la inscripción original.
+    if (grupoAgregado === idGrupoElegido) {
+      setAgregar((actuales) => actuales.filter((item) => item.idMateria !== idMateria));
+      if (inscripcionActual) {
+        setQuitar((actuales) => actuales.filter((item) => item.idMateria !== idMateria));
       }
-    }
-
-    if (
-      !materia.grupoDisponible ||
-      !turnoSeleccionado ||
-      !nivelSeleccionado
-    ) {
       return;
     }
 
+    // Pulsar el grupo original permite retirar o restaurar la materia.
+    if (grupoActual === idGrupoElegido) {
+      if (adicion) {
+        // Cancela un traslado pendiente y conserva la inscripción original.
+        setAgregar((actuales) => actuales.filter((item) => item.idMateria !== idMateria));
+        setQuitar((actuales) => actuales.filter((item) => item.idMateria !== idMateria));
+      } else if (materia.retiro) {
+        setQuitar((actuales) => actuales.filter((item) => item.idMateria !== idMateria));
+      } else {
+        setQuitar((actuales) => [
+          ...actuales.filter((item) => item.idMateria !== idMateria),
+          inscripcionActual!,
+        ]);
+      }
+      return;
+    }
+
+    // Elige o reemplaza el grupo de la materia, manteniendo los otros semestres.
     const seleccion = crearSeleccion(
       materia,
       materia.grupoDisponible,
@@ -656,11 +663,19 @@ export default function InscribirModal({
       Number(nivelSeleccionado),
       turnoSeleccionado,
     );
-
     setAgregar((actuales) => [
       ...actuales.filter((item) => item.idMateria !== idMateria),
       seleccion,
     ]);
+
+    // Cuando la materia ya estaba inscrita, el backend debe retirar su grupo
+    // anterior y añadir el nuevo en la misma transacción.
+    if (inscripcionActual) {
+      setQuitar((actuales) => [
+        ...actuales.filter((item) => item.idMateria !== idMateria),
+        inscripcionActual,
+      ]);
+    }
   };
 
   const totalCambios = agregar.length + quitar.length;
@@ -1091,13 +1106,21 @@ export default function InscribirModal({
                     ]}
                   >
                     {materiasVisuales.map((materia) => {
-                      const retirada = Boolean(materia.retiro && !materia.adicion);
-                      const cambiada = Boolean(materia.retiro && materia.adicion);
-                      const agregada = Boolean(materia.adicion && !materia.inscripcionActual);
+                      const enGrupoVisible = materia.marcada;
+                      const grupoVisibleId = Number(materia.grupoDisponible.idGrupoMateriaDocente);
+                      const retirada = Boolean(
+                        materia.retiro && !materia.adicion &&
+                        Number(materia.inscripcionActual?.idGrupoMateriaDocente) === grupoVisibleId,
+                      );
+                      const cambiada = Boolean(
+                        materia.retiro && materia.adicion && enGrupoVisible,
+                      );
+                      const agregada = Boolean(
+                        materia.adicion && !materia.inscripcionActual && enGrupoVisible,
+                      );
                       const inscrita = Boolean(
-                        materia.inscripcionActual &&
-                          !materia.retiro &&
-                          !materia.adicion,
+                        materia.inscripcionActual && !materia.retiro &&
+                        !materia.adicion && enGrupoVisible,
                       );
 
                       const estado = cambiada
@@ -1121,8 +1144,7 @@ export default function InscribirModal({
                               : theme.colors.primary;
 
                       const seleccionMostrada =
-                        materia.adicion ??
-                        materia.inscripcionActual ??
+                        (materia.marcada ? materia.seleccionFinal : null) ??
                         (materia.grupoDisponible && turnoSeleccionado && nivelSeleccionado
                           ? crearSeleccion(
                               materia,
