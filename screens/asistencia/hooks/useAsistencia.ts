@@ -1,41 +1,58 @@
 // screens/asistencia/hooks/useAsistencia.ts
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  batchRegistrarAsistencia,
-  getEstudiantesAsistencia,
+  actualizarFechasMateria,
+  cambiarEstadoSesion,
+  getGrupoEstudiantes,
   getGruposAsignados,
+  limpiarSesion,
+  reabrirSesion,
+  tomarSesion,
 } from "../services/asistencia.service";
 import {
   AsistenciaTipo,
-  BatchAsistenciaItem,
-  EstudiantesResponse,
+  CambiarEstadoSesionPayload,
+  EstudianteAsistencia,
   GrupoAsignado,
+  GrupoData,
+  Sesion,
 } from "../types/asistencia.types";
 
-export type LocalAttendanceState = Record<
-  number,
-  { tipo: AsistenciaTipo | null; observacion: string }
->;
+export type { LocalAttendanceState } from "../types/asistencia.types";
+
+/**
+ * Sanitiza la respuesta del backend:
+ * - Elimina nulls en `sesiones[]` y `estudiantes[]`.
+ * - Garantiza que `sesiones` y `estudiantes` son arrays.
+ * - Garantiza que `grupo_materia_docente` existe (sino, mantiene el raw pero no rompe).
+ */
+function sanitizeGrupoData(
+  raw: GrupoData | null | undefined,
+): GrupoData | null {
+  if (!raw) return null;
+  const sesiones: Sesion[] = Array.isArray(raw.sesiones)
+    ? raw.sesiones.filter(
+        (s): s is Sesion =>
+          !!s && typeof s === "object" && typeof s.id === "number",
+      )
+    : [];
+  const estudiantes: EstudianteAsistencia[] = Array.isArray(raw.estudiantes)
+    ? raw.estudiantes.filter(
+        (e): e is EstudianteAsistencia =>
+          !!e && typeof e === "object" && typeof e.id_inscripcion === "number",
+      )
+    : [];
+  return { ...raw, sesiones, estudiantes };
+}
 
 export function useAsistencia() {
   const [grupos, setGrupos] = useState<GrupoAsignado[]>([]);
   const [loadingGrupos, setLoadingGrupos] = useState(true);
   const [errorGrupos, setErrorGrupos] = useState<string | null>(null);
-
   const [selectedGrupoId, setSelectedGrupoId] = useState<number | null>(null);
-  const [estudiantesData, setEstudiantesData] =
-    useState<EstudiantesResponse | null>(null);
-  const [loadingEstudiantes, setLoadingEstudiantes] = useState(false);
-  const [errorEstudiantes, setErrorEstudiantes] = useState<string | null>(null);
-  const [sinEstudiantesMessage, setSinEstudiantesMessage] = useState<
-    string | null
-  >(null);
-
-  const [selectedHorarioId, setSelectedHorarioId] = useState<number | null>(
-    null,
-  );
-  const [localChanges, setLocalChanges] = useState<LocalAttendanceState>({});
-
+  const [grupoData, setGrupoData] = useState<GrupoData | null>(null);
+  const [loadingData, setLoadingData] = useState(false);
+  const [errorData, setErrorData] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchGrupos = useCallback(async () => {
@@ -45,107 +62,158 @@ export function useAsistencia() {
       const controller = new AbortController();
       abortRef.current = controller;
       const res = await getGruposAsignados(controller.signal);
-      setGrupos(res.data);
+      setGrupos(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
-      if (err.name === "AbortError") return;
-      setErrorGrupos(err.message || "Error desconocido");
+      if (err?.name === "AbortError") return;
+      setErrorGrupos(err?.message ?? "Error desconocido");
     } finally {
       setLoadingGrupos(false);
     }
   }, []);
 
-  const fetchEstudiantes = useCallback(async (idGrupo: number) => {
+  const fetchGrupoData = useCallback(async (idGrupo: number) => {
     setSelectedGrupoId(idGrupo);
-    setLoadingEstudiantes(true);
-    setErrorEstudiantes(null);
-    setSinEstudiantesMessage(null);
-    setLocalChanges({});
-    setSelectedHorarioId(null);
-    setEstudiantesData(null); // limpiar datos anteriores mientras carga
+    setLoadingData(true);
+    setErrorData(null);
+    setGrupoData(null);
     try {
       const controller = new AbortController();
       abortRef.current = controller;
-      const res = await getEstudiantesAsistencia(idGrupo, controller.signal);
-      setEstudiantesData(res.data);
-      if (res.message) {
-        setSinEstudiantesMessage(res.message);
-      }
+      const res = await getGrupoEstudiantes(idGrupo, controller.signal);
+      setGrupoData(sanitizeGrupoData(res.data));
     } catch (err: any) {
-      if (err.name === "AbortError") return;
-      setErrorEstudiantes(err.message || "Error al obtener datos");
+      if (err?.name === "AbortError") return;
+      setErrorData(err?.message ?? "Error al cargar el grupo");
     } finally {
-      setLoadingEstudiantes(false);
+      setLoadingData(false);
     }
   }, []);
 
-  const updateLocalChange = useCallback(
-    (
-      idInscripcion: number,
-      tipo: AsistenciaTipo | null,
-      observacion?: string,
+  const refresh = useCallback(async () => {
+    if (selectedGrupoId == null) return;
+    try {
+      const res = await getGrupoEstudiantes(selectedGrupoId);
+      const sanitized = sanitizeGrupoData(res.data);
+      if (sanitized) setGrupoData(sanitized);
+    } catch {
+      /* silencio */
+    }
+  }, [selectedGrupoId]);
+
+  const saveSesion = useCallback(
+    async (
+      idSesion: number,
+      asistencias: {
+        id_inscripcion: number;
+        tipo: AsistenciaTipo;
+        observacion?: string | null;
+      }[],
     ) => {
-      setLocalChanges((prev) => ({
-        ...prev,
-        [idInscripcion]: {
-          tipo: tipo ?? prev[idInscripcion]?.tipo ?? null,
-          observacion: observacion ?? prev[idInscripcion]?.observacion ?? "",
-        },
-      }));
+      const res = await tomarSesion(idSesion, { asistencias });
+      return res;
     },
     [],
   );
 
-  const submitBatch = useCallback(async () => {
-    if (
-      !estudiantesData ||
-      (!selectedHorarioId && estudiantesData.horarios.length > 0)
-    )
-      return;
-    const batchItems: BatchAsistenciaItem[] = [];
-    const listaId = estudiantesData.lista_asistencia.id;
+  const updateSesionEstado = useCallback(
+    async (idSesion: number, payload: CambiarEstadoSesionPayload) => {
+      const res = await cambiarEstadoSesion(idSesion, payload);
+      await refresh();
+      return res;
+    },
+    [refresh],
+  );
 
-    for (const est of estudiantesData.estudiantes) {
-      const local = localChanges[est.id_inscripcion];
-      const asistenciaActual = est.asistencias_hoy.find(
-        (a) =>
-          a.idHorario === selectedHorarioId ||
-          (!a.idHorario && !selectedHorarioId),
+  const reopenSesionById = useCallback(
+    async (idSesion: number) => {
+      const res = await reabrirSesion(idSesion);
+      await refresh();
+      return res;
+    },
+    [refresh],
+  );
+
+  const cleanSesionById = useCallback(
+    async (idSesion: number) => {
+      const res = await limpiarSesion(idSesion);
+      await refresh();
+      return res;
+    },
+    [refresh],
+  );
+
+  const saveMateriaFechas = useCallback(
+    async (fechaInicio: string, fechaFin: string) => {
+      if (!grupoData) throw new Error("Sin datos de grupo");
+      const res = await actualizarFechasMateria(
+        grupoData.grupo_materia_docente.id_materia,
+        {
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+        },
       );
-      const tipoFinal =
-        local?.tipo ?? asistenciaActual?.asistencia?.tipo ?? null;
-      const obsFinal =
-        local?.observacion ?? asistenciaActual?.asistencia?.observacion ?? null;
+      await refresh();
+      return res;
+    },
+    [grupoData, refresh],
+  );
 
-      if (tipoFinal) {
-        batchItems.push({
-          id_inscripcion: est.id_inscripcion,
-          id_lista_asistencia: listaId,
-          tipo: tipoFinal,
-          observacion: obsFinal,
-          idHorario: selectedHorarioId,
-        });
-      }
-    }
+  /**
+   * BLINDAJE: sanitiza `prev.sesiones` antes de mapear para evitar
+   * que un `null` (por race condition o backend malformed) rompa el reducer.
+   */
+  const updateLocalCell = useCallback(
+    async (idSesion: number, idInscripcion: number, tipo: AsistenciaTipo) => {
+      setGrupoData((prev) => {
+        if (!prev) return prev;
+        const estudiantes = (prev.estudiantes ?? [])
+          .filter(
+            (e): e is EstudianteAsistencia =>
+              !!e && typeof e.id_inscripcion === "number",
+          )
+          .map((e) => {
+            if (e.id_inscripcion !== idInscripcion) return e;
+            return {
+              ...e,
+              asistencias: {
+                ...(e.asistencias ?? {}),
+                [String(idSesion)]: {
+                  tipo,
+                  observacion:
+                    e.asistencias?.[String(idSesion)]?.observacion ?? null,
+                },
+              },
+            };
+          });
+        return { ...prev, estudiantes };
+      });
 
-    if (batchItems.length === 0) return;
-    const res = await batchRegistrarAsistencia({ asistencias: batchItems });
-    setLocalChanges({});
-    return res;
-  }, [estudiantesData, selectedHorarioId, localChanges]);
+      const res = await tomarSesion(idSesion, {
+        asistencias: [{ id_inscripcion: idInscripcion, tipo }],
+      });
+
+      setGrupoData((prev) => {
+        if (!prev) return prev;
+        const sesiones = (prev.sesiones ?? [])
+          .filter((s): s is Sesion => !!s && typeof s.id === "number")
+          .map((s) => (s.id === idSesion ? { ...s, ...res.data } : s));
+        return { ...prev, sesiones };
+      });
+
+      return res;
+    },
+    [],
+  );
 
   const resetToGroupSelection = useCallback(() => {
     setSelectedGrupoId(null);
-    setEstudiantesData(null);
-    setSelectedHorarioId(null);
-    setLocalChanges({});
-    setSinEstudiantesMessage(null);
+    setGrupoData(null);
+    setErrorData(null);
   }, []);
 
   useEffect(() => {
     fetchGrupos();
-    return () => {
-      abortRef.current?.abort();
-    };
+    return () => abortRef.current?.abort();
   }, [fetchGrupos]);
 
   return {
@@ -153,16 +221,17 @@ export function useAsistencia() {
     loadingGrupos,
     errorGrupos,
     selectedGrupoId,
-    estudiantesData,
-    loadingEstudiantes,
-    errorEstudiantes,
-    sinEstudiantesMessage,
-    fetchEstudiantes,
-    selectedHorarioId,
-    setSelectedHorarioId,
-    localChanges,
-    updateLocalChange,
-    submitBatch,
+    grupoData,
+    loadingData,
+    errorData,
+    fetchGrupoData,
+    refresh,
+    saveSesion,
+    updateSesionEstado,
+    reopenSesionById,
+    cleanSesionById,
+    saveMateriaFechas,
+    updateLocalCell,
     resetToGroupSelection,
   };
 }

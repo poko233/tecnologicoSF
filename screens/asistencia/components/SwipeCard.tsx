@@ -251,12 +251,11 @@ const SwipeCard = ({
           <Text style={[styles.name, { color: c.text }]} numberOfLines={3}>
             {fullName}
           </Text>
-          <Text
-            style={[styles.carrera, { color: c.textSecondary }]}
-            numberOfLines={2}
-          >
-            {estudiante.carrera}
-          </Text>
+          {estudiante.carrera ? (
+            <Text style={[styles.carrera, { color: c.textSecondary }]} numberOfLines={2}>
+              {estudiante.carrera}
+            </Text>
+          ) : null}
           <View style={[styles.obsContainer, { borderColor: c.border }]}>
             <TextInput
               style={[styles.obsInput, { color: c.text }]}

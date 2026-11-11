@@ -1,226 +1,60 @@
-import { useTheme } from "@/theme/useTheme";
-import { ArrowDown, ArrowUp } from "lucide-react-native";
-import React, { useCallback, useMemo, useRef } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { LocalAttendanceState } from "../hooks/useAsistencia";
-import { AsistenciaTipo, EstudiantesResponse } from "../types/asistencia.types";
-import { StudentRow } from "./StudentRow";
+// screens/asistencia/components/ListModeView.tsx
+import { useTheme } from '@/theme/useTheme';
+import { ArrowDown, ArrowUp } from 'lucide-react-native';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LocalAttendanceState } from '../hooks/useAsistencia';
+import { AsistenciaTipo, EstudianteAsistencia, Sesion } from '../types/asistencia.types';
+import { StudentRow } from './StudentRow';
 
-type SortOrder = "asc" | "desc";
+type SortOrder = 'asc' | 'desc';
 
-interface Props {
-  estudiantesData: EstudiantesResponse;
-  selectedHorarioId: number | null;
-  localState: LocalAttendanceState;
-  onUpdateLocal: (
-    idInscripcion: number,
-    tipo: AsistenciaTipo | null,
-    observacion?: string,
-  ) => void;
-  searchQuery: string;
-  sortOrder: SortOrder;
-  onSortToggle: () => void;
-}
+interface Props { estudiantes: EstudianteAsistencia[]; sesion: Sesion; localState: LocalAttendanceState; onUpdateLocal: (idInscripcion: number, tipo: AsistenciaTipo | null, observacion?: string) => void; searchQuery: string; sortOrder: SortOrder; onSortToggle: () => void; }
 
-export function ListModeView({
-  estudiantesData,
-  selectedHorarioId,
-  localState,
-  onUpdateLocal,
-  searchQuery,
-  sortOrder,
-  onSortToggle,
-}: Props) {
+export function ListModeView({ estudiantes, sesion, localState, onUpdateLocal, searchQuery, sortOrder, onSortToggle }: Props) {
   const { theme } = useTheme();
   const c = theme.colors;
   const listRef = useRef<FlatList>(null);
-
   const sortedAndFiltered = useMemo(() => {
-    const filtered = searchQuery.trim()
-      ? estudiantesData.estudiantes.filter((e) => {
-          const q = searchQuery.toLowerCase();
-          return (
-            e.nombres.toLowerCase().includes(q) ||
-            e.apellidoPaterno.toLowerCase().includes(q) ||
-            e.apellidoMaterno.toLowerCase().includes(q)
-          );
-        })
-      : estudiantesData.estudiantes;
-
-    const sorted = [...filtered].sort((a, b) => {
-      const aKey = `${a.apellidoPaterno.toLowerCase()} ${a.apellidoMaterno.toLowerCase()} ${a.nombres.toLowerCase()}`;
-      const bKey = `${b.apellidoPaterno.toLowerCase()} ${b.apellidoMaterno.toLowerCase()} ${b.nombres.toLowerCase()}`;
-      if (aKey < bKey) return sortOrder === "asc" ? -1 : 1;
-      if (aKey > bKey) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return sorted;
-  }, [estudiantesData.estudiantes, searchQuery, sortOrder]);
-
-  const renderHeader = useCallback(
-    () => (
-      <View
-        style={[
-          styles.headerRow,
-          {
-            borderBottomColor: c.border,
-            backgroundColor: c.backgroundSecondary,
-            borderTopLeftRadius: 12,
-            borderTopRightRadius: 12,
-          },
-        ]}
-      >
-        <Pressable
-          onPress={onSortToggle}
-          style={[
-            styles.headerCell,
-            {
-              flex: 2,
-              paddingLeft: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-            },
-          ]}
-        >
-          <Text style={[styles.headerText, { color: c.textSecondary }]}>
-            Estudiante
-          </Text>
-          {sortOrder === "asc" ? (
-            <ArrowUp size={12} color={c.textSecondary} />
-          ) : (
-            <ArrowDown size={12} color={c.textSecondary} />
-          )}
-        </Pressable>
-        <View style={[styles.headerCell, { flex: 2, alignItems: "center" }]}>
-          <Text style={[styles.headerText, { color: c.textSecondary }]}>
-            Estado
-          </Text>
-        </View>
-        <View style={[styles.headerCell, { flex: 3, paddingRight: 16 }]}>
-          <Text style={[styles.headerText, { color: c.textSecondary }]}>
-            Observación
-          </Text>
-        </View>
-      </View>
-    ),
-    [c, sortOrder, onSortToggle],
-  );
-
-  const renderItem = useCallback(
-    ({
-      item,
-      index,
-    }: {
-      item: (typeof estudiantesData.estudiantes)[0];
-      index: number;
-    }) => {
-      const asistenciaHoy = item.asistencias_hoy.find(
-        (a) =>
-          a.idHorario === selectedHorarioId ||
-          (!a.idHorario && !selectedHorarioId),
-      );
-      const local = localState[item.id_inscripcion];
-      const currentStatus =
-        local?.tipo ?? asistenciaHoy?.asistencia?.tipo ?? null;
-      const currentObs =
-        local?.observacion ?? asistenciaHoy?.asistencia?.observacion ?? "";
-
-      return (
-        <View style={{ marginTop: index === 0 ? 7 : 0 }}>
-          <StudentRow
-            estudiante={item}
-            selectedHorarioId={selectedHorarioId}
-            currentStatus={currentStatus}
-            currentObservacion={currentObs}
-            onStatusChange={(tipo) => onUpdateLocal(item.id_inscripcion, tipo)}
-            onObservacionChange={(text) =>
-              onUpdateLocal(item.id_inscripcion, null, text)
-            }
-            index={index}
-          />
-        </View>
-      );
-    },
-    [selectedHorarioId, localState, onUpdateLocal],
-  );
-
-  if (estudiantesData.estudiantes.length === 0) {
+    const filtered = searchQuery.trim() ? estudiantes.filter((e) => { const q = searchQuery.toLowerCase(); return e.nombres.toLowerCase().includes(q) || e.apellidoPaterno.toLowerCase().includes(q) || e.apellidoMaterno.toLowerCase().includes(q) || e.ci.toLowerCase().includes(q); }) : estudiantes;
+    return [...filtered].sort((a, b) => { const aKey = `${a.apellidoPaterno} ${a.apellidoMaterno} ${a.nombres}`.toLowerCase(); const bKey = `${b.apellidoPaterno} ${b.apellidoMaterno} ${b.nombres}`.toLowerCase(); if (aKey < bKey) return sortOrder === 'asc' ? -1 : 1; if (aKey > bKey) return sortOrder === 'asc' ? 1 : -1; return 0; });
+  }, [estudiantes, searchQuery, sortOrder]);
+  const renderHeader = useCallback(() => (
+    <View style={[styles.headerRow, { borderBottomColor: c.border, backgroundColor: c.backgroundSecondary, borderTopLeftRadius: 12, borderTopRightRadius: 12 }]}>
+      <Pressable onPress={onSortToggle} style={[styles.headerCell, { flex: 2, paddingLeft: 16, flexDirection: 'row', gap: 4 }]}>
+        <Text style={[styles.headerText, { color: c.textSecondary }]}>Estudiante</Text>
+        {sortOrder === 'asc' ? <ArrowUp size={12} color={c.textSecondary} /> : <ArrowDown size={12} color={c.textSecondary} />}
+      </Pressable>
+      <View style={[styles.headerCell, { flex: 2, alignItems: 'center' }]}><Text style={[styles.headerText, { color: c.textSecondary }]}>Estado</Text></View>
+      <View style={[styles.headerCell, { flex: 3, paddingRight: 16 }]}><Text style={[styles.headerText, { color: c.textSecondary }]}>Observación</Text></View>
+    </View>
+  ), [c, sortOrder, onSortToggle]);
+  const renderItem = useCallback(({ item, index }: { item: EstudianteAsistencia; index: number }) => {
+    const reg = item.asistencias[String(sesion.id)];
+    const local = localState[item.id_inscripcion];
+    const currentStatus = local?.tipo ?? reg?.tipo ?? null;
+    const currentObs = local?.observacion ?? reg?.observacion ?? '';
     return (
-      <View style={[styles.empty, { backgroundColor: c.card }]}>
-        <Text style={{ color: c.textSecondary, fontSize: 16 }}>
-          No hay estudiantes inscritos en este grupo.
-        </Text>
+      <View style={{ marginTop: index === 0 ? 7 : 0 }}>
+        <StudentRow estudiante={item} currentStatus={currentStatus} currentObservacion={currentObs} onStatusChange={(tipo) => onUpdateLocal(item.id_inscripcion, tipo)} onObservacionChange={(text) => onUpdateLocal(item.id_inscripcion, null, text)} index={index} />
       </View>
     );
-  }
-
+  }, [sesion.id, localState, onUpdateLocal]);
+  if (estudiantes.length === 0) return <View style={[styles.empty, { backgroundColor: c.card }]}><Text style={{ color: c.textSecondary, fontSize: 14 }}>No hay estudiantes inscritos en este grupo.</Text></View>;
   return (
-    <View style={{ flex: 1 }}>
-      <View
-        style={[
-          styles.tableContainer,
-          {
-            backgroundColor: c.card,
-            borderColor: c.border,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.06,
-            shadowRadius: 6,
-            elevation: 3,
-          },
-        ]}
-      >
-        <FlatList
-          ref={listRef}
-          data={sortedAndFiltered}
-          keyExtractor={(item) => item.id_inscripcion.toString()}
-          ListHeaderComponent={renderHeader}
-          stickyHeaderIndices={[0]}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={true}
-          initialNumToRender={20}
-          windowSize={10}
-          removeClippedSubviews={false}
-          style={{ flex: 1 }}
-          keyboardShouldPersistTaps="handled"
-        />
+    <View style={{ flex: 1, padding: 12 }}>
+      <View style={[styles.tableContainer, { backgroundColor: c.card, borderColor: c.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3 }]}>
+        <FlatList ref={listRef} data={sortedAndFiltered} keyExtractor={(item) => item.id_inscripcion.toString()} ListHeaderComponent={renderHeader} stickyHeaderIndices={[0]} renderItem={renderItem} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator initialNumToRender={20} windowSize={10} removeClippedSubviews={false} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tableContainer: {
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-  },
-  headerRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  headerCell: {
-    justifyContent: "center",
-  },
-  headerText: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  empty: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 30,
-    borderRadius: 12,
-  },
+  tableContainer: { borderRadius: 12, borderWidth: 1, flex: 1 },
+  headerRow: { flexDirection: 'row', borderBottomWidth: 1, paddingVertical: 12, alignItems: 'center' },
+  headerCell: { justifyContent: 'center' },
+  headerText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' },
+  listContent: { paddingBottom: 20 },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, borderRadius: 12 },
 });
