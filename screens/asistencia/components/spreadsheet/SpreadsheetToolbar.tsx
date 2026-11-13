@@ -3,7 +3,7 @@ import { useTheme } from "@/theme/useTheme";
 import {
   ArrowLeft,
   CalendarRange,
-  FileText,
+  Printer, // ← NUEVO
   RefreshCw,
   Search,
   Table,
@@ -40,7 +40,6 @@ interface Props {
   savingAll?: boolean;
   onSaveAll?: () => void;
   onDiscard?: () => void;
-  // AÑADIDOS
   loadingExcel?: boolean;
   loadingPdf?: boolean;
 }
@@ -71,7 +70,6 @@ export function SpreadsheetToolbar({
   const { theme } = useTheme();
   const c = theme.colors;
   const gmd = data.grupo_materia_docente;
-
   const isExporting = loadingExcel || loadingPdf;
 
   return (
@@ -81,6 +79,7 @@ export function SpreadsheetToolbar({
         { backgroundColor: c.card, borderBottomColor: c.border },
       ]}
     >
+      {/* ─── Fila 1 ─── */}
       <View style={styles.row}>
         <MotiPressable
           onPress={onBack}
@@ -132,6 +131,8 @@ export function SpreadsheetToolbar({
           </View>
         </View>
       </View>
+
+      {/* ─── Fila 2 ─── */}
       <View style={styles.row2}>
         <View
           style={[
@@ -177,7 +178,7 @@ export function SpreadsheetToolbar({
             </MotiPressable>
           )}
 
-          {/* BOTÓN EXCEL CON SPINNER */}
+          {/* BOTÓN EXCEL */}
           <MotiPressable
             onPress={onExportExcel}
             disabled={isExporting}
@@ -207,7 +208,7 @@ export function SpreadsheetToolbar({
             </View>
           </MotiPressable>
 
-          {/* BOTÓN PDF CON SPINNER */}
+          {/* BOTÓN PDF → IMPRIMIR */}
           <MotiPressable
             onPress={onExportPdf}
             disabled={isExporting}
@@ -229,10 +230,10 @@ export function SpreadsheetToolbar({
               {loadingPdf ? (
                 <ActivityIndicator size="small" color={c.destructive} />
               ) : (
-                <FileText size={14} color={c.destructive} />
+                <Printer size={14} color={c.destructive} />
               )}
               <Text style={[styles.actionText, { color: c.destructive }]}>
-                {loadingPdf ? "Generando..." : "PDF"}
+                {loadingPdf ? "Imprimiendo..." : "Imprimir"}
               </Text>
             </View>
           </MotiPressable>

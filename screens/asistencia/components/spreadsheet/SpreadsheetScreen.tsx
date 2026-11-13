@@ -26,7 +26,9 @@ import {
 import { ControlSesionModal } from "../sessions/ControlSesionModal";
 import { FechasMateriaModal } from "../sessions/FechasMateriaModal";
 import { SessionsFlowModal } from "../sessions/SessionsFlowModal";
+import { EmptyStudentsIllustration } from "./EmptyStudentsIllustration";
 import { SpreadsheetEmptyState } from "./SpreadsheetEmptyState";
+import { SpreadsheetEmptyStudents } from "./SpreadsheetEmptyStudents";
 import { SpreadsheetGrid } from "./SpreadsheetGrid";
 import { SpreadsheetMonthTabs } from "./SpreadsheetMonthTabs";
 import { SpreadsheetToolbar } from "./SpreadsheetToolbar";
@@ -88,11 +90,14 @@ export function SpreadsheetScreen({
   const [showFechas, setShowFechas] = useState(false);
   const [showFlow, setShowFlow] = useState(false);
   const [workingData, setWorkingData] = useState<GrupoData | null>(null);
-  const [changeLog, setChangeLog] = useState<Record<string, AsistenciaTipo>>({});
+  const [changeLog, setChangeLog] = useState<Record<string, AsistenciaTipo>>(
+    {},
+  );
   const [hasChanges, setHasChanges] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
 
-  const { descargarCsv, descargarPdf, loadingCsv, loadingPdf } = useReporteAsistencia();
+  const { descargarCsv, imprimirPdf, loadingCsv, loadingPdf } =
+    useReporteAsistencia();
 
   const requiresConfiguracion = grupoData?.requires_configuracion ?? null;
   const gmd = grupoData?.grupo_materia_docente ?? null;
@@ -157,7 +162,9 @@ export function SpreadsheetScreen({
       return name.includes(q) || ci.includes(q);
     });
   }, [workingData, grupoData, query]);
-
+  const totalGroupStudents =
+    (workingData ?? grupoData)?.estudiantes?.length ?? 0;
+  const isGroupEmpty = totalGroupStudents === 0;
   const { sesionesTomadas, sesionesTotales, asistenciaGlobal } = useMemo(() => {
     const gd = workingData ?? grupoData;
     if (!gd)
@@ -190,7 +197,7 @@ export function SpreadsheetScreen({
     setRefreshing(true);
     try {
       await onRefresh();
-      Toast.show({ type: 'success', text1: 'Lista actualizada' });
+      Toast.show({ type: "success", text1: "Lista actualizada" });
     } finally {
       setRefreshing(false);
     }
@@ -209,15 +216,12 @@ export function SpreadsheetScreen({
     setWorkingData((prev) => {
       if (!prev) return prev;
       const cloned = JSON.parse(JSON.stringify(prev)) as GrupoData;
-      const est = cloned.estudiantes.find(
-        (e) => e.id_inscripcion === idIns,
-      );
+      const est = cloned.estudiantes.find((e) => e.id_inscripcion === idIns);
       if (est) {
         est.asistencias = est.asistencias || {};
         est.asistencias[String(idSesion)] = {
           tipo: next,
-          observacion:
-            est.asistencias[String(idSesion)]?.observacion ?? null,
+          observacion: est.asistencias[String(idSesion)]?.observacion ?? null,
         };
       }
       const ses = cloned.sesiones.find((s) => s.id === idSesion);
@@ -261,7 +265,11 @@ export function SpreadsheetScreen({
     setSavingAll(true);
     const bySession: Record<
       number,
-      { id_inscripcion: number; tipo: AsistenciaTipo; observacion?: string | null }[]
+      {
+        id_inscripcion: number;
+        tipo: AsistenciaTipo;
+        observacion?: string | null;
+      }[]
     > = {};
     for (const key of Object.keys(changeLog)) {
       const [idSesionStr, idInsStr] = key.split("|");
@@ -271,8 +279,7 @@ export function SpreadsheetScreen({
       const est = workingData.estudiantes.find(
         (e) => e.id_inscripcion === idIns,
       );
-      const obs =
-        est?.asistencias?.[String(idSesion)]?.observacion ?? null;
+      const obs = est?.asistencias?.[String(idSesion)]?.observacion ?? null;
       if (!bySession[idSesion]) bySession[idSesion] = [];
       bySession[idSesion].push({
         id_inscripcion: idIns,
@@ -344,7 +351,7 @@ export function SpreadsheetScreen({
   };
   const handleExportPdf = () => {
     if (gmdId == null) return;
-    descargarPdf(gmdId);
+    imprimirPdf(gmdId);
   };
 
   /* ─── Guards de render ─── */
@@ -391,7 +398,14 @@ export function SpreadsheetScreen({
       </View>
     );
   }
-
+  if (isGroupEmpty) {
+    return (
+      <SpreadsheetEmptyStudents
+        data={workingData ?? grupoData}
+        onBack={onBack}
+      />
+    );
+  }
   /* ─── Branch requires_configuracion ─── */
   if (requiresConfiguracion !== null) {
     return (
@@ -502,16 +516,56 @@ export function SpreadsheetScreen({
             { backgroundColor: c.card, borderColor: c.border },
           ]}
         >
-          <SpreadsheetGrid
-            data={(workingData ?? grupoData) as GrupoData}
-            sesiones={visibleSessions}
-            estudiantes={filteredStudents}
-            gestionCerrada={gestionCerrada}
-            refreshing={refreshing}
-            onCellPress={handleCell}
-            onSessionPress={handleSessionPress}
-            containerHeight={gridContainerHeight}
-          />
+          {/* LÓGICA DE ESTADOS VACÍOS */}
+          {filteredStudents.length === 0 ? (
+            // El grupo SÍ tiene estudiantes, pero la búsqueda no encontró nada
+            <MotiView
+              from={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "timing", duration: 300 }}
+              style={styles.searchEmpty}
+            >
+              {/*  AQUI ENVOLVEMOS EL SVG CON LA ANIMACIÓN DE RESPIRACIÓN  */}
+              <MotiView
+                from={{ translateY: 0 }}
+                animate={{ translateY: -10 }}
+                transition={{
+                  type: "timing",
+                  duration: 2500,
+                  loop: true,
+                  repeatReverse: true,
+                }}
+              >
+                <EmptyStudentsIllustration maxWidth={220} />
+              </MotiView>
+
+              <Text
+                style={{
+                  color: c.textSecondary,
+                  fontSize: 15,
+                  fontWeight: "500",
+                  textAlign: "center",
+                  marginTop: 16,
+                  maxWidth: 400,
+                }}
+              >
+                No se encontraron estudiantes que coincidan con &quot;{query}
+                &quot;.
+              </Text>
+            </MotiView>
+          ) : (
+            // Renderizado normal de la tabla
+            <SpreadsheetGrid
+              data={(workingData ?? grupoData) as GrupoData}
+              sesiones={visibleSessions}
+              estudiantes={filteredStudents}
+              gestionCerrada={gestionCerrada}
+              refreshing={refreshing}
+              onCellPress={handleCell}
+              onSessionPress={handleSessionPress}
+              containerHeight={gridContainerHeight}
+            />
+          )}
         </View>
       </View>
 
@@ -564,4 +618,11 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   gridBox: { flex: 1, borderRadius: 10, borderWidth: 1, overflow: "hidden" },
+  searchEmpty: {
+    // Estilo para el estado vacío de búsqueda
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
 });
